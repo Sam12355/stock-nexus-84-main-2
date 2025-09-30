@@ -1,0 +1,327 @@
+const express = require('express');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { body, validationResult } = require('express-validator');
+const { query } = require('../config/database');
+const { authenticateToken } = require('../middleware/auth');
+
+const router = express.Router();
+
+// Register new user
+router.post('/register',
+  [
+    body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+    body('name').notEmpty().trim().withMessage('Name is required'),
+    body('role').isIn(['admin', 'regional_manager', 'district_manager', 'manager', 'assistant_manager', 'staff']).withMessage('Invalid role'),
+    body('phone').optional().isMobilePhone().withMessage('Invalid phone number')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          details: errors.array()
+        });
+      }
+
+      const { email, password, name, role, phone, branch_id, position } = req.body;
+
+      // Check if user already exists
+      const existingUser = await query('SELECT id FROM users WHERE email = $1', [email]);
+      if (existingUser.rows.length > 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'User with this email already exists'
+        });
+      }
+
+      // Hash password
+      const saltRounds = 12;
+      const passwordHash = await bcrypt.hash(password, saltRounds);
+
+      // Create user
+      const result = await query(
+        'INSERT INTO users (email, password_hash, name, role, phone, branch_id, position) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, email, name, role, branch_id, created_at',
+        [email, passwordHash, name, role, phone, branch_id, position]
+      );
+
+      const user = result.rows[0];
+
+      // Generate JWT token
+      const token = jwt.sign(
+        { userId: user.id, email: user.email, role: user.role },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+      );
+
+      res.status(201).json({
+        success: true,
+        data: {
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            branch_id: user.branch_id,
+            created_at: user.created_at
+          },
+          token
+        },
+        message: 'User registered successfully'
+      });
+    } catch (error) {
+      console.error('Registration error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Registration failed'
+      });
+    }
+  }
+);
+
+// Login user
+router.post('/login',
+  [
+    body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+    body('password').notEmpty().withMessage('Password is required')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          details: errors.array()
+        });
+      }
+
+      const { email, password } = req.body;
+
+      // Get user from database
+      const result = await query(
+        'SELECT id, email, password_hash, name, role, branch_id, branch_context, phone, position, photo_url, is_active, access_count FROM users WHERE email = $1',
+        [email]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid email or password'
+        });
+      }
+
+      const user = result.rows[0];
+
+      if (!user.is_active) {
+        return res.status(401).json({
+          success: false,
+          error: 'Account is deactivated'
+        });
+      }
+
+      // Verify password
+      const isValidPassword = await bcrypt.compare(password, user.password_hash);
+      if (!isValidPassword) {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid email or password'
+        });
+      }
+
+      // Update last access and access count
+      await query(
+        'UPDATE users SET last_access = NOW(), access_count = access_count + 1 WHERE id = $1',
+        [user.id]
+      );
+
+      // Generate JWT token
+      const token = jwt.sign(
+        { userId: user.id, email: user.email, role: user.role },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+      );
+
+      // Log activity
+      await query(
+        'SELECT log_user_activity($1, $2, $3, $4, $5)',
+        [
+          user.id,
+          'user_login',
+          JSON.stringify({ email: user.email }),
+          req.ip,
+          req.get('User-Agent')
+        ]
+      );
+
+      res.json({
+        success: true,
+        data: {
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            branch_id: user.branch_id,
+            branch_context: user.branch_context,
+            phone: user.phone,
+            position: user.position,
+            photo_url: user.photo_url,
+            access_count: user.access_count + 1
+          },
+          token
+        },
+        message: 'Login successful'
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Login failed'
+      });
+    }
+  }
+);
+
+// Get current user profile
+router.get('/profile', async (req, res) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: 'Access token required'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const result = await query(
+      'SELECT id, email, name, role, branch_id, branch_context, phone, position, photo_url, access_count, last_access, created_at, CASE WHEN branch_context IS NOT NULL THEN true ELSE false END as has_completed_selection FROM users WHERE id = $1 AND is_active = true',
+      [decoded.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid token'
+      });
+    } else if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        error: 'Token expired'
+      });
+    }
+    console.error('Profile error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get profile'
+    });
+  }
+});
+
+// Refresh token
+router.post('/refresh', async (req, res) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: 'Access token required'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const result = await query(
+      'SELECT id, email, role FROM users WHERE id = $1 AND is_active = true',
+      [decoded.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    const user = result.rows[0];
+
+    // Generate new token
+    const newToken = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    );
+
+    res.json({
+      success: true,
+      data: { token: newToken },
+      message: 'Token refreshed successfully'
+    });
+  } catch (error) {
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid token'
+      });
+    } else if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        error: 'Token expired'
+      });
+    }
+    console.error('Token refresh error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to refresh token'
+    });
+  }
+});
+
+// Logout endpoint
+router.post('/logout', authenticateToken, async (req, res) => {
+  try {
+    const user_id = req.user.id;
+    const ip_address = req.ip || req.connection.remoteAddress;
+    const user_agent = req.get('User-Agent');
+
+    // Log activity
+    await query(
+      'SELECT log_user_activity($1, $2, $3, $4, $5)',
+      [user_id, 'user_logout', JSON.stringify({ email: req.user.email }), ip_address, user_agent]
+    );
+
+    res.json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    console.error('Error during logout:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to logout'
+    });
+  }
+});
+
+module.exports = router;
+
+
