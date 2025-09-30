@@ -42,8 +42,8 @@ interface District {
 
 const branchSchema = z.object({
   name: z.string().trim().min(1, "Branch name is required").max(100, "Branch name must be less than 100 characters"),
-  description: z.string().max(500, "Description must be less than 500 characters").optional(),
-  location: z.string().max(200, "Location must be less than 200 characters").optional(),
+  description: z.string().max(500, "Description must be less than 500 characters").optional().or(z.literal("")),
+  location: z.string().max(200, "Location must be less than 200 characters").optional().or(z.literal("")),
   region_id: z.string().min(1, "Region selection is required"),
   district_id: z.string().min(1, "District selection is required")
 });
@@ -71,6 +71,26 @@ export default function BranchManagement() {
   const [selectedRegionId, setSelectedRegionId] = useState<string>('');
   const [selectedDistrictId, setSelectedDistrictId] = useState<string>('');
 
+  // Handle district selection change for regional managers
+  const handleDistrictChange = async (districtId: string) => {
+    setSelectedDistrictId(districtId);
+    if (districtId) {
+      try {
+        const districtBranches = await apiClient.getBranches(districtId);
+        setBranches(districtBranches || []);
+      } catch (error) {
+        console.error('Error fetching branches for district:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load branches for selected district",
+          variant: "destructive"
+        });
+      }
+    } else {
+      setBranches([]);
+    }
+  };
+
   useEffect(() => {
     if ((profile?.role as string) === 'admin') {
       fetchBranches();
@@ -80,6 +100,13 @@ export default function BranchManagement() {
       fetchRegionalManagerData();
     }
   }, [profile]);
+
+  // Watch for changes in branch_context for regional managers
+  useEffect(() => {
+    if ((profile?.role as string) === 'regional_manager' && profile?.branch_context) {
+      fetchRegionalManagerData();
+    }
+  }, [profile?.branch_context]);
 
   useEffect(() => {
     if (formData.region_id) {
@@ -159,13 +186,9 @@ export default function BranchManagement() {
           const regionDistricts = districtsData.filter(d => d.region_id === selectedBranch.region_id);
           setFilteredDistricts(regionDistricts);
           
-          // Fetch branches for the selected region/district
-          const allBranches = await apiClient.getBranches();
-          const filteredBranches = allBranches.filter(b => 
-            b.region_id === selectedBranch.region_id && 
-            b.district_id === selectedBranch.district_id
-          );
-          setBranches(filteredBranches || []);
+          // Fetch branches for the selected district
+          const districtBranches = await apiClient.getBranches(selectedBranch.district_id);
+          setBranches(districtBranches || []);
         }
       }
     } catch (error) {
@@ -187,8 +210,8 @@ export default function BranchManagement() {
       if (profile?.role === 'regional_manager') {
         const regionalManagerSchema = z.object({
           name: z.string().trim().min(1, "Branch name is required").max(100, "Branch name must be less than 100 characters"),
-          description: z.string().max(500, "Description must be less than 500 characters").optional(),
-          location: z.string().max(200, "Location must be less than 200 characters").optional(),
+          description: z.string().max(500, "Description must be less than 500 characters").optional().or(z.literal("")),
+          location: z.string().max(200, "Location must be less than 200 characters").optional().or(z.literal("")),
           region_id: z.string().optional(), // Make optional for regional managers
           district_id: z.string().optional() // Make optional for regional managers
         });
@@ -225,6 +248,8 @@ export default function BranchManagement() {
         region_id: profile?.role === 'regional_manager' ? selectedRegionId : (formData.region_id || null),
         district_id: profile?.role === 'regional_manager' ? selectedDistrictId : (formData.district_id || null)
       };
+
+      console.log('🔍 Branch data being sent:', branchData);
 
       if (editingBranch) {
         await apiClient.updateBranch(editingBranch.id, branchData);

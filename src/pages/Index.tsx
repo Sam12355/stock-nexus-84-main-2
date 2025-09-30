@@ -463,8 +463,15 @@ const Index = () => {
 
       setSelectedDistrictOption(selectedOption);
       console.log('District option set to:', selectedOption);
-      // Keep district selection visible to avoid modal flicker and enable branch selection below
-      setShowBranchSelection(true);
+      
+      // For regional managers, automatically select the first branch in the district
+      if (districtBranches.length > 0) {
+        const firstBranch = districtBranches[0];
+        await handleBranchSelection({ value: firstBranch.id, label: firstBranch.name });
+      } else {
+        // Keep district selection visible to avoid modal flicker and enable branch selection below
+        setShowBranchSelection(true);
+      }
     } catch (error) {
       console.error('Error fetching branches for district:', error);
       toast({

@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Package, TrendingUp, AlertTriangle, Plus, Minus, Eye } from "lucide-react";
+import { Package, TrendingUp, AlertTriangle, Plus, Minus } from "lucide-react";
 import ReactSelect from 'react-select';
 
 // Extended interface for profile with branch_context
@@ -40,13 +40,15 @@ interface StockItem {
     name: string;
     category: string;
     threshold_level: number;
+    low_level?: number;
+    critical_level?: number;
     image_url?: string;
     branch_id: string;
   };
 }
 
 const Stock = () => {
-  const { profile } = useAuth() as { profile: ExtendedProfile | null };
+  const { profile } = useAuth();
   const { toast } = useToast();
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +65,24 @@ const Stock = () => {
     try {
       const data = await apiClient.getStockData();
       setStockItems(data || []);
+      
+      // If no stock data exists, try to initialize stock records
+      if ((data || []).length === 0) {
+        try {
+          const initResult = await apiClient.initializeStock();
+          if (initResult.initialized > 0) {
+            toast({
+              title: "Stock Initialized",
+              description: `Created stock records for ${initResult.initialized} items`,
+            });
+            // Fetch data again after initialization
+            const newData = await apiClient.getStockData();
+            setStockItems(newData || []);
+          }
+        } catch (initError) {
+          console.error('Error initializing stock:', initError);
+        }
+      }
     } catch (error) {
       console.error('Error fetching stock data:', error);
       toast({
@@ -120,11 +140,14 @@ const Stock = () => {
   const checkAndSendStockAlert = async (item: StockItem, newQuantity: number) => {
     try {
       const threshold = item.items.threshold_level;
+      const lowLevel = item.items.low_level || Math.max(1, Math.floor(threshold * 0.5));
+      const criticalLevel = item.items.critical_level || Math.max(1, Math.floor(threshold * 0.2));
+      
       let alertType: 'low' | 'critical' | null = null;
 
-      if (newQuantity <= threshold * 0.5) {
+      if (newQuantity <= criticalLevel) {
         alertType = 'critical';
-      } else if (newQuantity <= threshold) {
+      } else if (newQuantity <= lowLevel) {
         alertType = 'low';
       }
 
@@ -197,6 +220,7 @@ const Stock = () => {
       });
     }
   };
+
 
   const getStockStatus = (item: StockItem) => {
     const threshold = item.items.threshold_level;

@@ -27,6 +27,7 @@ router.get('/stock', authenticateToken, async (req, res) => {
       queryText += ' WHERE i.branch_id = $1';
       params.push(req.user.branch_context);
     }
+    // For regional/district managers without branch_context, show all items
 
     queryText += ' ORDER BY i.name';
 
@@ -73,8 +74,6 @@ router.get('/movements', authenticateToken, async (req, res) => {
         sm.item_id,
         sm.movement_type,
         sm.quantity,
-        sm.previous_quantity,
-        sm.new_quantity,
         sm.reason,
         sm.created_at,
         sm.created_by,
@@ -94,6 +93,7 @@ router.get('/movements', authenticateToken, async (req, res) => {
       queryText += ' WHERE i.branch_id = $1';
       params.push(req.user.branch_context);
     }
+    // For regional/district managers without branch_context, show all movements
 
     queryText += ' ORDER BY sm.created_at DESC';
 
@@ -106,8 +106,6 @@ router.get('/movements', authenticateToken, async (req, res) => {
       item_name: row.item_name,
       movement_type: row.movement_type,
       quantity: row.quantity,
-      previous_quantity: row.previous_quantity,
-      new_quantity: row.new_quantity,
       reason: row.reason,
       created_at: row.created_at,
       user_name: row.user_name
@@ -127,5 +125,6 @@ router.get('/movements', authenticateToken, async (req, res) => {
 });
 
 module.exports = router;
+
 
 

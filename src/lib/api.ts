@@ -194,12 +194,52 @@ class ApiClient {
     return response.data;
   }
 
+  async createItem(itemData: any) {
+    const response = await this.request<{
+      success: boolean;
+      data: any;
+    }>('/items', {
+      method: 'POST',
+      body: JSON.stringify(itemData)
+    });
+    return response.data;
+  }
+
+  async updateItem(itemId: string, itemData: any) {
+    const response = await this.request<{
+      success: boolean;
+      data: any;
+    }>(`/items/${itemId}`, {
+      method: 'PUT',
+      body: JSON.stringify(itemData)
+    });
+    return response.data;
+  }
+
+  async deleteItem(itemId: string) {
+    const response = await this.request<{
+      success: boolean;
+      data: any;
+    }>(`/items/${itemId}`, {
+      method: 'DELETE'
+    });
+    return response.data;
+  }
+
   // Reports methods
   async getStockReport() {
     const response = await this.request<{
       success: boolean;
       data: any[];
     }>('/reports/stock');
+    return response.data;
+  }
+
+  async getMovementsReport() {
+    const response = await this.request<{
+      success: boolean;
+      data: any[];
+    }>('/reports/movements');
     return response.data;
   }
 
@@ -505,6 +545,17 @@ class ApiClient {
       }),
     });
     return response.success;
+  }
+
+  async initializeStock() {
+    const response = await this.request<{
+      success: boolean;
+      message: string;
+      initialized: number;
+    }>('/stock/initialize', {
+      method: 'POST',
+    });
+    return response;
   }
 
   // Update user branch context

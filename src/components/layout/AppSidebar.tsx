@@ -54,7 +54,7 @@ const menuItems = [
     title: "Branch Management",
     url: "/branches",
     icon: Building2,
-    roles: ['admin']
+    roles: ['admin', 'regional_manager']
   },
   {
     title: "Manage Staff",

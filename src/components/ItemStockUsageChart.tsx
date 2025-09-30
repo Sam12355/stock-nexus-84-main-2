@@ -1,9 +1,9 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { supabase } from "@/integrations/supabase/client";
+import { apiClient } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TrendingUp } from "lucide-react";
 
@@ -33,14 +33,9 @@ export const ItemStockUsageChart = ({ branchId }: ItemStockUsageChartProps) => {
     if (!branchId || itemsLoaded) return;
     
     try {
-      const { data, error } = await supabase
-        .from('items')
-        .select('id, name')
-        .eq('branch_id', branchId)
-        .order('name');
-      
-      if (error) throw error;
-      setItems(data || []);
+      const data = await apiClient.getItems();
+      const branchItems = data?.filter(item => item.branch_id === branchId) || [];
+      setItems(branchItems.map(item => ({ id: item.id, name: item.name })));
       setItemsLoaded(true);
     } catch (error) {
       console.error('Error fetching items:', error);
@@ -52,70 +47,11 @@ export const ItemStockUsageChart = ({ branchId }: ItemStockUsageChartProps) => {
     
     setLoading(true);
     try {
-      let periods: string[] = [];
-      const now = new Date();
+      // Use the API client to get item usage analytics
+      const data = await apiClient.getItemUsageAnalytics(timePeriod);
       
-      if (timePeriod === 'daily') {
-        // Last 7 days
-        for (let i = 6; i >= 0; i--) {
-          const date = new Date(now);
-          date.setDate(date.getDate() - i);
-          periods.push(date.toISOString().split('T')[0]);
-        }
-      } else if (timePeriod === 'monthly') {
-        // Last 6 months
-        for (let i = 5; i >= 0; i--) {
-          const date = new Date(now);
-          date.setMonth(date.getMonth() - i);
-          periods.push(date.toISOString().slice(0, 7));
-        }
-      } else if (timePeriod === 'yearly') {
-        // Last 3 years
-        for (let i = 2; i >= 0; i--) {
-          const date = new Date(now);
-          date.setFullYear(date.getFullYear() - i);
-          periods.push(date.getFullYear().toString());
-        }
-      }
-
-      const startDate = timePeriod === 'yearly' 
-        ? `${periods[0]}-01-01` 
-        : timePeriod === 'monthly' 
-          ? `${periods[0]}-01` 
-          : periods[0];
-      
-      const { data: movementsData, error } = await supabase
-        .from('stock_movements')
-        .select('movement_type, quantity, created_at')
-        .eq('item_id', selectedItem)
-        .gte('created_at', startDate)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      // Group by period
-      const usageByPeriod: { [key: string]: number } = {};
-      (movementsData || []).forEach(movement => {
-        const date = new Date(movement.created_at);
-        let periodKey = '';
-        
-        if (timePeriod === 'daily') {
-          periodKey = date.toISOString().split('T')[0];
-        } else if (timePeriod === 'monthly') {
-          periodKey = date.toISOString().slice(0, 7);
-        } else if (timePeriod === 'yearly') {
-          periodKey = date.getFullYear().toString();
-        }
-        
-        usageByPeriod[periodKey] = (usageByPeriod[periodKey] || 0) + movement.quantity;
-      });
-
-      const chartData = periods.map(period => ({
-        period,
-        usage: usageByPeriod[period] || 0
-      }));
-
-      setUsageData(chartData);
+      // The API already returns the data in the correct format
+      setUsageData(data || []);
     } catch (error) {
       console.error('Error fetching usage data:', error);
     } finally {
@@ -124,9 +60,9 @@ export const ItemStockUsageChart = ({ branchId }: ItemStockUsageChartProps) => {
   }, [selectedItem, branchId, timePeriod]);
 
   // Load items when component mounts
-  useState(() => {
+  useEffect(() => {
     fetchItems();
-  });
+  }, [fetchItems]);
 
   return (
     <div className="space-y-4">

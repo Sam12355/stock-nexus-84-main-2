@@ -63,7 +63,15 @@ router.post('/regions',
   authorize('admin'),
   [
     body('name').notEmpty().withMessage('Region name is required'),
-    body('description').optional().isString(),
+    body('description').optional().custom((value) => {
+      if (value === null || value === undefined || value === '') {
+        return true; // Allow null, undefined, or empty string
+      }
+      if (typeof value === 'string' && value.length <= 500) {
+        return true; // Allow non-empty strings up to 500 characters
+      }
+      throw new Error('Description must be a string with maximum 500 characters');
+    }),
     body('regional_manager_id').optional().custom((value) => {
       if (value === null || value === undefined || value === '') {
         return true; // Allow null/empty values
@@ -80,6 +88,7 @@ router.post('/regions',
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
+        console.log('❌ Validation errors:', errors.array());
         return res.status(400).json({
           success: false,
           error: 'Validation failed',
@@ -131,7 +140,15 @@ router.put('/regions/:id',
   authorize('admin'),
   [
     body('name').notEmpty().withMessage('Region name is required'),
-    body('description').optional().isString(),
+    body('description').optional().custom((value) => {
+      if (value === null || value === undefined || value === '') {
+        return true; // Allow null, undefined, or empty string
+      }
+      if (typeof value === 'string' && value.length <= 500) {
+        return true; // Allow non-empty strings up to 500 characters
+      }
+      throw new Error('Description must be a string with maximum 500 characters');
+    }),
     body('regional_manager_id').optional().custom((value) => {
       if (value === null || value === undefined || value === '') {
         return true; // Allow null/empty values
@@ -148,6 +165,7 @@ router.put('/regions/:id',
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
+        console.log('❌ Validation errors:', errors.array());
         return res.status(400).json({
           success: false,
           error: 'Validation failed',
@@ -309,7 +327,15 @@ router.post('/districts',
   [
     body('name').notEmpty().withMessage('District name is required'),
     body('region_id').isUUID().withMessage('Valid region ID is required'),
-    body('description').optional().isString(),
+    body('description').optional().custom((value) => {
+      if (value === null || value === undefined || value === '') {
+        return true; // Allow null, undefined, or empty string
+      }
+      if (typeof value === 'string' && value.length <= 500) {
+        return true; // Allow non-empty strings up to 500 characters
+      }
+      throw new Error('Description must be a string with maximum 500 characters');
+    }),
     body('district_manager_id').optional().custom((value) => {
       if (value === null || value === undefined || value === '') {
         return true; // Allow null/empty values
@@ -326,6 +352,7 @@ router.post('/districts',
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
+        console.log('❌ Validation errors:', errors.array());
         return res.status(400).json({
           success: false,
           error: 'Validation failed',
@@ -362,7 +389,15 @@ router.put('/districts/:id',
   [
     body('name').notEmpty().withMessage('District name is required'),
     body('region_id').isUUID().withMessage('Valid region ID is required'),
-    body('description').optional().isString(),
+    body('description').optional().custom((value) => {
+      if (value === null || value === undefined || value === '') {
+        return true; // Allow null, undefined, or empty string
+      }
+      if (typeof value === 'string' && value.length <= 500) {
+        return true; // Allow non-empty strings up to 500 characters
+      }
+      throw new Error('Description must be a string with maximum 500 characters');
+    }),
     body('district_manager_id').optional().custom((value) => {
       if (value === null || value === undefined || value === '') {
         return true; // Allow null/empty values
@@ -379,6 +414,7 @@ router.put('/districts/:id',
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
+        console.log('❌ Validation errors:', errors.array());
         return res.status(400).json({
           success: false,
           error: 'Validation failed',
@@ -479,14 +515,20 @@ router.get('/branches', authenticateToken, async (req, res) => {
     
     // For regional managers, filter branches by their assigned region
     if (req.user.role === 'regional_manager') {
-      // Get the regional manager's branch context to find their assigned region
-      const userResult = await query('SELECT branch_context FROM users WHERE id = $1', [req.user.id]);
-      if (userResult.rows.length === 0 || !userResult.rows[0].branch_context) {
-        return res.status(403).json({
-          success: false,
-          error: 'Regional manager must complete branch selection first'
-        });
-      }
+      // If district_id is provided, allow fetching branches for that district
+      // This is used during the district selection process
+      if (district_id) {
+        queryText += ' WHERE b.district_id = $1';
+        params.push(district_id);
+      } else {
+        // Get the regional manager's branch context to find their assigned region
+        const userResult = await query('SELECT branch_context FROM users WHERE id = $1', [req.user.id]);
+        if (userResult.rows.length === 0 || !userResult.rows[0].branch_context) {
+          return res.status(403).json({
+            success: false,
+            error: 'Regional manager must complete branch selection first'
+          });
+        }
 
       // Get the branch details to find the district, then get the region from the district
       const branchResult = await query('SELECT district_id FROM branches WHERE id = $1', [userResult.rows[0].branch_context]);
@@ -508,20 +550,18 @@ router.get('/branches', authenticateToken, async (req, res) => {
         });
       }
       
-      const { region_id: assigned_region_id } = districtResult.rows[0];
-      
-      // Filter branches by the assigned region
-      queryText += ' WHERE r.id = $1';
-      params.push(assigned_region_id);
+        const { region_id: assigned_region_id } = districtResult.rows[0];
+        
+        // Filter branches by the assigned region
+        queryText += ' WHERE r.id = $1';
+        params.push(assigned_region_id);
+      }
     } else if (district_id) {
       queryText += ' WHERE b.district_id = $1';
       params.push(district_id);
     }
     
     queryText += ' ORDER BY b.name';
-    
-    console.log('🔍 Branches query:', queryText);
-    console.log('🔍 Branches params:', params);
     
     const result = await query(queryText, params);
     
@@ -562,8 +602,25 @@ router.post('/branches',
   [
     body('name').notEmpty().withMessage('Branch name is required'),
     body('district_id').isUUID().withMessage('Valid district ID is required'),
-    body('description').optional().isString(),
-    body('location').optional().isString(),
+    body('region_id').optional().isUUID().withMessage('Valid region ID is required'),
+    body('description').optional().custom((value) => {
+      if (value === null || value === undefined || value === '') {
+        return true; // Allow null, undefined, or empty string
+      }
+      if (typeof value === 'string' && value.length <= 500) {
+        return true; // Allow non-empty strings up to 500 characters
+      }
+      throw new Error('Description must be a string with maximum 500 characters');
+    }),
+    body('location').optional().custom((value) => {
+      if (value === null || value === undefined || value === '') {
+        return true; // Allow null, undefined, or empty string
+      }
+      if (typeof value === 'string' && value.length <= 200) {
+        return true; // Allow non-empty strings up to 200 characters
+      }
+      throw new Error('Location must be a string with maximum 200 characters');
+    }),
     body('manager_name').optional().isString(),
     body('address').optional().isString(),
     body('phone').optional().isString()
@@ -572,6 +629,7 @@ router.post('/branches',
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
+        console.log('❌ Validation errors:', errors.array());
         return res.status(400).json({
           success: false,
           error: 'Validation failed',
@@ -580,6 +638,16 @@ router.post('/branches',
       }
 
       const { name, district_id, description, location, manager_name, address, phone } = req.body;
+      
+      console.log('🔍 Received branch data:', {
+        name,
+        district_id,
+        description,
+        location,
+        manager_name,
+        address,
+        phone
+      });
 
       // For regional managers, validate they can only create branches in their assigned region/district
       if (req.user.role === 'regional_manager') {
@@ -665,8 +733,25 @@ router.put('/branches/:id',
   [
     body('name').notEmpty().withMessage('Branch name is required'),
     body('district_id').isUUID().withMessage('Valid district ID is required'),
-    body('description').optional().isString(),
-    body('location').optional().isString(),
+    body('region_id').optional().isUUID().withMessage('Valid region ID is required'),
+    body('description').optional().custom((value) => {
+      if (value === null || value === undefined || value === '') {
+        return true; // Allow null, undefined, or empty string
+      }
+      if (typeof value === 'string' && value.length <= 500) {
+        return true; // Allow non-empty strings up to 500 characters
+      }
+      throw new Error('Description must be a string with maximum 500 characters');
+    }),
+    body('location').optional().custom((value) => {
+      if (value === null || value === undefined || value === '') {
+        return true; // Allow null, undefined, or empty string
+      }
+      if (typeof value === 'string' && value.length <= 200) {
+        return true; // Allow non-empty strings up to 200 characters
+      }
+      throw new Error('Location must be a string with maximum 200 characters');
+    }),
     body('manager_name').optional().isString(),
     body('address').optional().isString(),
     body('phone').optional().isString()
@@ -675,6 +760,7 @@ router.put('/branches/:id',
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
+        console.log('❌ Validation errors:', errors.array());
         return res.status(400).json({
           success: false,
           error: 'Validation failed',
@@ -684,6 +770,16 @@ router.put('/branches/:id',
 
       const { id } = req.params;
       const { name, district_id, description, location, manager_name, address, phone } = req.body;
+      
+      console.log('🔍 Received branch data:', {
+        name,
+        district_id,
+        description,
+        location,
+        manager_name,
+        address,
+        phone
+      });
 
       // For regional managers, validate they can only update branches in their assigned region/district
       if (req.user.role === 'regional_manager') {

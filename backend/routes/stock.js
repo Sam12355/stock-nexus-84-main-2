@@ -8,7 +8,7 @@ const router = express.Router();
 router.get('/', authenticateToken, async (req, res) => {
   try {
     let queryText = `
-      SELECT s.*, i.name, i.category, i.threshold_level, i.image_url, i.branch_id
+      SELECT s.*, i.name, i.category, i.threshold_level, i.low_level, i.critical_level, i.image_url, i.branch_id
       FROM stock s
       JOIN items i ON s.item_id = i.id
     `;
@@ -37,6 +37,8 @@ router.get('/', authenticateToken, async (req, res) => {
         name: row.name,
         category: row.category,
         threshold_level: row.threshold_level,
+        low_level: row.low_level,
+        critical_level: row.critical_level,
         image_url: row.image_url,
         branch_id: row.branch_id
       }
@@ -124,6 +126,49 @@ router.post('/movement', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to update stock quantity'
+    });
+  }
+});
+
+// Initialize stock for items that don't have stock records
+router.post('/initialize', authenticateToken, async (req, res) => {
+  try {
+    // Find items that don't have stock records
+    const itemsWithoutStock = await query(`
+      SELECT i.id, i.name, i.branch_id
+      FROM items i
+      LEFT JOIN stock s ON i.id = s.item_id
+      WHERE s.item_id IS NULL
+    `);
+
+    if (itemsWithoutStock.rows.length === 0) {
+      return res.json({
+        success: true,
+        message: 'All items already have stock records',
+        initialized: 0
+      });
+    }
+
+    // Create stock records for items without them
+    let initialized = 0;
+    for (const item of itemsWithoutStock.rows) {
+      await query(
+        'INSERT INTO stock (item_id, current_quantity, updated_by) VALUES ($1, $2, $3)',
+        [item.id, 0, req.user.id]
+      );
+      initialized++;
+    }
+
+    res.json({
+      success: true,
+      message: `Initialized stock records for ${initialized} items`,
+      initialized
+    });
+  } catch (error) {
+    console.error('Error initializing stock records:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to initialize stock records'
     });
   }
 });

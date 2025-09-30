@@ -41,6 +41,8 @@ interface Item {
   image_url?: string;
   storage_temperature?: number;
   threshold_level: number;
+  low_level?: number;
+  critical_level?: number;
   branch_id: string;
   created_by?: string;
   created_at: string;
@@ -69,9 +71,11 @@ const itemSchema = z.object({
     required_error: "Category is required"
   }),
   description: z.string().max(500, "Description must be less than 500 characters").optional(),
-  image_url: z.string().url("Please upload an item photo"),
-  storage_temperature: z.number().min(-50, "Temperature must be above -50°C").max(100, "Temperature must be below 100°C").optional(),
-  threshold_level: z.number().min(1, "Threshold must be at least 1").max(10000, "Threshold must be less than 10,000")
+  image_url: z.string().optional().or(z.literal("")),
+  storage_temperature: z.string().optional().transform((val) => val ? parseFloat(val) : undefined).pipe(z.number().min(-50, "Temperature must be above -50°C").max(100, "Temperature must be below 100°C").optional()),
+  threshold_level: z.string().transform((val) => parseInt(val)).pipe(z.number().min(1, "Threshold must be at least 1").max(10000, "Threshold must be less than 10,000")),
+  low_level: z.string().optional().transform((val) => val ? parseInt(val) : undefined).pipe(z.number().min(1, "Low level must be at least 1").max(10000, "Low level must be less than 10,000").optional()),
+  critical_level: z.string().optional().transform((val) => val ? parseInt(val) : undefined).pipe(z.number().min(1, "Critical level must be at least 1").max(10000, "Critical level must be less than 10,000").optional())
 });
 
 const Items = () => {
@@ -89,11 +93,20 @@ const Items = () => {
     description: "",
     image_url: "",
     storage_temperature: "",
-    threshold_level: ""
+    threshold_level: "",
+    low_level: "",
+    critical_level: ""
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string>("");
+
+  // Auto-set branch for regional managers
+  useEffect(() => {
+    if (profile?.role === 'regional_manager' && profile?.branch_context) {
+      setSelectedBranchId(profile.branch_context);
+    }
+  }, [profile?.branch_context]);
 
   const fetchItems = async () => {
     try {
@@ -111,36 +124,13 @@ const Items = () => {
     }
   };
 
-  const validateForm = () => {
-    try {
-      const processedData = {
-        ...formData,
-        storage_temperature: formData.storage_temperature ? parseFloat(formData.storage_temperature) : undefined,
-        threshold_level: parseInt(formData.threshold_level)
-      };
-      
-      itemSchema.parse(processedData);
-      setFormErrors({});
-      return true;
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const errors: Record<string, string> = {};
-        error.errors.forEach((err) => {
-          if (err.path) {
-            errors[err.path[0]] = err.message;
-          }
-        });
-        setFormErrors(errors);
-      }
-      return false;
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
-
+    
     try {
+      // Validate form data using Zod schema
+      const validatedData = itemSchema.parse(formData);
+      setFormErrors({});
       // Regional and District managers must select a branch if no branch_context
       if ((profile?.role === 'regional_manager' || profile?.role === 'district_manager') && !profile?.branch_context && !selectedBranchId) {
         toast({
@@ -152,12 +142,14 @@ const Items = () => {
       }
 
       const itemData = {
-        name: formData.name.trim(),
-        category: formData.category,
-        description: formData.description.trim() || null,
-        image_url: formData.image_url.trim() || null,
-        storage_temperature: formData.storage_temperature ? parseFloat(formData.storage_temperature) : null,
-        threshold_level: parseInt(formData.threshold_level),
+        name: validatedData.name.trim(),
+        category: validatedData.category,
+        description: validatedData.description?.trim() || null,
+        image_url: validatedData.image_url?.trim() || null,
+        storage_temperature: validatedData.storage_temperature || null,
+        threshold_level: validatedData.threshold_level,
+        low_level: validatedData.low_level,
+        critical_level: validatedData.critical_level,
         branch_id: profile?.role === 'regional_manager' || profile?.role === 'district_manager' 
           ? (profile?.branch_context || selectedBranchId) 
           : profile?.branch_id,
@@ -166,26 +158,7 @@ const Items = () => {
 
       if (selectedItem) {
         // Update existing item
-        const { error } = await supabase
-          .from('items')
-          .update({
-            ...itemData,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', selectedItem.id);
-
-        if (error) throw error;
-
-        // Log activity
-        try {
-          await supabase.rpc('log_user_activity', {
-            p_action: 'item_updated',
-            p_details: JSON.stringify({ item_id: selectedItem.id, name: itemData.name })
-          });
-        } catch (logError) {
-          console.warn('Failed to log item update:', logError);
-        }
-
+        await apiClient.updateItem(selectedItem.id, itemData);
         toast({
           title: "Success",
           description: "Item updated successfully",
@@ -193,22 +166,7 @@ const Items = () => {
         setIsEditModalOpen(false);
       } else {
         // Create new item
-        const { error } = await supabase
-          .from('items')
-          .insert([itemData]);
-
-        if (error) throw error;
-
-        // Log activity
-        try {
-          await supabase.rpc('log_user_activity', {
-            p_action: 'item_created',
-            p_details: JSON.stringify({ name: itemData.name })
-          });
-        } catch (logError) {
-          console.warn('Failed to log item creation:', logError);
-        }
-
+        await apiClient.createItem(itemData);
         toast({
           title: "Success", 
           description: "Item created successfully",
@@ -219,6 +177,21 @@ const Items = () => {
       fetchItems();
       resetForm();
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errors: Record<string, string> = {};
+        error.errors.forEach((err) => {
+          if (err.path) {
+            errors[err.path[0]] = err.message;
+          }
+        });
+        setFormErrors(errors);
+        toast({
+          title: "Validation Error",
+          description: "Please check the form for errors",
+          variant: "destructive",
+        });
+        return;
+      }
       console.error('Error saving item:', error);
       const errMsg = (error as any)?.message || "Failed to save item";
       toast({
@@ -231,24 +204,7 @@ const Items = () => {
 
   const handleDelete = async (itemId: string) => {
     try {
-      const { error } = await supabase
-        .from('items')
-        .delete()
-        .eq('id', itemId);
-
-      if (error) throw error;
-
-      // Log activity
-      try {
-        const branchId = profile?.branch_id || profile?.branch_context;
-        await supabase.rpc('log_user_activity', {
-          p_action: 'item_deleted',
-          p_details: JSON.stringify({ item_id: itemId })
-        });
-      } catch (logError) {
-        console.warn('Failed to log item deletion:', logError);
-      }
-
+      await apiClient.deleteItem(itemId);
       toast({
         title: "Success",
         description: "Item deleted successfully",
@@ -271,7 +227,9 @@ const Items = () => {
       description: "",
       image_url: "",
       storage_temperature: "",
-      threshold_level: ""
+      threshold_level: "",
+      low_level: "",
+      critical_level: ""
     });
     setFormErrors({});
     setSelectedItem(null);
@@ -285,7 +243,9 @@ const Items = () => {
       description: item.description || "",
       image_url: item.image_url || "",
       storage_temperature: item.storage_temperature?.toString() || "",
-      threshold_level: item.threshold_level.toString()
+      threshold_level: item.threshold_level.toString(),
+      low_level: item.low_level?.toString() || "",
+      critical_level: item.critical_level?.toString() || ""
     });
     setIsEditModalOpen(true);
   };
@@ -302,13 +262,11 @@ const Items = () => {
     if (canManageItems) {
       fetchItems();
       if (profile?.role === 'regional_manager' || profile?.role === 'district_manager') {
-        supabase
-          .from('branches')
-          .select('id,name')
-          .order('name', { ascending: true })
-          .then(({ data, error }) => {
-            if (!error) setBranches(data || []);
-          });
+        apiClient.getBranches().then((data) => {
+          setBranches(data || []);
+        }).catch((error) => {
+          console.error('Error fetching branches:', error);
+        });
       }
     }
   }, [canManageItems, profile?.role]);
@@ -336,7 +294,7 @@ const Items = () => {
               Add New Item
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Package2 className="h-5 w-5" />
@@ -371,22 +329,35 @@ const Items = () => {
                 </Select>
                  {formErrors.category && <p className="text-sm text-red-500 mt-1">{formErrors.category}</p>}
 
-                 {/* Only show branch selection for regional managers without branch_context */}
-                 {(profile?.role === 'regional_manager' || profile?.role === 'district_manager') && !profile?.branch_context && (
+                 {/* Branch selection for regional and district managers */}
+                 {(profile?.role === 'regional_manager' || profile?.role === 'district_manager') && (
                    <div className="mt-2">
-                     <Label htmlFor="branch">Branch *</Label>
-                     <Select onValueChange={(value) => setSelectedBranchId(value)}>
-                       <SelectTrigger>
-                         <SelectValue placeholder="Select branch" />
-                       </SelectTrigger>
-                       <SelectContent>
-                         {branches.map((b) => (
-                           <SelectItem key={b.id} value={b.id}>
-                             {b.name}
-                           </SelectItem>
-                         ))}
-                       </SelectContent>
-                     </Select>
+                     {profile?.branch_context ? (
+                       <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                         <Label className="text-sm font-medium text-blue-800">Branch Assignment</Label>
+                         <p className="text-sm text-blue-700 mt-1">
+                           Item will be created for your selected branch: <strong>
+                             {branches.find(b => b.id === profile.branch_context)?.name || 'Your Selected Branch'}
+                           </strong>
+                         </p>
+                       </div>
+                     ) : (
+                       <>
+                         <Label htmlFor="branch">Branch *</Label>
+                         <Select onValueChange={(value) => setSelectedBranchId(value)}>
+                           <SelectTrigger>
+                             <SelectValue placeholder="Select branch" />
+                           </SelectTrigger>
+                           <SelectContent>
+                             {branches.map((b) => (
+                               <SelectItem key={b.id} value={b.id}>
+                                 {b.name}
+                               </SelectItem>
+                             ))}
+                           </SelectContent>
+                         </Select>
+                       </>
+                     )}
                    </div>
                  )}
               </div>
@@ -404,38 +375,19 @@ const Items = () => {
               </div>
 
               <div>
-                <Label htmlFor="image-url">Item Photo *</Label>
+                <Label htmlFor="image-url">Item Photo</Label>
                 <Input
                   id="image-url"
                   type="file"
                   accept="image/*"
-                  onChange={async (e) => {
+                  onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
-                      try {
-                        const fileExt = file.name.split('.').pop();
-                        const fileName = `${Date.now()}.${fileExt}`;
-                        const filePath = `items/${fileName}`;
-
-                        const { error: uploadError } = await supabase.storage
-                          .from('user-uploads')
-                          .upload(filePath, file);
-
-                        if (uploadError) throw uploadError;
-
-                        const { data } = supabase.storage
-                          .from('user-uploads')
-                          .getPublicUrl(filePath);
-
-                        setFormData({ ...formData, image_url: data.publicUrl });
-                      } catch (error) {
-                        console.error('Error uploading image:', error);
-                        toast({
-                          title: "Error",
-                          description: "Failed to upload image",
-                          variant: "destructive",
-                        });
-                      }
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        setFormData({ ...formData, image_url: event.target?.result as string });
+                      };
+                      reader.readAsDataURL(file);
                     }
                   }}
                 />
@@ -480,6 +432,40 @@ const Items = () => {
                   Alert will be triggered when stock falls below this level
                 </p>
                 {formErrors.threshold_level && <p className="text-sm text-red-500 mt-1">{formErrors.threshold_level}</p>}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="low_level">Low Level Alert (Optional)</Label>
+                  <Input
+                    id="low_level"
+                    type="number"
+                    min="1"
+                    value={formData.low_level}
+                    onChange={(e) => setFormData({ ...formData, low_level: e.target.value })}
+                    placeholder="e.g., 5"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Low stock alert threshold (default: 50% of threshold)
+                  </p>
+                  {formErrors.low_level && <p className="text-sm text-red-500 mt-1">{formErrors.low_level}</p>}
+                </div>
+
+                <div>
+                  <Label htmlFor="critical_level">Critical Level Alert (Optional)</Label>
+                  <Input
+                    id="critical_level"
+                    type="number"
+                    min="1"
+                    value={formData.critical_level}
+                    onChange={(e) => setFormData({ ...formData, critical_level: e.target.value })}
+                    placeholder="e.g., 2"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Critical stock alert threshold (default: 20% of threshold)
+                  </p>
+                  {formErrors.critical_level && <p className="text-sm text-red-500 mt-1">{formErrors.critical_level}</p>}
+                </div>
               </div>
 
               <div className="flex justify-end space-x-2 pt-4">
@@ -625,7 +611,7 @@ const Items = () => {
 
       {/* Edit Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Edit className="h-5 w-5" />
@@ -677,38 +663,19 @@ const Items = () => {
             </div>
 
             <div>
-              <Label htmlFor="edit-image-url">Item Photo *</Label>
+              <Label htmlFor="edit-image-url">Item Photo</Label>
               <Input
                 id="edit-image-url"
                 type="file"
                 accept="image/*"
-                onChange={async (e) => {
+                onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) {
-                    try {
-                      const fileExt = file.name.split('.').pop();
-                      const fileName = `${Date.now()}.${fileExt}`;
-                      const filePath = `items/${fileName}`;
-
-                      const { error: uploadError } = await supabase.storage
-                        .from('user-uploads')
-                        .upload(filePath, file);
-
-                      if (uploadError) throw uploadError;
-
-                      const { data } = supabase.storage
-                        .from('user-uploads')
-                        .getPublicUrl(filePath);
-
-                      setFormData({ ...formData, image_url: data.publicUrl });
-                    } catch (error) {
-                      console.error('Error uploading image:', error);
-                      toast({
-                        title: "Error",
-                        description: "Failed to upload image",
-                        variant: "destructive",
-                      });
-                    }
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                      setFormData({ ...formData, image_url: event.target?.result as string });
+                    };
+                    reader.readAsDataURL(file);
                   }
                 }}
               />
@@ -753,6 +720,40 @@ const Items = () => {
                 Alert will be triggered when stock falls below this level
               </p>
               {formErrors.threshold_level && <p className="text-sm text-red-500 mt-1">{formErrors.threshold_level}</p>}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-low-level">Low Level Alert (Optional)</Label>
+                <Input
+                  id="edit-low-level"
+                  type="number"
+                  min="1"
+                  value={formData.low_level}
+                  onChange={(e) => setFormData({ ...formData, low_level: e.target.value })}
+                  placeholder="e.g., 5"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Low stock alert threshold (default: 50% of threshold)
+                </p>
+                {formErrors.low_level && <p className="text-sm text-red-500 mt-1">{formErrors.low_level}</p>}
+              </div>
+
+              <div>
+                <Label htmlFor="edit-critical-level">Critical Level Alert (Optional)</Label>
+                <Input
+                  id="edit-critical-level"
+                  type="number"
+                  min="1"
+                  value={formData.critical_level}
+                  onChange={(e) => setFormData({ ...formData, critical_level: e.target.value })}
+                  placeholder="e.g., 2"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Critical stock alert threshold (default: 20% of threshold)
+                </p>
+                {formErrors.critical_level && <p className="text-sm text-red-500 mt-1">{formErrors.critical_level}</p>}
+              </div>
             </div>
 
             <div className="flex justify-end space-x-2 pt-4">

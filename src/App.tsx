@@ -40,7 +40,7 @@ const App = () => (
               <Route path="/" element={<DashboardLayout><AdminRedirect><Index /></AdminRedirect></DashboardLayout>} />
               <Route path="/regions" element={<DashboardLayout><RegionManagement /></DashboardLayout>} />
               <Route path="/districts" element={<DashboardLayout><DistrictManagement /></DashboardLayout>} />
-              <Route path="/branches" element={<DashboardLayout><RoleGuard allowedRoles={['admin']}><BranchManagement /></RoleGuard></DashboardLayout>} />
+              <Route path="/branches" element={<DashboardLayout><RoleGuard allowedRoles={['admin', 'regional_manager']}><BranchManagement /></RoleGuard></DashboardLayout>} />
               
               <Route path="/items" element={<DashboardLayout><Items /></DashboardLayout>} />
               <Route path="/stock" element={<DashboardLayout><Stock /></DashboardLayout>} />
