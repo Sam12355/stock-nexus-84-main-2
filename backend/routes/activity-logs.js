@@ -20,12 +20,13 @@ router.get('/', authenticateToken, async (req, res) => {
 
     // Filter by branch for non-admin users
     if (req.user.role !== 'admin' && req.user.role !== 'regional_manager' && req.user.role !== 'district_manager') {
-      conditions.push('al.branch_id = $' + (params.length + 1));
+      conditions.push('u.branch_id = $' + (params.length + 1));
       params.push(req.user.branch_id);
     } else if ((req.user.role === 'regional_manager' || req.user.role === 'district_manager') && req.user.branch_context) {
-      conditions.push('al.branch_id = $' + (params.length + 1));
+      conditions.push('u.branch_id = $' + (params.length + 1));
       params.push(req.user.branch_context);
     }
+    // For regional/district managers without branch_context, show all activities (no additional filter)
 
     // Additional filters
     if (action) {

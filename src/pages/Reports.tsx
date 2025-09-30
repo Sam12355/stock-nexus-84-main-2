@@ -13,6 +13,9 @@ import { format } from "date-fns";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import '../styles/datepicker.css';
 
 interface StockReport {
   id: string;
@@ -349,16 +352,22 @@ const Reports = () => {
               <Filter className="h-4 w-4 mr-1 inline" />
               Filter by Month:
             </Label>
-            <Input
-              type="month"
-              value={format(selectedMonth, 'yyyy-MM')}
-              onChange={(e) => {
-                const [year, month] = e.target.value.split('-');
-                setSelectedMonth(new Date(parseInt(year), parseInt(month) - 1, 1));
-              }}
-              max={format(new Date(), 'yyyy-MM')}
-              className="w-40"
-            />
+            <div className="relative">
+              <DatePicker
+                selected={selectedMonth}
+                onChange={(date) => date && setSelectedMonth(date)}
+                dateFormat="MMMM yyyy"
+                showMonthYearPicker
+                showFullMonthYearPicker
+                maxDate={new Date()}
+                className="w-48 h-10 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 text-sm"
+                placeholderText="Select month"
+                wrapperClassName="w-full"
+                popperClassName="react-datepicker-popper"
+                popperPlacement="bottom-start"
+              />
+              <CalendarIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+            </div>
           </div>
         )}
       </div>
