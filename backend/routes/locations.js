@@ -463,7 +463,7 @@ router.delete('/districts/:id',
   }
 );
 
-// Get branches (optionally filtered by district)
+// Get branches (optionally filtered by district or regional manager)
 router.get('/branches', authenticateToken, async (req, res) => {
   try {
     const { district_id } = req.query;
@@ -477,7 +477,43 @@ router.get('/branches', authenticateToken, async (req, res) => {
     `;
     let params = [];
     
-    if (district_id) {
+    // For regional managers, filter branches by their assigned region
+    if (req.user.role === 'regional_manager') {
+      // Get the regional manager's branch context to find their assigned region
+      const userResult = await query('SELECT branch_context FROM users WHERE id = $1', [req.user.id]);
+      if (userResult.rows.length === 0 || !userResult.rows[0].branch_context) {
+        return res.status(403).json({
+          success: false,
+          error: 'Regional manager must complete branch selection first'
+        });
+      }
+
+      // Get the branch details to find the district, then get the region from the district
+      const branchResult = await query('SELECT district_id FROM branches WHERE id = $1', [userResult.rows[0].branch_context]);
+      if (branchResult.rows.length === 0) {
+        return res.status(403).json({
+          success: false,
+          error: 'Invalid branch context'
+        });
+      }
+
+      const { district_id: assigned_district_id } = branchResult.rows[0];
+      
+      // Get the region from the district
+      const districtResult = await query('SELECT region_id FROM districts WHERE id = $1', [assigned_district_id]);
+      if (districtResult.rows.length === 0) {
+        return res.status(403).json({
+          success: false,
+          error: 'Invalid district in branch context'
+        });
+      }
+      
+      const { region_id: assigned_region_id } = districtResult.rows[0];
+      
+      // Filter branches by the assigned region
+      queryText += ' WHERE r.id = $1';
+      params.push(assigned_region_id);
+    } else if (district_id) {
       queryText += ' WHERE b.district_id = $1';
       params.push(district_id);
     }

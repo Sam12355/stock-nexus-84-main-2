@@ -7,6 +7,7 @@ import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AdminRedirect } from "@/components/AdminRedirect";
 import { AdminAuth } from "@/components/AdminAuth";
+import { RoleGuard } from "@/components/RoleGuard";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
@@ -39,7 +40,7 @@ const App = () => (
               <Route path="/" element={<DashboardLayout><AdminRedirect><Index /></AdminRedirect></DashboardLayout>} />
               <Route path="/regions" element={<DashboardLayout><RegionManagement /></DashboardLayout>} />
               <Route path="/districts" element={<DashboardLayout><DistrictManagement /></DashboardLayout>} />
-              <Route path="/branches" element={<DashboardLayout><BranchManagement /></DashboardLayout>} />
+              <Route path="/branches" element={<DashboardLayout><RoleGuard allowedRoles={['admin']}><BranchManagement /></RoleGuard></DashboardLayout>} />
               
               <Route path="/items" element={<DashboardLayout><Items /></DashboardLayout>} />
               <Route path="/stock" element={<DashboardLayout><Stock /></DashboardLayout>} />
