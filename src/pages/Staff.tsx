@@ -80,6 +80,7 @@ const Staff = () => {
   const [selectedBranchId, setSelectedBranchId] = useState<string>("");
   const [currentDistrictId, setCurrentDistrictId] = useState<string | null>(null);
   const [hasDistrictManager, setHasDistrictManager] = useState(false);
+  const [hasAssistantManager, setHasAssistantManager] = useState(false);
 
   const roleOptions = [
     { value: 'regional_manager', label: 'Regional Manager' },
@@ -188,6 +189,20 @@ const Staff = () => {
     checkDistrictManager();
   }, [currentDistrictId, staffMembers]);
 
+  // Check if assistant manager is already assigned to manager's branch
+  useEffect(() => {
+    const checkAssistantManager = () => {
+      if (profile?.role === 'manager' && profile?.branch_id) {
+        const hasAssistant = staffMembers.some(staff => 
+          staff.branch_id === profile.branch_id && staff.role === 'assistant_manager'
+        );
+        setHasAssistantManager(hasAssistant);
+      }
+    };
+    
+    checkAssistantManager();
+  }, [profile, staffMembers]);
+
   const selectStyles: any = {
     container: (base: any) => ({ ...base, zIndex: 999999 }),
     menuPortal: (base: any) => ({ ...base, zIndex: 999999, pointerEvents: 'auto' }),
@@ -260,6 +275,18 @@ const Staff = () => {
           return false;
         }
       }
+
+      // For managers adding staff members, ensure they have a branch assigned
+      if (profile?.role === 'manager' && ['assistant_manager', 'staff'].includes(formData.role)) {
+        if (!profile?.branch_id) {
+          toast({
+            title: "Validation Error",
+            description: "You must be assigned to a branch to create staff members",
+            variant: "destructive",
+          });
+          return false;
+        }
+      }
       
       return true;
     } catch (error) {
@@ -296,6 +323,9 @@ const Staff = () => {
         // For regional managers, use their selected branch context
         if (profile?.role === 'regional_manager' && profile?.branch_context) {
           staffData.branch_id = profile.branch_context;
+        } else if (profile?.role === 'manager' && profile?.branch_id) {
+          // For managers, use their own branch
+          staffData.branch_id = profile.branch_id;
         } else {
           staffData.branch_id = selectedBranchId || null;
         }
@@ -401,6 +431,9 @@ const Staff = () => {
     // For regional managers, use their branch context if the staff member is in their branch
     if (profile?.role === 'regional_manager' && profile?.branch_context) {
       setSelectedBranchId(profile.branch_context);
+    } else if (profile?.role === 'manager' && profile?.branch_id) {
+      // For managers, use their own branch
+      setSelectedBranchId(profile.branch_id);
     } else {
       setSelectedBranchId(staff.branch_id || "");
     }
@@ -551,7 +584,14 @@ const Staff = () => {
                     <ReactSelect
                       inputId="role"
                       classNamePrefix="rs"
-                      options={allowedRoleOptions}
+                      options={profile?.role === 'manager' ? 
+                        // For managers, filter to only show Assistant Manager and Staff
+                        allowedRoleOptions.filter(option => 
+                          option.value === 'staff' || 
+                          (option.value === 'assistant_manager' && !hasAssistantManager)
+                        ) : 
+                        allowedRoleOptions
+                      }
                       value={formData.role ? roleOptions.find(o => o.value === formData.role) : null}
                       onChange={(opt) => {
                         const val = (opt as any)?.value;
@@ -564,6 +604,11 @@ const Staff = () => {
                       placeholder="Select role"
                     />
                     {formErrors.role && <p className="text-sm text-red-500 mt-1">{formErrors.role}</p>}
+                    {profile?.role === 'manager' && hasAssistantManager && (
+                      <p className="text-sm text-blue-600 mt-1">
+                        An Assistant Manager is already assigned to your branch. Only Staff role is available.
+                      </p>
+                    )}
                   </div>
 
                   {/* Regional Manager role selection */}
@@ -659,6 +704,18 @@ const Staff = () => {
                               {profile?.branch_context && branches.length > 0 
                                 ? branches.find(b => b.id === profile.branch_context)?.name || 'Your Selected Branch'
                                 : 'Your Selected Branch'
+                              }
+                            </strong>
+                          </p>
+                        </div>
+                      ) : profile?.role === 'manager' ? (
+                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                          <Label className="text-sm font-medium text-blue-800">Branch Assignment</Label>
+                          <p className="text-sm text-blue-700 mt-1">
+                            Staff member will be automatically assigned to your branch: <strong>
+                              {profile?.branch_id && branches.length > 0 
+                                ? branches.find(b => b.id === profile.branch_id)?.name || 'Your Branch'
+                                : 'Your Branch'
                               }
                             </strong>
                           </p>
@@ -929,14 +986,32 @@ const Staff = () => {
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="staff">Staff</SelectItem>
-                    <SelectItem value="assistant_manager">Assistant Manager</SelectItem>
-                    <SelectItem value="manager">Manager</SelectItem>
-                    <SelectItem value="district_manager">District Manager</SelectItem>
-                    <SelectItem value="regional_manager">Regional Manager</SelectItem>
+                    {profile?.role === 'manager' ? (
+                      // For managers, only show Assistant Manager and Staff
+                      <>
+                        <SelectItem value="staff">Staff</SelectItem>
+                        {!hasAssistantManager && (
+                          <SelectItem value="assistant_manager">Assistant Manager</SelectItem>
+                        )}
+                      </>
+                    ) : (
+                      // For other roles, show all allowed roles
+                      <>
+                        <SelectItem value="staff">Staff</SelectItem>
+                        <SelectItem value="assistant_manager">Assistant Manager</SelectItem>
+                        <SelectItem value="manager">Manager</SelectItem>
+                        <SelectItem value="district_manager">District Manager</SelectItem>
+                        <SelectItem value="regional_manager">Regional Manager</SelectItem>
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
                 {formErrors.role && <p className="text-sm text-red-500 mt-1">{formErrors.role}</p>}
+                {profile?.role === 'manager' && hasAssistantManager && (
+                  <p className="text-sm text-blue-600 mt-1">
+                    An Assistant Manager is already assigned to your branch. Only Staff role is available.
+                  </p>
+                )}
               </div>
 
 
@@ -1004,6 +1079,18 @@ const Staff = () => {
                           {profile?.branch_context && branches.length > 0 
                             ? branches.find(b => b.id === profile.branch_context)?.name || 'Your Selected Branch'
                             : 'Your Selected Branch'
+                          }
+                        </strong>
+                      </p>
+                    </div>
+                  ) : profile?.role === 'manager' ? (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                      <Label className="text-sm font-medium text-blue-800">Branch Assignment</Label>
+                      <p className="text-sm text-blue-700 mt-1">
+                        Staff member is assigned to your branch: <strong>
+                          {profile?.branch_id && branches.length > 0 
+                            ? branches.find(b => b.id === profile.branch_id)?.name || 'Your Branch'
+                            : 'Your Branch'
                           }
                         </strong>
                       </p>

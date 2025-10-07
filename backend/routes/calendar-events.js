@@ -1,6 +1,7 @@
 const express = require('express');
 const { authenticateToken } = require('../middleware/auth');
 const { query } = require('../config/database');
+const { triggerNotificationUpdate } = require('./notifications');
 
 const router = express.Router();
 
@@ -75,6 +76,9 @@ router.post('/', authenticateToken, async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `, [title, description, event_date, event_type || 'general', branch_id, user_id]);
+
+    // Trigger frontend notification update
+    triggerNotificationUpdate(req, req.user.branch_id || req.user.branch_context);
 
     res.json({
       success: true,

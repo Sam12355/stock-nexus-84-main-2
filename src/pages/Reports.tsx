@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Download, TrendingUp, Package, AlertTriangle, FileSpreadsheet, File, Filter, CalendarIcon } from "lucide-react";
+import { FileText, Download, TrendingUp, Package, AlertTriangle, FileSpreadsheet, File, Filter, CalendarIcon, ChevronDown } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,9 +13,28 @@ import { format } from "date-fns";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
-import '../styles/datepicker.css';
+// Removed DatePicker imports - using custom dropdown instead
+
+// Category labels mapping
+const categoryLabels = {
+  fish_frozen: "Fish Frozen",
+  vegetables: "Vegetables",
+  other_frozen_food: "Other Frozen Food",
+  meat_frozen: "Meat Frozen",
+  kitchen_supplies: "Kitchen Supplies",
+  grains: "Grains",
+  fruits: "Fruits",
+  flour: "Flour",
+  cleaning_supplies: "Cleaning Supplies",
+  canned_prepared_food: "Canned & Prepared Food",
+  beer_non_alc: "Beer, non alc.",
+  sy_product_recipes: "SY Product Recipes",
+  packaging: "Packaging",
+  sauce: "Sauce",
+  softdrinks: "Softdrinks",
+  spices: "Spices",
+  other: "Other"
+};
 
 interface StockReport {
   id: string;
@@ -34,6 +53,119 @@ interface MovementReport {
   created_at: string;
   user_name: string;
 }
+
+// Custom Month/Year Selector Component
+const MonthYearSelector = ({ selectedMonth, onMonthChange }: { selectedMonth: Date; onMonthChange: (date: Date) => void }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth();
+  
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (isOpen && !target.closest('.month-year-selector')) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen]);
+  
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
+  
+  const selectedYear = selectedMonth.getFullYear();
+  const selectedMonthIndex = selectedMonth.getMonth();
+
+  const handleMonthSelect = (year: number, monthIndex: number) => {
+    const newDate = new Date(year, monthIndex, 1);
+    onMonthChange(newDate);
+    setIsOpen(false);
+  };
+
+  const isDisabled = (year: number, monthIndex: number) => {
+    if (year > currentYear) return true;
+    if (year === currentYear && monthIndex > currentMonth) return true;
+    return false;
+  };
+
+  return (
+    <div className="relative month-year-selector">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-56 h-12 px-4 py-3 border-2 border-gray-200 rounded-xl shadow-lg focus:outline-none focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 bg-gradient-to-r from-white to-gray-50 text-gray-800 text-base font-medium transition-all duration-300 hover:shadow-xl hover:border-indigo-300 flex items-center justify-between"
+      >
+        <span className="flex items-center gap-2">
+          <CalendarIcon className="h-5 w-5 text-indigo-500" />
+          {format(selectedMonth, 'MMMM yyyy')}
+        </span>
+        <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden">
+          <div className="p-4">
+            <div className="grid grid-cols-2 gap-4">
+              {/* Year Selector */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Year</h3>
+                <div className="space-y-1 max-h-48 overflow-y-auto">
+                  {years.map((year) => (
+                    <button
+                      key={year}
+                      onClick={() => handleMonthSelect(year, selectedMonthIndex)}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        year === selectedYear
+                          ? 'bg-indigo-500 text-white shadow-md'
+                          : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-700'
+                      }`}
+                    >
+                      {year}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Month Selector */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Month</h3>
+                <div className="space-y-1 max-h-48 overflow-y-auto">
+                  {months.map((month, index) => {
+                    const disabled = isDisabled(selectedYear, index);
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => !disabled && handleMonthSelect(selectedYear, index)}
+                        disabled={disabled}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                          index === selectedMonthIndex && !disabled
+                            ? 'bg-indigo-500 text-white shadow-md'
+                            : disabled
+                            ? 'text-gray-400 cursor-not-allowed'
+                            : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-700'
+                        }`}
+                      >
+                        {month}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const Reports = () => {
   const { profile } = useAuth();
@@ -131,7 +263,7 @@ const Reports = () => {
         // Stock report table
         const tableData = stockReport.map(item => [
           item.name,
-          item.category,
+          categoryLabels[item.category as keyof typeof categoryLabels] || item.category,
           item.current_quantity.toString(),
           item.threshold_level.toString(),
           item.status.toUpperCase()
@@ -214,7 +346,7 @@ const Reports = () => {
           ['Item Name', 'Category', 'Current Stock', 'Threshold', 'Status'],
           ...stockReport.map(item => [
             item.name,
-            item.category,
+            categoryLabels[item.category as keyof typeof categoryLabels] || item.category,
             item.current_quantity,
             item.threshold_level,
             item.status.toUpperCase()
@@ -278,7 +410,7 @@ const Reports = () => {
     if (selectedReport === 'stock') {
       csvData = 'Item Name,Category,Current Stock,Threshold,Status\n';
       csvData += stockReport.map(item => 
-        `"${item.name}","${item.category}",${item.current_quantity},${item.threshold_level},"${item.status}"`
+        `"${item.name}","${categoryLabels[item.category as keyof typeof categoryLabels] || item.category}",${item.current_quantity},${item.threshold_level},"${item.status}"`
       ).join('\n');
       fileName = 'stock-report.csv';
     } else if (selectedReport === 'movements') {
@@ -352,22 +484,10 @@ const Reports = () => {
               <Filter className="h-4 w-4 mr-1 inline" />
               Filter by Month:
             </Label>
-            <div className="relative">
-              <DatePicker
-                selected={selectedMonth}
-                onChange={(date) => date && setSelectedMonth(date)}
-                dateFormat="MMMM yyyy"
-                showMonthYearPicker
-                showFullMonthYearPicker
-                maxDate={new Date()}
-                className="w-48 h-10 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 text-sm"
-                placeholderText="Select month"
-                wrapperClassName="w-full"
-                popperClassName="react-datepicker-popper"
-                popperPlacement="bottom-start"
-              />
-              <CalendarIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-            </div>
+            <MonthYearSelector 
+              selectedMonth={selectedMonth} 
+              onMonthChange={setSelectedMonth} 
+            />
           </div>
         )}
       </div>
@@ -418,7 +538,7 @@ const Reports = () => {
                     {stockReport.map((item) => (
                       <tr key={item.id} className="border-b hover:bg-muted/50 transition-colors">
                         <td className="p-3 font-medium text-foreground">{item.name}</td>
-                        <td className="p-3 capitalize text-muted-foreground">{item.category.replace(/_/g, ' ')}</td>
+                        <td className="p-3 text-muted-foreground">{categoryLabels[item.category as keyof typeof categoryLabels] || item.category}</td>
                         <td className="p-3 font-semibold">{item.current_quantity}</td>
                         <td className="p-3">{item.threshold_level}</td>
                         <td className="p-3">{getStatusBadge(item.status)}</td>

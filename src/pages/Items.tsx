@@ -50,19 +50,43 @@ interface Item {
 }
 
 const categories = [
-  "frozen_items",
-  "dry_goods", 
-  "packaging",
+  "fish_frozen",
+  "vegetables",
+  "other_frozen_food",
+  "meat_frozen",
+  "kitchen_supplies",
+  "grains",
+  "fruits",
+  "flour",
   "cleaning_supplies",
-  "misc"
+  "canned_prepared_food",
+  "beer_non_alc",
+  "sy_product_recipes",
+  "packaging",
+  "sauce",
+  "softdrinks",
+  "spices",
+  "other"
 ];
 
 const categoryLabels = {
-  frozen_items: "Frozen Items",
-  dry_goods: "Dry Goods",
+  fish_frozen: "Fish Frozen",
+  vegetables: "Vegetables",
+  other_frozen_food: "Other Frozen Food",
+  meat_frozen: "Meat Frozen",
+  kitchen_supplies: "Kitchen Supplies",
+  grains: "Grains",
+  fruits: "Fruits",
+  flour: "Flour",
+  cleaning_supplies: "Cleaning Supplies",
+  canned_prepared_food: "Canned & Prepared Food",
+  beer_non_alc: "Beer, non alc.",
+  sy_product_recipes: "SY Product Recipes",
   packaging: "Packaging",
-  cleaning_supplies: "Cleaning Supplies", 
-  misc: "Miscellaneous"
+  sauce: "Sauce",
+  softdrinks: "Softdrinks",
+  spices: "Spices",
+  other: "Other"
 };
 
 const itemSchema = z.object({

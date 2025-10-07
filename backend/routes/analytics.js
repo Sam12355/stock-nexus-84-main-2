@@ -101,7 +101,9 @@ router.get('/', authenticateToken, async (req, res) => {
 router.get('/item-usage/:period', authenticateToken, async (req, res) => {
   try {
     const { period } = req.params; // daily, monthly, yearly
+    const { itemId } = req.query;
     let branchFilter = '';
+    let itemFilter = '';
     let params = [];
 
     // Filter by branch for non-admin users
@@ -111,6 +113,12 @@ router.get('/item-usage/:period', authenticateToken, async (req, res) => {
     } else if ((req.user.role === 'regional_manager' || req.user.role === 'district_manager') && req.user.branch_context) {
       branchFilter = 'WHERE i.branch_id = $1';
       params.push(req.user.branch_context);
+    }
+
+    // Filter by specific item if itemId is provided
+    if (itemId) {
+      itemFilter = branchFilter ? 'AND sm.item_id = $2' : 'WHERE sm.item_id = $1';
+      params.push(itemId);
     }
 
     let dateFormat = '';
@@ -156,6 +164,7 @@ router.get('/item-usage/:period', authenticateToken, async (req, res) => {
       FROM stock_movements sm
       LEFT JOIN items i ON sm.item_id = i.id
       ${branchFilter}
+      ${itemFilter}
       AND sm.created_at > NOW() - INTERVAL '${interval}'
       GROUP BY DATE_TRUNC('${period === 'daily' ? 'day' : period === 'monthly' ? 'month' : 'year'}', sm.created_at)
       ORDER BY period

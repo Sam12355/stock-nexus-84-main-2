@@ -9,11 +9,15 @@ interface Profile {
   phone?: string;
   photo_url?: string;
   position?: string;
-  role: 'admin' | 'regional_manager' | 'district_manager' | 'manager' | 'assistant_manager' | 'staff';
+  role: 'admin' | 'manager' | 'assistant_manager' | 'staff';
   branch_id?: string;
   branch_context?: string;
+  branch_name?: string;
+  district_name?: string;
+  region_name?: string;
   access_count: number;
   created_at: string;
+  notification_settings?: any;
 }
 
 interface AuthContextType {
@@ -138,10 +142,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateProfile = async (updates: Partial<Profile>) => {
     try {
-      // For now, just update local state
-      // In a real app, you'd make an API call to update the profile
-      setProfile(prev => prev ? { ...prev, ...updates } : null);
-      setUser(prev => prev ? { ...prev, ...updates } : null);
+      // Make API call to update the profile in the database
+      const updatedProfile = await apiClient.updateProfile(updates);
+      
+      // Update local state with the response from the API
+      setProfile(updatedProfile);
+      setUser(updatedProfile);
       
       toast({
         title: "Profile updated",

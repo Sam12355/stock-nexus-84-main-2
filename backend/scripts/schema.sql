@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS users (
     phone VARCHAR(20),
     photo_url TEXT,
     position VARCHAR(100),
-    role VARCHAR(50) NOT NULL CHECK (role IN ('admin', 'regional_manager', 'district_manager', 'manager', 'assistant_manager', 'staff')),
+    role VARCHAR(50) NOT NULL CHECK (role IN ('admin', 'manager', 'assistant_manager', 'staff')),
     branch_id UUID REFERENCES branches(id) ON DELETE SET NULL,
     branch_context UUID REFERENCES branches(id) ON DELETE SET NULL,
     last_access TIMESTAMP WITH TIME ZONE,
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(100) NOT NULL,
-    category VARCHAR(50) NOT NULL CHECK (category IN ('frozen_items', 'dry_goods', 'packaging', 'cleaning_supplies', 'misc')),
+    category VARCHAR(50) NOT NULL CHECK (category IN ('fish_frozen', 'vegetables', 'other_frozen_food', 'meat_frozen', 'kitchen_supplies', 'grains', 'fruits', 'flour', 'cleaning_supplies', 'canned_prepared_food', 'beer_non_alc', 'sy_product_recipes', 'packaging', 'sauce', 'softdrinks', 'spices', 'other')),
     description TEXT,
     image_url TEXT,
     storage_temperature DECIMAL(5,2),
@@ -118,8 +118,11 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE TABLE IF NOT EXISTS activity_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    branch_id UUID REFERENCES branches(id) ON DELETE SET NULL,
     action VARCHAR(100) NOT NULL,
     details JSONB DEFAULT '{}'::jsonb,
+    entity_type VARCHAR(50),
+    entity_id UUID,
     ip_address INET,
     user_agent TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -139,6 +142,7 @@ CREATE INDEX IF NOT EXISTS idx_moveout_lists_created_at ON moveout_lists(created
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);
 CREATE INDEX IF NOT EXISTS idx_activity_logs_user_id ON activity_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_branch_id ON activity_logs(branch_id);
 CREATE INDEX IF NOT EXISTS idx_activity_logs_created_at ON activity_logs(created_at);
 
 -- Create function to update updated_at timestamp

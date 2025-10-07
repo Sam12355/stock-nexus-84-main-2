@@ -11,13 +11,10 @@ router.get('/', authenticateToken, async (req, res) => {
     let queryText = 'SELECT * FROM items';
     let params = [];
 
-    // Filter by branch for non-admin users
-    if (req.user.role !== 'admin' && req.user.role !== 'regional_manager' && req.user.role !== 'district_manager') {
+    // Filter by branch only for managers (not for staff or admin)
+    if (req.user.role === 'manager') {
       queryText += ' WHERE branch_id = $1';
       params.push(req.user.branch_id);
-    } else if ((req.user.role === 'regional_manager' || req.user.role === 'district_manager') && req.user.branch_context) {
-      queryText += ' WHERE branch_id = $1';
-      params.push(req.user.branch_context);
     }
 
     queryText += ' ORDER BY created_at DESC';
@@ -40,10 +37,10 @@ router.get('/', authenticateToken, async (req, res) => {
 // Create new item
 router.post('/', 
   authenticateToken,
-  authorize('admin', 'regional_manager', 'district_manager', 'manager', 'assistant_manager'),
+  authorize('admin', 'manager', 'assistant_manager'),
   [
     body('name').notEmpty().withMessage('Item name is required').isLength({ max: 100 }).withMessage('Name must be less than 100 characters'),
-    body('category').isIn(['frozen_items', 'dry_goods', 'packaging', 'cleaning_supplies', 'misc']).withMessage('Valid category is required'),
+    body('category').isIn(['fish_frozen', 'vegetables', 'other_frozen_food', 'meat_frozen', 'kitchen_supplies', 'grains', 'fruits', 'flour', 'cleaning_supplies', 'canned_prepared_food', 'beer_non_alc', 'sy_product_recipes', 'packaging', 'sauce', 'softdrinks', 'spices', 'other']).withMessage('Valid category is required'),
     body('description').optional().custom((value) => {
       if (value === null || value === undefined || value === '') {
         return true; // Allow null, undefined, or empty string
@@ -95,6 +92,21 @@ router.post('/',
       const lowLevel = low_level || Math.max(1, Math.floor(threshold_level * 0.5));
       const criticalLevel = critical_level || Math.max(1, Math.floor(threshold_level * 0.2));
 
+      // First, try to drop and recreate the constraint to allow new categories
+      try {
+        await query('ALTER TABLE items DROP CONSTRAINT IF EXISTS items_category_check');
+        await query(`
+          ALTER TABLE items ADD CONSTRAINT items_category_check 
+          CHECK (category IN (
+            'fish_frozen', 'vegetables', 'other_frozen_food', 'meat_frozen', 'kitchen_supplies',
+            'grains', 'fruits', 'flour', 'cleaning_supplies', 'canned_prepared_food',
+            'beer_non_alc', 'sy_product_recipes', 'packaging', 'sauce', 'softdrinks', 'spices', 'other'
+          ))
+        `);
+      } catch (constraintError) {
+        console.log('Constraint update failed, continuing with insert:', constraintError.message);
+      }
+
       const result = await query(
         'INSERT INTO items (name, category, description, image_url, storage_temperature, threshold_level, low_level, critical_level, branch_id, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
         [name, category, description || null, image_url || null, storage_temperature || null, threshold_level, lowLevel, criticalLevel, branch_id, created_by]
@@ -130,10 +142,10 @@ router.post('/',
 // Update item
 router.put('/:id',
   authenticateToken,
-  authorize('admin', 'regional_manager', 'district_manager', 'manager', 'assistant_manager'),
+  authorize('admin', 'manager', 'assistant_manager'),
   [
     body('name').notEmpty().withMessage('Item name is required').isLength({ max: 100 }).withMessage('Name must be less than 100 characters'),
-    body('category').isIn(['frozen_items', 'dry_goods', 'packaging', 'cleaning_supplies', 'misc']).withMessage('Valid category is required'),
+    body('category').isIn(['fish_frozen', 'vegetables', 'other_frozen_food', 'meat_frozen', 'kitchen_supplies', 'grains', 'fruits', 'flour', 'cleaning_supplies', 'canned_prepared_food', 'beer_non_alc', 'sy_product_recipes', 'packaging', 'sauce', 'softdrinks', 'spices', 'other']).withMessage('Valid category is required'),
     body('description').optional().custom((value) => {
       if (value === null || value === undefined || value === '') {
         return true; // Allow null, undefined, or empty string
@@ -220,7 +232,7 @@ router.put('/:id',
 // Delete item
 router.delete('/:id',
   authenticateToken,
-  authorize('admin', 'regional_manager', 'district_manager', 'manager', 'assistant_manager'),
+  authorize('admin', 'manager', 'assistant_manager'),
   async (req, res) => {
     try {
       const { id } = req.params;

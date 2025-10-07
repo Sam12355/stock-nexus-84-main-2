@@ -34,26 +34,15 @@ router.get('/staff', authenticateToken, async (req, res) => {
              d.name as district_name
       FROM users u
       LEFT JOIN districts d ON u.district_id = d.id
-      WHERE u.role IN ('staff', 'assistant_manager', 'manager', 'district_manager', 'regional_manager')
+      WHERE u.role IN ('staff', 'assistant_manager', 'manager')
       AND u.is_active = true
     `;
     let params = [];
 
     // Filter by branch for non-admin users
-    if (req.user.role !== 'admin' && req.user.role !== 'regional_manager' && req.user.role !== 'district_manager') {
+    if (req.user.role !== 'admin') {
       queryText += ' AND branch_id = $1';
       params.push(req.user.branch_id);
-    } else if (req.user.role === 'regional_manager' && req.user.branch_context) {
-      // For regional managers, show staff from their selected branch context
-      // Also show district managers from the same district as the selected branch
-      queryText += ` AND (branch_id = $1 OR (role = 'district_manager' AND district_id = (
-        SELECT district_id FROM branches WHERE id = $1
-      )))`;
-      params.push(req.user.branch_context);
-    } else if (req.user.role === 'district_manager' && req.user.branch_context) {
-      // For district managers, show staff from their selected branch context
-      queryText += ' AND branch_id = $1';
-      params.push(req.user.branch_context);
     }
 
     queryText += ' ORDER BY created_at DESC';
@@ -76,20 +65,34 @@ router.get('/staff', authenticateToken, async (req, res) => {
 // Create staff member
 router.post('/staff', 
   authenticateToken,
-  authorize('admin', 'manager', 'regional_manager'),
+  authorize('admin', 'manager'),
   [
     body('email').isEmail().withMessage('Valid email is required'),
     body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
     body('name').notEmpty().withMessage('Name is required'),
-    body('role').isIn(['staff', 'assistant_manager', 'manager', 'district_manager', 'regional_manager']).withMessage('Invalid role'),
+    body('role').isIn(['staff', 'assistant_manager', 'manager']).withMessage('Invalid role'),
     body('branch_id').optional().isUUID().withMessage('Valid branch ID is required'),
-    body('phone').optional().isString().withMessage('Phone must be a string'),
-    body('position').optional().isString()
+    body('phone').optional().custom((value) => {
+      if (value === null || value === undefined || value === '') {
+        return true; // Allow null, undefined, or empty string
+      }
+      return typeof value === 'string'; // If present, must be a string
+    }).withMessage('Phone must be a string'),
+    body('position').optional().custom((value) => {
+      if (value === null || value === undefined || value === '') {
+        return true; // Allow null, undefined, or empty string
+      }
+      return typeof value === 'string'; // If present, must be a string
+    }).withMessage('Position must be a string')
   ],
   async (req, res) => {
     try {
+      // Debug logging
+      console.log('🔍 Create staff request body:', req.body);
+      
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
+        console.log('❌ Validation errors:', errors.array());
         return res.status(400).json({
           success: false,
           error: 'Validation failed',
@@ -135,15 +138,36 @@ router.post('/staff',
       if (existingInactiveUser.rows.length > 0) {
         // Reactivate and update the existing inactive user
         const inactiveUserId = existingInactiveUser.rows[0].id;
+        
+        // Set default notification settings based on role
+        let defaultNotificationSettings = {
+          email: true, // Email is always enabled by default
+          sms: false,
+          whatsapp: false,
+          stockLevelAlerts: false,
+          eventReminders: false
+        };
+
+        // For managers and assistant managers, turn off all notifications by default
+        if (['manager', 'assistant_manager'].includes(role)) {
+          defaultNotificationSettings = {
+            email: false,
+            sms: false,
+            whatsapp: false,
+            stockLevelAlerts: false,
+            eventReminders: false
+          };
+        }
+
         try {
-          // Try to update with district_id (if column exists)
+          // Try to update with district_id and notification_settings (if columns exist)
           result = await query(
-            'UPDATE users SET password_hash = $1, name = $2, role = $3, branch_id = $4, phone = $5, position = $6, district_id = $7, is_active = true, updated_at = NOW() WHERE id = $8 RETURNING id, email, name, role, branch_id, phone, position',
-            [passwordHash, name, role, branch_id, phone || null, position || null, district_id || null, inactiveUserId]
+            'UPDATE users SET password_hash = $1, name = $2, role = $3, branch_id = $4, phone = $5, position = $6, district_id = $7, is_active = true, notification_settings = $8, updated_at = NOW() WHERE id = $9 RETURNING id, email, name, role, branch_id, phone, position',
+            [passwordHash, name, role, branch_id, phone || null, position || null, district_id || null, JSON.stringify(defaultNotificationSettings), inactiveUserId]
           );
         } catch (error) {
-          // If district_id column doesn't exist, fall back to basic update
-          if (error.message.includes('district_id')) {
+          // If district_id or notification_settings columns don't exist, fall back to basic update
+          if (error.message.includes('district_id') || error.message.includes('notification_settings')) {
             result = await query(
               'UPDATE users SET password_hash = $1, name = $2, role = $3, branch_id = $4, phone = $5, position = $6, is_active = true, updated_at = NOW() WHERE id = $7 RETURNING id, email, name, role, branch_id, phone, position',
               [passwordHash, name, role, branch_id, phone || null, position || null, inactiveUserId]
@@ -154,15 +178,35 @@ router.post('/staff',
         }
       } else {
         // Create new user
+        // Set default notification settings based on role
+        let defaultNotificationSettings = {
+          email: true, // Email is always enabled by default
+          sms: false,
+          whatsapp: false,
+          stockLevelAlerts: false,
+          eventReminders: false
+        };
+
+        // For managers and assistant managers, turn off all notifications by default
+        if (['manager', 'assistant_manager'].includes(role)) {
+          defaultNotificationSettings = {
+            email: false,
+            sms: false,
+            whatsapp: false,
+            stockLevelAlerts: false,
+            eventReminders: false
+          };
+        }
+
         try {
-          // Try to insert with district_id (if column exists)
+          // Try to insert with district_id and notification_settings (if columns exist)
           result = await query(
-            'INSERT INTO users (email, password_hash, name, role, branch_id, phone, position, district_id, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true) RETURNING id, email, name, role, branch_id, phone, position',
-            [email, passwordHash, name, role, branch_id, phone || null, position || null, district_id || null]
+            'INSERT INTO users (email, password_hash, name, role, branch_id, phone, position, district_id, is_active, notification_settings) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, $9) RETURNING id, email, name, role, branch_id, phone, position',
+            [email, passwordHash, name, role, branch_id, phone || null, position || null, district_id || null, JSON.stringify(defaultNotificationSettings)]
           );
         } catch (error) {
-          // If district_id column doesn't exist, fall back to basic insert
-          if (error.message.includes('district_id')) {
+          // If district_id or notification_settings columns don't exist, fall back to basic insert
+          if (error.message.includes('district_id') || error.message.includes('notification_settings')) {
             result = await query(
               'INSERT INTO users (email, password_hash, name, role, branch_id, phone, position, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7, true) RETURNING id, email, name, role, branch_id, phone, position',
               [email, passwordHash, name, role, branch_id, phone || null, position || null]
@@ -205,13 +249,23 @@ router.post('/staff',
 // Update staff member
 router.put('/staff/:id',
   authenticateToken,
-  authorize('admin', 'manager', 'regional_manager'),
+  authorize('admin', 'manager'),
   [
     body('name').optional().notEmpty().withMessage('Name cannot be empty'),
-    body('role').optional().isIn(['staff', 'assistant_manager', 'manager', 'district_manager', 'regional_manager']).withMessage('Invalid role'),
+    body('role').optional().isIn(['staff', 'assistant_manager', 'manager']).withMessage('Invalid role'),
     body('branch_id').optional().isUUID().withMessage('Valid branch ID is required'),
-    body('phone').optional().isString().withMessage('Phone must be a string'),
-    body('position').optional().isString(),
+    body('phone').optional().custom((value) => {
+      if (value === null || value === undefined || value === '') {
+        return true; // Allow null, undefined, or empty string
+      }
+      return typeof value === 'string'; // If present, must be a string
+    }).withMessage('Phone must be a string'),
+    body('position').optional().custom((value) => {
+      if (value === null || value === undefined || value === '') {
+        return true; // Allow null, undefined, or empty string
+      }
+      return typeof value === 'string'; // If present, must be a string
+    }).withMessage('Position must be a string'),
     body('is_active').optional().isBoolean()
   ],
   async (req, res) => {
@@ -230,8 +284,8 @@ router.put('/staff/:id',
 
       // Check if staff member exists
       const existingStaff = await query(
-        'SELECT id, role FROM users WHERE id = $1 AND role IN ($2, $3, $4, $5, $6)',
-        [id, 'staff', 'assistant_manager', 'manager', 'district_manager', 'regional_manager']
+        'SELECT id, role FROM users WHERE id = $1 AND role IN ($2, $3, $4)',
+        [id, 'staff', 'assistant_manager', 'manager']
       );
 
       if (existingStaff.rows.length === 0) {
@@ -278,10 +332,10 @@ router.put('/staff/:id',
         });
       }
 
-      // Add password update if provided
-      if (password) {
+      // Add password update if provided and not empty
+      if (password && password.trim() && password.trim().length >= 6) {
         const saltRounds = 10;
-        const passwordHash = await bcrypt.hash(password, saltRounds);
+        const passwordHash = await bcrypt.hash(password.trim(), saltRounds);
         updates.push(`password_hash = $${paramCount++}`);
         values.push(passwordHash);
       }
@@ -324,15 +378,15 @@ router.put('/staff/:id',
 // Delete staff member
 router.delete('/staff/:id',
   authenticateToken,
-  authorize('admin', 'manager', 'regional_manager'),
+  authorize('admin', 'manager'),
   async (req, res) => {
     try {
       const { id } = req.params;
 
       // Check if staff member exists
       const existingStaff = await query(
-        'SELECT id FROM users WHERE id = $1 AND role IN ($2, $3, $4, $5, $6)',
-        [id, 'staff', 'assistant_manager', 'manager', 'district_manager', 'regional_manager']
+        'SELECT id FROM users WHERE id = $1 AND role IN ($2, $3, $4)',
+        [id, 'staff', 'assistant_manager', 'manager']
       );
 
       if (existingStaff.rows.length === 0) {
@@ -375,7 +429,30 @@ router.delete('/staff/:id',
 // Update user profile
 router.put('/profile', authenticateToken, async (req, res) => {
   try {
-    const { name, phone, position } = req.body;
+    const { 
+      name, 
+      phone, 
+      position, 
+      stock_alert_frequency, 
+      stock_alert_schedule_day, 
+      stock_alert_schedule_date, 
+      stock_alert_schedule_time,
+      stock_alert_frequencies,
+      notification_settings,
+      // New separate schedule parameters
+      daily_schedule_time,
+      weekly_schedule_day,
+      weekly_schedule_time,
+      monthly_schedule_date,
+      monthly_schedule_time,
+      // Event reminder scheduling parameters
+      event_reminder_frequencies,
+      event_daily_schedule_time,
+      event_weekly_schedule_day,
+      event_weekly_schedule_time,
+      event_monthly_schedule_date,
+      event_monthly_schedule_time
+    } = req.body;
     const userId = req.user.id;
 
     const updates = [];
@@ -394,6 +471,89 @@ router.put('/profile', authenticateToken, async (req, res) => {
       updates.push(`position = $${paramCount++}`);
       values.push(position);
     }
+    if (stock_alert_frequency !== undefined) {
+      updates.push(`stock_alert_frequency = $${paramCount++}`);
+      values.push(stock_alert_frequency);
+    }
+    if (stock_alert_schedule_day !== undefined) {
+      updates.push(`stock_alert_schedule_day = $${paramCount++}`);
+      values.push(stock_alert_schedule_day);
+    }
+    if (stock_alert_schedule_date !== undefined) {
+      updates.push(`stock_alert_schedule_date = $${paramCount++}`);
+      values.push(stock_alert_schedule_date);
+    }
+    if (stock_alert_schedule_time !== undefined) {
+      updates.push(`stock_alert_schedule_time = $${paramCount++}`);
+      values.push(stock_alert_schedule_time);
+    }
+    if (stock_alert_frequencies !== undefined) {
+      updates.push(`stock_alert_frequencies = $${paramCount++}`);
+      values.push(JSON.stringify(stock_alert_frequencies));
+    }
+          if (notification_settings !== undefined) {
+            // Respect user's notification settings from frontend EXACTLY as sent
+            const userSettings = {
+              email: notification_settings.email !== undefined ? notification_settings.email : false, // Default to false if not specified
+              whatsapp: notification_settings.whatsapp || false,
+              sms: notification_settings.sms || false,
+              stockLevelAlerts: notification_settings.stockLevelAlerts !== false, // Default to true
+              eventReminders: notification_settings.eventReminders !== false, // Default to true
+              ...notification_settings // Spread to preserve any other settings
+            };
+            
+            console.log('🔧 RESPECTING USER SETTINGS - Original:', notification_settings);
+            console.log('🔧 RESPECTING USER SETTINGS - Processed:', userSettings);
+            
+            updates.push(`notification_settings = $${paramCount++}`);
+            values.push(JSON.stringify(userSettings));
+          }
+    // New separate schedule parameters
+    if (daily_schedule_time !== undefined) {
+      updates.push(`daily_schedule_time = $${paramCount++}`);
+      values.push(daily_schedule_time);
+    }
+    if (weekly_schedule_day !== undefined) {
+      updates.push(`weekly_schedule_day = $${paramCount++}`);
+      values.push(weekly_schedule_day);
+    }
+    if (weekly_schedule_time !== undefined) {
+      updates.push(`weekly_schedule_time = $${paramCount++}`);
+      values.push(weekly_schedule_time);
+    }
+    if (monthly_schedule_date !== undefined) {
+      updates.push(`monthly_schedule_date = $${paramCount++}`);
+      values.push(monthly_schedule_date);
+    }
+    if (monthly_schedule_time !== undefined) {
+      updates.push(`monthly_schedule_time = $${paramCount++}`);
+      values.push(monthly_schedule_time);
+    }
+    // Event reminder scheduling parameters
+    if (event_reminder_frequencies !== undefined) {
+      updates.push(`event_reminder_frequencies = $${paramCount++}`);
+      values.push(JSON.stringify(event_reminder_frequencies));
+    }
+    if (event_daily_schedule_time !== undefined) {
+      updates.push(`event_daily_schedule_time = $${paramCount++}`);
+      values.push(event_daily_schedule_time);
+    }
+    if (event_weekly_schedule_day !== undefined) {
+      updates.push(`event_weekly_schedule_day = $${paramCount++}`);
+      values.push(event_weekly_schedule_day);
+    }
+    if (event_weekly_schedule_time !== undefined) {
+      updates.push(`event_weekly_schedule_time = $${paramCount++}`);
+      values.push(event_weekly_schedule_time);
+    }
+    if (event_monthly_schedule_date !== undefined) {
+      updates.push(`event_monthly_schedule_date = $${paramCount++}`);
+      values.push(event_monthly_schedule_date);
+    }
+    if (event_monthly_schedule_time !== undefined) {
+      updates.push(`event_monthly_schedule_time = $${paramCount++}`);
+      values.push(event_monthly_schedule_time);
+    }
 
     if (updates.length === 0) {
       return res.status(400).json({
@@ -403,7 +563,7 @@ router.put('/profile', authenticateToken, async (req, res) => {
     }
 
     values.push(userId);
-    const queryText = `UPDATE users SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${paramCount} RETURNING id, name, email, phone, position, role, branch_id, branch_context, created_at, updated_at`;
+    const queryText = `UPDATE users SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${paramCount} RETURNING id, name, email, phone, position, role, branch_id, branch_context, stock_alert_frequency, stock_alert_schedule_day, stock_alert_schedule_date, stock_alert_schedule_time, notification_settings, stock_alert_frequencies, daily_schedule_time, weekly_schedule_day, weekly_schedule_time, monthly_schedule_date, monthly_schedule_time, event_reminder_frequencies, event_daily_schedule_time, event_weekly_schedule_day, event_weekly_schedule_time, event_monthly_schedule_date, event_monthly_schedule_time, created_at, updated_at`;
 
     const result = await query(queryText, values);
 
@@ -596,6 +756,29 @@ router.post('/update-district-id', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to update district_id'
+    });
+  }
+});
+
+// Update user settings
+router.put('/settings', authenticateToken, async (req, res) => {
+  try {
+    const { notification_settings } = req.body;
+    
+    await query(
+      'UPDATE users SET notification_settings = $1 WHERE id = $2',
+      [JSON.stringify(notification_settings), req.user.userId]
+    );
+    
+    res.json({
+      success: true,
+      message: 'User settings updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating user settings:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update user settings'
     });
   }
 });

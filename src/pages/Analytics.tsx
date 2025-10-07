@@ -9,6 +9,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { ItemStockUsageChart } from "@/components/ItemStockUsageChart";
 
+// Category labels mapping
+const categoryLabels = {
+  fish_frozen: "Fish Frozen",
+  vegetables: "Vegetables",
+  other_frozen_food: "Other Frozen Food",
+  meat_frozen: "Meat Frozen",
+  kitchen_supplies: "Kitchen Supplies",
+  grains: "Grains",
+  fruits: "Fruits",
+  flour: "Flour",
+  cleaning_supplies: "Cleaning Supplies",
+  canned_prepared_food: "Canned & Prepared Food",
+  beer_non_alc: "Beer, non alc.",
+  sy_product_recipes: "SY Product Recipes",
+  packaging: "Packaging",
+  sauce: "Sauce",
+  softdrinks: "Softdrinks",
+  spices: "Spices",
+  other: "Other"
+};
+
 interface AnalyticsData {
   totalItems: number;
   lowStockItems: number;
@@ -59,10 +80,8 @@ const Analytics = () => {
 
       const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'];
       const formatCategory = (raw: string) => {
-        let n = raw.replace(/_/g, ' ').trim();
-        n = n.replace(/\s*items$/i, '').trim();
-        n = n.charAt(0).toUpperCase() + n.slice(1);
-        return `${n} items`;
+        const label = categoryLabels[raw as keyof typeof categoryLabels] || raw;
+        return `${label} items`;
       };
       const categoryData = Object.entries(categoryCount).map(([name, value], index) => ({
         name: formatCategory(name),

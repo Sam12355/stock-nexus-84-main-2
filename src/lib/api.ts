@@ -1,5 +1,5 @@
 // API client for backend communication
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 class ApiClient {
   private token: string | null = null;
@@ -112,25 +112,6 @@ class ApiClient {
     return response.data;
   }
 
-  // Moveout lists methods
-  async getMoveoutLists() {
-    const response = await this.request<{
-      success: boolean;
-      data: any[];
-    }>('/moveout');
-    return response.data;
-  }
-
-  async createMoveoutList(items: any[]) {
-    const response = await this.request<{
-      success: boolean;
-      data: any;
-    }>('/moveout', {
-      method: 'POST',
-      body: JSON.stringify({ items }),
-    });
-    return response.data;
-  }
 
   async getMoveoutList(id: string) {
     const response = await this.request<{
@@ -252,11 +233,14 @@ class ApiClient {
     return response.data;
   }
 
-  async getItemUsageAnalytics(period: string = 'daily') {
+  async getItemUsageAnalytics(period: string = 'daily', itemId?: string) {
+    const url = itemId 
+      ? `/analytics/item-usage/${period}?itemId=${itemId}`
+      : `/analytics/item-usage/${period}`;
     const response = await this.request<{
       success: boolean;
       data: any[];
-    }>(`/analytics/item-usage/${period}`);
+    }>(url);
     return response.data;
   }
 
@@ -558,6 +542,33 @@ class ApiClient {
     return response;
   }
 
+  async cleanupResolvedStockAlerts(itemName: string) {
+    const response = await this.request<{
+      success: boolean;
+      message: string;
+      cleaned: number;
+    }>('/notifications/cleanup-resolved-alerts', {
+      method: 'POST',
+      body: JSON.stringify({ item_name: itemName }),
+    });
+    return response;
+  }
+
+  async getScheduledAlertStatus() {
+    const response = await this.request<{
+      success: boolean;
+      schedule: {
+        frequency: string;
+        scheduleDay?: number;
+        scheduleDate?: number;
+        scheduleTime: string;
+      };
+    }>('/scheduled-notifications/status', {
+      method: 'GET',
+    });
+    return response.schedule;
+  }
+
   // Update user branch context
   async updateBranchContext(branchId: string) {
     const response = await this.request<{
@@ -619,6 +630,234 @@ class ApiClient {
       body: JSON.stringify(data),
     });
     return response;
+  }
+
+  // Branch Assignments
+  async getDistrictManagers() {
+    const response = await this.request<{
+      success: boolean;
+      data: Array<{
+        id: string;
+        name: string;
+        email: string;
+        district_id: string;
+        district_name: string;
+        region_name: string;
+        assigned_branches_count: number;
+        assigned_branches: Array<{
+          id: string;
+          name: string;
+          district_id: string;
+          district_name: string;
+        }>;
+      }>;
+    }>('/branch-assignments/district-managers');
+    return response;
+  }
+
+  async getAvailableBranches() {
+    const response = await this.request<{
+      success: boolean;
+      data: Array<{
+        id: string;
+        name: string;
+        description: string;
+        district_id: string;
+        district_name: string;
+        region_name: string;
+      }>;
+    }>('/branch-assignments/available-branches');
+    return response;
+  }
+
+  async assignBranchesToDistrictManager(data: {
+    district_manager_id: string;
+    branch_ids: string[];
+  }) {
+    const response = await this.request<{
+      success: boolean;
+      message: string;
+      data: {
+        district_manager_id: string;
+        assigned_branches: number;
+      };
+    }>('/branch-assignments/assign', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return response;
+  }
+
+  async unassignBranchFromDistrictManager(districtManagerId: string, branchId: string) {
+    const response = await this.request<{
+      success: boolean;
+      message: string;
+    }>(`/branch-assignments/unassign/${districtManagerId}/${branchId}`, {
+      method: 'DELETE',
+    });
+    return response;
+  }
+
+  async getDistrictManagerAssignments(districtManagerId: string) {
+    const response = await this.request<{
+      success: boolean;
+      data: Array<{
+        id: string;
+        branch_id: string;
+        branch_name: string;
+        branch_description: string;
+        district_name: string;
+        region_name: string;
+        assigned_at: string;
+        assigned_by_name: string;
+      }>;
+    }>(`/branch-assignments/district-manager/${districtManagerId}`);
+    return response;
+  }
+
+  // Setup
+  async createDistrictManagerBranchAssignmentsTable() {
+    const response = await this.request<{
+      success: boolean;
+      message: string;
+      table_exists: boolean;
+    }>('/setup/create-dm-branch-assignments-table', {
+      method: 'POST',
+    });
+    return response;
+  }
+
+  // Receipt management
+  async getReceipts(): Promise<any[]> {
+    try {
+      const response = await this.request<any>('/receipts');
+      console.log('getReceipts response:', response);
+      // Backend returns { success: true, data: [...] }
+      const receipts = response.data || response || [];
+      console.log('Extracted receipts:', receipts);
+      return receipts;
+    } catch (error) {
+      console.error('Error in getReceipts:', error);
+      throw error;
+    }
+  }
+
+  async submitReceipt(formData: FormData): Promise<any> {
+    const url = `${API_BASE_URL}/receipts/submit`;
+    
+    const headers: HeadersInit = {};
+    if (this.token) {
+      headers.Authorization = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async updateReceiptStatus(id: string, status: string): Promise<any> {
+    return this.request<any>(`/receipts/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async downloadReceiptFile(id: string): Promise<Blob> {
+    const url = `${API_BASE_URL}/receipts/${id}/file`;
+    
+    const headers: HeadersInit = {};
+    if (this.token) {
+      headers.Authorization = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return response.blob();
+  }
+
+  async updateUserSettings(settings: any): Promise<any> {
+    return this.request<any>('/users/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
+  }
+
+  // Moveout List methods
+  async getMoveoutLists(): Promise<any[]> {
+    const response = await this.request<{
+      success: boolean;
+      data: any[];
+    }>('/moveout-lists');
+    return response.data;
+  }
+
+  async createMoveoutList(data: {
+    title?: string;
+    description?: string;
+    items: Array<{
+      item_id: string;
+      item_name: string;
+      available_amount: number;
+      request_amount: number;
+      category: string;
+    }>;
+  }): Promise<any> {
+    const response = await this.request<{
+      success: boolean;
+      data: any;
+    }>('/moveout-lists', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+    return response.data;
+  }
+
+  async updateMoveoutListStatus(id: string, status: 'active' | 'completed' | 'cancelled'): Promise<any> {
+    const response = await this.request<{
+      success: boolean;
+      data: any;
+    }>(`/moveout-lists/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status })
+    });
+    return response.data;
+  }
+
+  async deleteMoveoutList(id: string): Promise<any> {
+    const response = await this.request<{
+      success: boolean;
+      message: string;
+    }>(`/moveout-lists/${id}`, {
+      method: 'DELETE'
+    });
+    return response;
+  }
+
+  async processMoveoutItem(listId: string, itemId: string, quantity: number, userName?: string): Promise<any> {
+    const response = await this.request<{
+      success: boolean;
+      data: any;
+    }>(`/moveout-lists/${listId}/process-item`, {
+      method: 'POST',
+      body: JSON.stringify({ itemId, quantity, userName })
+    });
+    return response.data;
   }
 }
 

@@ -47,8 +47,8 @@ export const ItemStockUsageChart = ({ branchId }: ItemStockUsageChartProps) => {
     
     setLoading(true);
     try {
-      // Use the API client to get item usage analytics
-      const data = await apiClient.getItemUsageAnalytics(timePeriod);
+      // Use the API client to get item usage analytics for the specific item
+      const data = await apiClient.getItemUsageAnalytics(timePeriod, selectedItem);
       
       // The API already returns the data in the correct format
       setUsageData(data || []);

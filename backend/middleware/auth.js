@@ -16,7 +16,7 @@ const authenticateToken = async (req, res, next) => {
     
     // Get user from database
     const result = await query(
-      'SELECT id, email, name, role, branch_id, branch_context, is_active FROM users WHERE id = $1',
+      'SELECT id, email, name, role, branch_id, branch_context, district_id, is_active FROM users WHERE id = $1',
       [decoded.userId]
     );
 
@@ -69,8 +69,8 @@ const checkBranchAccess = (req, res, next) => {
   const userBranchId = req.user.branch_id;
   const userBranchContext = req.user.branch_context;
 
-  // Admin, regional_manager, and district_manager can access all branches
-  if (['admin', 'regional_manager', 'district_manager'].includes(userRole)) {
+  // Admin can access all branches
+  if (userRole === 'admin') {
     return next();
   }
 
@@ -93,7 +93,7 @@ const optionalAuth = async (req, res, next) => {
     if (token) {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const result = await query(
-        'SELECT id, email, name, role, branch_id, branch_context, is_active FROM users WHERE id = $1',
+        'SELECT id, email, name, role, branch_id, branch_context, district_id, is_active FROM users WHERE id = $1',
         [decoded.userId]
       );
 

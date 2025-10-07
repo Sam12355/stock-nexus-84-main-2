@@ -16,7 +16,10 @@ import {
   MapPin,
   Building,
   Building2,
-  ArrowRight
+  ArrowRight,
+  UserCheck,
+  Plus,
+  Upload
 } from 'lucide-react';
 import {
   Sidebar,
@@ -36,61 +39,61 @@ const menuItems = [
     title: "Dashboard",
     url: "/",
     icon: Home,
-    roles: ['regional_manager', 'district_manager', 'manager', 'assistant_manager', 'staff']
-  },
-  {
-    title: "Region Management",
-    url: "/regions",
-    icon: MapPin,
-    roles: ['admin']
-  },
-  {
-    title: "District Management",
-    url: "/districts",
-    icon: Building,
-    roles: ['admin']
+    roles: ['manager', 'assistant_manager', 'staff']
   },
   {
     title: "Branch Management",
     url: "/branches",
     icon: Building2,
-    roles: ['admin', 'regional_manager']
+    roles: ['admin']
   },
   {
     title: "Manage Staff",
     url: "/staff",
     icon: Users,
-    roles: ['admin', 'regional_manager', 'district_manager', 'manager', 'assistant_manager']
+    roles: ['admin', 'manager', 'assistant_manager']
   },
   {
     title: "Manage Items",
     url: "/items",
     icon: Package2,
-    roles: ['regional_manager', 'district_manager', 'manager', 'assistant_manager']
+    roles: ['manager', 'assistant_manager']
   },
   {
-    title: "Manage Stock",
+    title: "Stock Out",
     url: "/stock",
     icon: Package,
-    roles: ['regional_manager', 'district_manager', 'manager', 'assistant_manager', 'staff']
+    roles: ['manager', 'assistant_manager', 'staff']
+  },
+  {
+    title: "Stock In",
+    url: "/stock-in",
+    icon: Plus,
+    roles: ['manager', 'assistant_manager']
+  },
+  {
+    title: "Record Stock In",
+    url: "/record-stock-in",
+    icon: Upload,
+    roles: ['staff']
   },
   {
     title: "Reports",
     url: "/reports",
     icon: FileText,
-    roles: ['regional_manager', 'district_manager', 'manager', 'assistant_manager']
+    roles: ['manager', 'assistant_manager']
   },
   {
     title: "Analytics",
     url: "/analytics",
     icon: BarChart3,
-    roles: ['regional_manager', 'district_manager', 'manager', 'assistant_manager']
+    roles: ['manager', 'assistant_manager']
   },
   {
     title: "Activity Logs",
     url: "/activity-logs",
     icon: ClipboardList,
-    roles: ['admin', 'regional_manager', 'district_manager', 'manager']
+    roles: ['admin', 'manager']
   },
   {
     title: "Moveout List",
@@ -110,13 +113,24 @@ export function AppSidebar() {
 
   const isActive = (path: string) => {
     if (path === '/' && currentPath === '/') return true;
-    if (path !== '/' && currentPath.startsWith(path)) return true;
+    if (path !== '/' && currentPath === path) return true;
     return false;
   };
 
-  const filteredItems = menuItems.filter(item => 
-    !profile?.role || item.roles.includes(profile.role as string)
-  );
+  const filteredItems = menuItems.filter(item => {
+    if (!profile?.role) return false;
+    
+    // Check if user role is in the item's allowed roles
+    const hasRoleAccess = item.roles.includes(profile.role as string);
+    
+    // Special permission check for assistant managers accessing Stock In
+    if (profile.role === 'assistant_manager' && item.url === '/stock-in') {
+      const hasStockInPermission = profile?.notification_settings?.assistant_manager_stock_in_access || false;
+      return hasRoleAccess && hasStockInPermission;
+    }
+    
+    return hasRoleAccess;
+  });
 
   return (
     <Sidebar className="bg-sidebar md:border-r md:border-border">

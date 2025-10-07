@@ -13,7 +13,7 @@ router.post('/register',
     body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
     body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
     body('name').notEmpty().trim().withMessage('Name is required'),
-    body('role').isIn(['admin', 'regional_manager', 'district_manager', 'manager', 'assistant_manager', 'staff']).withMessage('Invalid role'),
+    body('role').isIn(['admin', 'manager', 'assistant_manager', 'staff']).withMessage('Invalid role'),
     body('phone').optional().isMobilePhone().withMessage('Invalid phone number')
   ],
   async (req, res) => {
@@ -157,6 +157,43 @@ router.post('/login',
         ]
       );
 
+      // Get additional context information for greeting messages
+      let districtName = null;
+      let branchName = null;
+      let regionName = null;
+      
+      if (user.branch_context) {
+        // Get branch, district, and region names from branch_context
+        const contextResult = await query(`
+          SELECT b.name as branch_name, d.name as district_name, r.name as region_name
+          FROM branches b
+          LEFT JOIN districts d ON b.district_id = d.id
+          LEFT JOIN regions r ON d.region_id = r.id
+          WHERE b.id = $1
+        `, [user.branch_context]);
+        
+        if (contextResult.rows.length > 0) {
+          branchName = contextResult.rows[0].branch_name;
+          districtName = contextResult.rows[0].district_name;
+          regionName = contextResult.rows[0].region_name;
+        }
+      } else if (user.branch_id) {
+        // Get branch, district, and region names from branch_id
+        const branchResult = await query(`
+          SELECT b.name as branch_name, d.name as district_name, r.name as region_name
+          FROM branches b
+          LEFT JOIN districts d ON b.district_id = d.id
+          LEFT JOIN regions r ON d.region_id = r.id
+          WHERE b.id = $1
+        `, [user.branch_id]);
+        
+        if (branchResult.rows.length > 0) {
+          branchName = branchResult.rows[0].branch_name;
+          districtName = branchResult.rows[0].district_name;
+          regionName = branchResult.rows[0].region_name;
+        }
+      }
+
       res.json({
         success: true,
         data: {
@@ -170,7 +207,10 @@ router.post('/login',
             phone: user.phone,
             position: user.position,
             photo_url: user.photo_url,
-            access_count: user.access_count + 1
+            access_count: user.access_count + 1,
+            district_name: districtName,
+            branch_name: branchName,
+            region_name: regionName
           },
           token
         },
@@ -201,7 +241,14 @@ router.get('/profile', async (req, res) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const result = await query(
-      'SELECT id, email, name, role, branch_id, branch_context, phone, position, photo_url, access_count, last_access, created_at, CASE WHEN branch_context IS NOT NULL THEN true ELSE false END as has_completed_selection FROM users WHERE id = $1 AND is_active = true',
+      `SELECT id, email, name, role, branch_id, branch_context, phone, position, photo_url, access_count, last_access, created_at, 
+              CASE WHEN branch_context IS NOT NULL THEN true ELSE false END as has_completed_selection,
+              stock_alert_frequency, stock_alert_schedule_day, stock_alert_schedule_date, stock_alert_schedule_time,
+              stock_alert_frequencies, daily_schedule_time, weekly_schedule_day, weekly_schedule_time,
+              monthly_schedule_date, monthly_schedule_time, event_reminder_frequencies,
+              event_daily_schedule_time, event_weekly_schedule_day, event_weekly_schedule_time,
+              event_monthly_schedule_date, event_monthly_schedule_time, notification_settings
+       FROM users WHERE id = $1 AND is_active = true`,
       [decoded.userId]
     );
 
@@ -212,9 +259,56 @@ router.get('/profile', async (req, res) => {
       });
     }
 
+    const user = result.rows[0];
+
+    // Get additional context information for greeting messages
+    let districtName = null;
+    let branchName = null;
+    let regionName = null;
+    
+    if (user.branch_context) {
+      // Get branch, district, and region names from branch_context
+      const contextResult = await query(`
+        SELECT b.name as branch_name, d.name as district_name, r.name as region_name
+        FROM branches b
+        LEFT JOIN districts d ON b.district_id = d.id
+        LEFT JOIN regions r ON d.region_id = r.id
+        WHERE b.id = $1
+      `, [user.branch_context]);
+      
+      if (contextResult.rows.length > 0) {
+        branchName = contextResult.rows[0].branch_name;
+        districtName = contextResult.rows[0].district_name;
+        regionName = contextResult.rows[0].region_name;
+      }
+    } else if (user.branch_id) {
+      // Get branch, district, and region names from branch_id
+      const branchResult = await query(`
+        SELECT b.name as branch_name, d.name as district_name, r.name as region_name
+        FROM branches b
+        LEFT JOIN districts d ON b.district_id = d.id
+        LEFT JOIN regions r ON d.region_id = r.id
+        WHERE b.id = $1
+      `, [user.branch_id]);
+      
+      if (branchResult.rows.length > 0) {
+        branchName = branchResult.rows[0].branch_name;
+        districtName = branchResult.rows[0].district_name;
+        regionName = branchResult.rows[0].region_name;
+      }
+    }
+
+    // Add location data to the user object
+    const userWithLocation = {
+      ...user,
+      branch_name: branchName,
+      district_name: districtName,
+      region_name: regionName
+    };
+
     res.json({
       success: true,
-      data: result.rows[0]
+      data: userWithLocation
     });
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {
@@ -302,6 +396,7 @@ router.post('/logout', authenticateToken, async (req, res) => {
     const user_id = req.user.id;
     const ip_address = req.ip || req.connection.remoteAddress;
     const user_agent = req.get('User-Agent');
+
 
     // Log activity
     await query(

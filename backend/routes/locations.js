@@ -505,7 +505,7 @@ router.get('/branches', authenticateToken, async (req, res) => {
     const { district_id } = req.query;
     
     let queryText = `
-      SELECT b.id, b.name, b.description, b.location, b.district_id, b.created_at,
+      SELECT b.id, b.name, b.address, b.district_id, b.created_at,
              d.name as district_name, d.region_id, r.name as region_name
       FROM branches b
       LEFT JOIN districts d ON b.district_id = d.id
@@ -513,50 +513,7 @@ router.get('/branches', authenticateToken, async (req, res) => {
     `;
     let params = [];
     
-    // For regional managers, filter branches by their assigned region
-    if (req.user.role === 'regional_manager') {
-      // If district_id is provided, allow fetching branches for that district
-      // This is used during the district selection process
-      if (district_id) {
-        queryText += ' WHERE b.district_id = $1';
-        params.push(district_id);
-      } else {
-        // Get the regional manager's branch context to find their assigned region
-        const userResult = await query('SELECT branch_context FROM users WHERE id = $1', [req.user.id]);
-        if (userResult.rows.length === 0 || !userResult.rows[0].branch_context) {
-          return res.status(403).json({
-            success: false,
-            error: 'Regional manager must complete branch selection first'
-          });
-        }
-
-      // Get the branch details to find the district, then get the region from the district
-      const branchResult = await query('SELECT district_id FROM branches WHERE id = $1', [userResult.rows[0].branch_context]);
-      if (branchResult.rows.length === 0) {
-        return res.status(403).json({
-          success: false,
-          error: 'Invalid branch context'
-        });
-      }
-
-      const { district_id: assigned_district_id } = branchResult.rows[0];
-      
-      // Get the region from the district
-      const districtResult = await query('SELECT region_id FROM districts WHERE id = $1', [assigned_district_id]);
-      if (districtResult.rows.length === 0) {
-        return res.status(403).json({
-          success: false,
-          error: 'Invalid district in branch context'
-        });
-      }
-      
-        const { region_id: assigned_region_id } = districtResult.rows[0];
-        
-        // Filter branches by the assigned region
-        queryText += ' WHERE r.id = $1';
-        params.push(assigned_region_id);
-      }
-    } else if (district_id) {
+    if (district_id) {
       queryText += ' WHERE b.district_id = $1';
       params.push(district_id);
     }
@@ -569,8 +526,7 @@ router.get('/branches', authenticateToken, async (req, res) => {
     const branches = result.rows.map(row => ({
       id: row.id,
       name: row.name,
-      description: row.description,
-      location: row.location,
+      address: row.address,
       district_id: row.district_id,
       region_id: row.region_id, // This comes from the district table
       created_at: row.created_at,
@@ -598,7 +554,7 @@ router.get('/branches', authenticateToken, async (req, res) => {
 // Create branch
 router.post('/branches', 
   authenticateToken,
-  authorize('admin', 'regional_manager'),
+  authorize('admin'),
   [
     body('name').notEmpty().withMessage('Branch name is required'),
     body('district_id').isUUID().withMessage('Valid district ID is required'),
@@ -649,63 +605,6 @@ router.post('/branches',
         phone
       });
 
-      // For regional managers, validate they can only create branches in their assigned region/district
-      if (req.user.role === 'regional_manager') {
-        console.log('🔍 Regional manager creating branch - district_id:', district_id);
-        
-        // Get the regional manager's branch context to find their assigned region/district
-        const userResult = await query('SELECT branch_context FROM users WHERE id = $1', [req.user.id]);
-        console.log('🔍 User branch_context:', userResult.rows[0]?.branch_context);
-        
-        if (userResult.rows.length === 0 || !userResult.rows[0].branch_context) {
-          return res.status(403).json({
-            success: false,
-            error: 'Regional manager must complete branch selection first'
-          });
-        }
-
-        // Get the branch details to find the district, then get the region from the district
-        const branchResult = await query('SELECT district_id FROM branches WHERE id = $1', [userResult.rows[0].branch_context]);
-        console.log('🔍 Branch context details:', branchResult.rows[0]);
-        
-        if (branchResult.rows.length === 0) {
-          return res.status(403).json({
-            success: false,
-            error: 'Invalid branch context'
-          });
-        }
-
-        const { district_id: assigned_district_id } = branchResult.rows[0];
-        
-        // Get the region from the district
-        const districtResult = await query('SELECT region_id FROM districts WHERE id = $1', [assigned_district_id]);
-        if (districtResult.rows.length === 0) {
-          return res.status(403).json({
-            success: false,
-            error: 'Invalid district in branch context'
-          });
-        }
-        
-        const { region_id: assigned_region_id } = districtResult.rows[0];
-        console.log('🔍 Assigned region_id:', assigned_region_id, 'Assigned district_id:', assigned_district_id);
-
-        // Verify the district belongs to the assigned region
-        const requestedDistrictResult = await query('SELECT region_id FROM districts WHERE id = $1', [district_id]);
-        console.log('🔍 Requested district region_id:', requestedDistrictResult.rows[0]?.region_id);
-        
-        if (requestedDistrictResult.rows.length === 0 || requestedDistrictResult.rows[0].region_id !== assigned_region_id) {
-          console.log('❌ District validation failed - region mismatch');
-          return res.status(403).json({
-            success: false,
-            error: 'You can only create branches in your assigned region'
-          });
-        }
-
-        console.log('✅ District validation passed');
-        // For regional managers, they can create branches in any district within their assigned region
-        // The district_id should belong to the same region as their branch context
-      }
-
       const result = await query(
         'INSERT INTO branches (name, district_id, description, location, manager_name, address, phone) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, name, district_id, description, location, manager_name, address, phone, created_at',
         [name, district_id, description || null, location || null, manager_name, address, phone]
@@ -729,7 +628,7 @@ router.post('/branches',
 // Update branch
 router.put('/branches/:id',
   authenticateToken,
-  authorize('admin', 'regional_manager'),
+  authorize('admin'),
   [
     body('name').notEmpty().withMessage('Branch name is required'),
     body('district_id').isUUID().withMessage('Valid district ID is required'),
@@ -780,82 +679,6 @@ router.put('/branches/:id',
         address,
         phone
       });
-
-      // For regional managers, validate they can only update branches in their assigned region/district
-      if (req.user.role === 'regional_manager') {
-        // Get the regional manager's branch context to find their assigned region/district
-        const userResult = await query('SELECT branch_context FROM users WHERE id = $1', [req.user.id]);
-        if (userResult.rows.length === 0 || !userResult.rows[0].branch_context) {
-          return res.status(403).json({
-            success: false,
-            error: 'Regional manager must complete branch selection first'
-          });
-        }
-
-        // Get the branch details to find the district, then get the region from the district
-        const branchResult = await query('SELECT district_id FROM branches WHERE id = $1', [userResult.rows[0].branch_context]);
-        if (branchResult.rows.length === 0) {
-          return res.status(403).json({
-            success: false,
-            error: 'Invalid branch context'
-          });
-        }
-
-        const { district_id: assigned_district_id } = branchResult.rows[0];
-        
-        // Get the region from the district
-        const districtResult = await query('SELECT region_id FROM districts WHERE id = $1', [assigned_district_id]);
-        if (districtResult.rows.length === 0) {
-          return res.status(403).json({
-            success: false,
-            error: 'Invalid district in branch context'
-          });
-        }
-        
-        const { region_id: assigned_region_id } = districtResult.rows[0];
-
-        // Verify the district belongs to the assigned region (only if district_id is provided)
-        if (district_id) {
-          const requestedDistrictResult = await query('SELECT region_id FROM districts WHERE id = $1', [district_id]);
-          if (requestedDistrictResult.rows.length === 0 || requestedDistrictResult.rows[0].region_id !== assigned_region_id) {
-            return res.status(403).json({
-              success: false,
-              error: 'You can only update branches in your assigned region'
-            });
-          }
-        }
-
-        // For regional managers, they can update branches in any district within their assigned region
-        // The district_id should belong to the same region as their branch context
-
-        // Verify the branch being updated belongs to the regional manager's assigned region
-        const existingBranchResult = await query('SELECT district_id FROM branches WHERE id = $1', [id]);
-        if (existingBranchResult.rows.length === 0) {
-          return res.status(404).json({
-            success: false,
-            error: 'Branch not found'
-          });
-        }
-
-        const { district_id: existing_district_id } = existingBranchResult.rows[0];
-        
-        // Get the region from the existing branch's district
-        const existingDistrictResult = await query('SELECT region_id FROM districts WHERE id = $1', [existing_district_id]);
-        if (existingDistrictResult.rows.length === 0) {
-          return res.status(403).json({
-            success: false,
-            error: 'Invalid district for existing branch'
-          });
-        }
-        
-        const { region_id: existing_region_id } = existingDistrictResult.rows[0];
-        if (existing_region_id !== assigned_region_id) {
-          return res.status(403).json({
-            success: false,
-            error: 'You can only update branches in your assigned region'
-          });
-        }
-      }
 
       const result = await query(
         'UPDATE branches SET name = $1, district_id = $2, description = $3, location = $4, manager_name = $5, address = $6, phone = $7 WHERE id = $8 RETURNING id, name, district_id, description, location, manager_name, address, phone, created_at',
@@ -887,72 +710,10 @@ router.put('/branches/:id',
 // Delete branch
 router.delete('/branches/:id',
   authenticateToken,
-  authorize('admin', 'regional_manager'),
+  authorize('admin'),
   async (req, res) => {
     try {
       const { id } = req.params;
-
-      // For regional managers, validate they can only delete branches in their assigned region/district
-      if (req.user.role === 'regional_manager') {
-        // Get the regional manager's branch context to find their assigned region/district
-        const userResult = await query('SELECT branch_context FROM users WHERE id = $1', [req.user.id]);
-        if (userResult.rows.length === 0 || !userResult.rows[0].branch_context) {
-          return res.status(403).json({
-            success: false,
-            error: 'Regional manager must complete branch selection first'
-          });
-        }
-
-        // Get the branch details to find the district, then get the region from the district
-        const branchResult = await query('SELECT district_id FROM branches WHERE id = $1', [userResult.rows[0].branch_context]);
-        if (branchResult.rows.length === 0) {
-          return res.status(403).json({
-            success: false,
-            error: 'Invalid branch context'
-          });
-        }
-
-        const { district_id: assigned_district_id } = branchResult.rows[0];
-        
-        // Get the region from the district
-        const districtResult = await query('SELECT region_id FROM districts WHERE id = $1', [assigned_district_id]);
-        if (districtResult.rows.length === 0) {
-          return res.status(403).json({
-            success: false,
-            error: 'Invalid district in branch context'
-          });
-        }
-        
-        const { region_id: assigned_region_id } = districtResult.rows[0];
-
-        // Verify the branch being deleted belongs to the regional manager's assigned region/district
-        const existingBranchResult = await query('SELECT district_id FROM branches WHERE id = $1', [id]);
-        if (existingBranchResult.rows.length === 0) {
-          return res.status(404).json({
-            success: false,
-            error: 'Branch not found'
-          });
-        }
-
-        const { district_id: existing_district_id } = existingBranchResult.rows[0];
-        
-        // Get the region from the existing branch's district
-        const existingDistrictResult = await query('SELECT region_id FROM districts WHERE id = $1', [existing_district_id]);
-        if (existingDistrictResult.rows.length === 0) {
-          return res.status(403).json({
-            success: false,
-            error: 'Invalid district for existing branch'
-          });
-        }
-        
-        const { region_id: existing_region_id } = existingDistrictResult.rows[0];
-        if (existing_region_id !== assigned_region_id) {
-          return res.status(403).json({
-            success: false,
-            error: 'You can only delete branches in your assigned region'
-          });
-        }
-      }
 
       // Check if branch has users
       const usersResult = await query(
@@ -1244,6 +1005,65 @@ router.post('/branches/add-columns',
       res.status(500).json({
         success: false,
         error: 'Failed to add columns: ' + error.message
+      });
+    }
+  }
+);
+
+// Update branch settings (notification settings, alert frequency, etc.)
+router.put('/branches/:id/settings',
+  authenticateToken,
+  authorize('admin', 'manager'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { notification_settings, alert_frequency } = req.body;
+
+      // Verify the branch exists and user has access
+      const branchCheck = await query(
+        'SELECT id, name FROM branches WHERE id = $1',
+        [id]
+      );
+
+      if (branchCheck.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Branch not found'
+        });
+      }
+
+      // Update notification settings if provided
+      if (notification_settings) {
+        await query(
+          'UPDATE branches SET notification_settings = $1 WHERE id = $2',
+          [JSON.stringify(notification_settings), id]
+        );
+      }
+
+      // Update alert frequency if provided
+      if (alert_frequency) {
+        await query(
+          'UPDATE branches SET alert_frequency = $1 WHERE id = $2',
+          [alert_frequency, id]
+        );
+      }
+
+      // Get updated branch data
+      const updatedBranch = await query(
+        'SELECT id, name, notification_settings, alert_frequency FROM branches WHERE id = $1',
+        [id]
+      );
+
+      res.json({
+        success: true,
+        data: updatedBranch.rows[0],
+        message: 'Branch settings updated successfully'
+      });
+    } catch (error) {
+      console.error('Error updating branch settings:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to update branch settings: ' + error.message
       });
     }
   }

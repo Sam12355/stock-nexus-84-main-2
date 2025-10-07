@@ -10,6 +10,8 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { User, Bell, Building, Save } from "lucide-react";
+import AlertSchedulingModal, { AlertSchedule } from "@/components/AlertSchedulingModal";
+import EventReminderSchedulingModal, { EventReminderSchedule } from "@/components/EventReminderSchedulingModal";
 
 interface ExtendedProfile {
   id: string;
@@ -22,6 +24,29 @@ interface ExtendedProfile {
   role: string;
   branch_id?: string;
   branch_context?: string;
+  stock_alert_frequency?: string;
+  stock_alert_schedule_day?: number;
+  stock_alert_schedule_date?: number;
+  stock_alert_schedule_time?: string;
+  stock_alert_frequencies?: string[];
+  daily_schedule_time?: string;
+  weekly_schedule_day?: number;
+  weekly_schedule_time?: string;
+  monthly_schedule_date?: number;
+  monthly_schedule_time?: string;
+  notification_settings?: {
+    email?: boolean;
+    sms?: boolean;
+    whatsapp?: boolean;
+    assistant_manager_stock_in_access?: boolean;
+    [key: string]: boolean | string | number | undefined;
+  };
+  event_reminder_frequencies?: string[];
+  event_daily_schedule_time?: string;
+  event_weekly_schedule_day?: number;
+  event_weekly_schedule_time?: string;
+  event_monthly_schedule_date?: number;
+  event_monthly_schedule_time?: string;
   created_at?: string;
   updated_at?: string;
   access_count?: number;
@@ -43,8 +68,9 @@ const Settings = () => {
   const { profile } = useAuth() as { profile: ExtendedProfile | null };
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [testMessageLoading, setTestMessageLoading] = useState(false);
   const [branch, setBranch] = useState<Branch | null>(null);
+  const [showAlertSchedulingModal, setShowAlertSchedulingModal] = useState(false);
+  const [showEventReminderSchedulingModal, setShowEventReminderSchedulingModal] = useState(false);
 
   // Guards against state being reset after user edits
   const [profileInitialized, setProfileInitialized] = useState(false);
@@ -57,20 +83,74 @@ const Settings = () => {
   const [showPhoneDialog, setShowPhoneDialog] = useState(false);
   const [tempPhone, setTempPhone] = useState("");
 
+  // Permissions state (for managers only)
+  const [assistantManagerStockInAccess, setAssistantManagerStockInAccess] = useState(false);
+
   // Profile settings
-  const [profileData, setProfileData] = useState({
+  const [profileData, setProfileData] = useState<ExtendedProfile>({
+    id: profile?.id || "",
+    user_id: profile?.id || "", // Use profile.id as user_id for compatibility
     name: profile?.name || "",
     email: profile?.email || "",
     phone: profile?.phone || "",
     position: profile?.position || "",
+    role: profile?.role || "",
   });
+
+  const normalizeTime = (time?: string | null) => (time ? time.slice(0, 5) : undefined);
+
+  const buildAlertScheduleFromProfile = (profileLike: ExtendedProfile): AlertSchedule | undefined => {
+    const frequencies = profileLike.stock_alert_frequencies || [];
+    if (!frequencies || frequencies.length === 0) {
+      return undefined;
+    }
+
+    const baseScheduleTime =
+      normalizeTime(profileLike.stock_alert_schedule_time) ||
+      normalizeTime(profileLike.daily_schedule_time) ||
+      normalizeTime(profileLike.weekly_schedule_time) ||
+      normalizeTime(profileLike.monthly_schedule_time) ||
+      "09:00";
+
+    return {
+      frequencies: frequencies as ("daily" | "weekly" | "monthly")[],
+      scheduleTime: baseScheduleTime,
+      scheduleDay: profileLike.weekly_schedule_day ?? undefined,
+      scheduleDate: profileLike.monthly_schedule_date ?? undefined,
+      dailyTime: normalizeTime(profileLike.daily_schedule_time) || baseScheduleTime,
+      weeklyTime: normalizeTime(profileLike.weekly_schedule_time) || baseScheduleTime,
+      monthlyTime: normalizeTime(profileLike.monthly_schedule_time) || baseScheduleTime,
+    };
+  };
+
+  const buildEventScheduleFromProfile = (profileLike: ExtendedProfile): EventReminderSchedule | undefined => {
+    const frequencies = profileLike.event_reminder_frequencies || [];
+    if (!frequencies || frequencies.length === 0) {
+      return undefined;
+    }
+
+    return {
+      frequencies,
+      dailyTime: normalizeTime(profileLike.event_daily_schedule_time) || "09:00",
+      weeklyTime: normalizeTime(profileLike.event_weekly_schedule_time) || "09:00",
+      monthlyTime: normalizeTime(profileLike.event_monthly_schedule_time) || "09:00",
+      scheduleDay: profileLike.event_weekly_schedule_day ?? null,
+      scheduleDate: profileLike.event_monthly_schedule_date ?? null,
+    };
+  };
 
   // Notification settings - initialize from localStorage or defaults
   const [notifications, setNotifications] = useState(() => {
     const saved = localStorage.getItem(`notifications_${profile?.id}`);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        return JSON.parse(saved) as {
+          email: boolean;
+          sms: boolean;
+          whatsapp: boolean;
+          stockAlerts: boolean;
+          eventReminders: boolean;
+        };
       } catch (e) {
         console.error('Error parsing saved notifications:', e);
       }
@@ -85,12 +165,14 @@ const Settings = () => {
   });
 
   // Save notifications to both localStorage and database
-  const saveNotificationsToDatabase = async (notificationSettings: any) => {
+  const saveNotificationsToDatabase = async (notificationSettings: Record<string, any>) => {
     if (!profile?.id) return;
     
     try {
       await apiClient.updateProfile({
         notification_settings: {
+          email: notificationSettings.email,
+          sms: notificationSettings.sms,
           whatsapp: notificationSettings.whatsapp,
           stockLevelAlerts: notificationSettings.stockAlerts,
           eventReminders: notificationSettings.eventReminders
@@ -124,7 +206,16 @@ const Settings = () => {
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          setNotifications(parsed);
+          // Ensure email field is always present
+          const settingsWithEmail = {
+            email: true, // Always default to true
+            sms: false,
+            whatsapp: false,
+            stockAlerts: true,
+            eventReminders: true,
+            ...parsed
+          };
+          setNotifications(settingsWithEmail);
           hasTouchedNotificationsRef.current = true;
           return;
         } catch (e) {
@@ -138,12 +229,29 @@ const Settings = () => {
         
         if (profileData?.notification_settings) {
           const dbSettings = profileData.notification_settings;
+          
+          // Set default values based on user role
+          let defaultEmail = true; // Email is always enabled by default for all roles
+          let defaultSms = false;
+          let defaultWhatsapp = false;
+          let defaultStockAlerts = false;
+          let defaultEventReminders = false;
+          
+          // For managers and assistant managers, turn off all notifications by default
+          if (['manager', 'assistant_manager'].includes(profileData.role)) {
+            defaultEmail = false;
+            defaultSms = false;
+            defaultWhatsapp = false;
+            defaultStockAlerts = false;
+            defaultEventReminders = false;
+          }
+          
           const mappedSettings = {
-            email: true, // default
-            sms: false, // default
-            whatsapp: dbSettings.whatsapp || false,
-            stockAlerts: dbSettings.stockLevelAlerts || false,
-            eventReminders: dbSettings.eventReminders || false,
+            email: dbSettings.email !== undefined ? dbSettings.email : defaultEmail,
+            sms: dbSettings.sms !== undefined ? dbSettings.sms : defaultSms,
+            whatsapp: dbSettings.whatsapp !== undefined ? dbSettings.whatsapp : defaultWhatsapp,
+            stockAlerts: dbSettings.stockLevelAlerts !== undefined ? dbSettings.stockLevelAlerts : defaultStockAlerts,
+            eventReminders: dbSettings.eventReminders !== undefined ? dbSettings.eventReminders : defaultEventReminders,
           };
           setNotifications(mappedSettings);
           // Also save to localStorage for faster access
@@ -155,20 +263,43 @@ const Settings = () => {
     };
     
     loadNotificationSettings();
-  }, [profile?.id]);
+    
+  // Initialize permissions for managers
+  if (profile?.role === "manager") {
+    const permissions = profile?.notification_settings?.assistant_manager_stock_in_access || false;
+    setAssistantManagerStockInAccess(permissions);
+  }
+}, [profile?.id, profile?.role, profile?.notification_settings?.assistant_manager_stock_in_access]);
+
+  // Load alert scheduling status
+  // Alert schedule data is already loaded from the profile
+  // No need for additional API calls
 
   // Branch settings
-  const [branchSettings, setBranchSettings] = useState({
-    alertFrequency: "weekly",
-  });
+  const [branchSettings, setBranchSettings] = useState({});
 
   useEffect(() => {
     if (profile && !profileInitialized) {
       setProfileData({
+        id: profile.id || "",
+        user_id: profile.user_id || "",
         name: profile.name || "",
         email: profile.email || "",
         phone: profile.phone || "",
         position: profile.position || "",
+        role: profile.role || "",
+        stock_alert_frequencies: profile.stock_alert_frequencies,
+        daily_schedule_time: profile.daily_schedule_time,
+        weekly_schedule_day: profile.weekly_schedule_day,
+        weekly_schedule_time: profile.weekly_schedule_time,
+        monthly_schedule_date: profile.monthly_schedule_date,
+        monthly_schedule_time: profile.monthly_schedule_time,
+        event_reminder_frequencies: profile.event_reminder_frequencies,
+        event_daily_schedule_time: profile.event_daily_schedule_time,
+        event_weekly_schedule_day: profile.event_weekly_schedule_day,
+        event_weekly_schedule_time: profile.event_weekly_schedule_time,
+        event_monthly_schedule_date: profile.event_monthly_schedule_date,
+        event_monthly_schedule_time: profile.event_monthly_schedule_time,
       });
       setProfileInitialized(true);
     }
@@ -198,16 +329,14 @@ const Settings = () => {
         if (!hasTouchedNotificationsRef.current) {
           setNotifications((prev) => ({
             ...prev,
-            email: data.notification_settings?.email ?? true,
-            sms: data.notification_settings?.sms ?? false,
-            whatsapp: data.notification_settings?.whatsapp ?? false,
+            email: (data as { notification_settings?: ExtendedProfile['notification_settings'] })?.notification_settings?.email ?? true,
+            sms: (data as { notification_settings?: ExtendedProfile['notification_settings'] })?.notification_settings?.sms ?? false,
+            whatsapp: (data as { notification_settings?: ExtendedProfile['notification_settings'] })?.notification_settings?.whatsapp ?? false,
           }));
         }
         
         // Always update branch settings
-        setBranchSettings({
-          alertFrequency: data.alert_frequency || "weekly",
-        });
+        setBranchSettings({});
       }
     } catch (error) {
       console.error("Error fetching branch settings:", error);
@@ -256,7 +385,6 @@ const Settings = () => {
           sms: notifications.sms,
           whatsapp: notifications.whatsapp,
         },
-        alert_frequency: branchSettings.alertFrequency,
       });
 
       toast({
@@ -273,6 +401,39 @@ const Settings = () => {
     }
   };
 
+  const updatePermissions = async () => {
+    if (profile?.role !== "manager") return;
+
+    setLoading(true);
+    try {
+      // For now, we'll store this in the user's notification_settings
+      // In a real app, you might want a separate permissions table
+      const currentSettings = profile?.notification_settings || {};
+      const updatedSettings = {
+        ...currentSettings,
+        assistant_manager_stock_in_access: assistantManagerStockInAccess,
+      };
+
+      await apiClient.updateUserSettings({
+        notification_settings: updatedSettings,
+      });
+
+      toast({
+        title: "Success",
+        description: "Permissions updated successfully",
+      });
+    } catch (error) {
+      console.error("Error updating permissions:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update permissions",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Save individual notification setting immediately
   const saveNotificationSetting = async (settingType: 'email' | 'sms' | 'whatsapp' | 'stockAlerts' | 'eventReminders', value: boolean) => {
     try {
@@ -280,27 +441,54 @@ const Settings = () => {
       const updatedNotifications = { ...notifications, [settingType]: value };
       localStorage.setItem(`notifications_${profile?.id}`, JSON.stringify(updatedNotifications));
 
-      // Only save to database for notification delivery methods, not user preferences
-      if (['email', 'sms', 'whatsapp'].includes(settingType) && branch) {
+      // Save to database for notification delivery methods - update USER settings, not branch settings
+      if (['email', 'sms', 'whatsapp'].includes(settingType)) {
+        // Get current notification settings safely and ensure all fields are preserved
+        const currentSettings = profile?.notification_settings || {};
+        
+        // Set default values based on user role
+        let defaultEmail = true; // Email is always enabled by default for all roles
+        let defaultSms = false;
+        let defaultWhatsapp = false;
+        let defaultStockAlerts = false;
+        let defaultEventReminders = false;
+        
+        // For managers and assistant managers, turn off all notifications by default
+        if (['manager', 'assistant_manager'].includes(profile?.role || '')) {
+          defaultEmail = false;
+          defaultSms = false;
+          defaultWhatsapp = false;
+          defaultStockAlerts = false;
+          defaultEventReminders = false;
+        }
+        
         const updatedSettings = {
-          ...branch.notification_settings,
-          [settingType]: value
+          // ALWAYS include email field - never remove it!
+          email: settingType === 'email' ? value : (currentSettings.email !== undefined ? currentSettings.email : defaultEmail),
+          whatsapp: settingType === 'whatsapp' ? value : (currentSettings.whatsapp !== undefined ? currentSettings.whatsapp : defaultWhatsapp),
+          sms: settingType === 'sms' ? value : (currentSettings.sms !== undefined ? currentSettings.sms : defaultSms),
+          stockLevelAlerts: settingType === 'stockAlerts' ? value : (currentSettings.stockLevelAlerts !== undefined ? currentSettings.stockLevelAlerts : defaultStockAlerts),
+          eventReminders: settingType === 'eventReminders' ? value : (currentSettings.eventReminders !== undefined ? currentSettings.eventReminders : defaultEventReminders),
         };
 
+        // CRITICAL: Ensure email field is ALWAYS present and never removed
+        if (!Object.prototype.hasOwnProperty.call(updatedSettings, 'email') || updatedSettings.email === undefined) {
+          updatedSettings.email = true;
+        }
+
         console.log(`Updating ${settingType} notification setting to:`, value);
+        console.log('Current settings:', currentSettings);
         console.log('Updated notification settings:', updatedSettings);
 
-        await apiClient.updateBranchSettings(branch.id, {
+        await apiClient.updateProfile({
           notification_settings: updatedSettings
         });
         
         console.log(`Successfully updated ${settingType} in database`);
         
-        // Update local branch state to reflect the change
-        setBranch(prev => prev ? {
-          ...prev,
-          notification_settings: updatedSettings
-        } : prev);
+        // Update local profile state to reflect the change
+        // Note: The profile will be updated when the component re-renders
+        console.log('Profile will be updated on next render');
       }
 
       console.log(`${settingType} notification setting saved:`, value);
@@ -359,12 +547,9 @@ const Settings = () => {
       
       setShowPhoneDialog(false);
       
-      // Send test WhatsApp notification
-      await sendTestWhatsAppNotification(tempPhone.trim());
-      
       toast({
         title: "Success",
-        description: "Phone number saved and WhatsApp notifications enabled. Check console for test message!",
+        description: "Phone number saved and WhatsApp notifications enabled.",
       });
     } catch (error) {
       console.error("Error saving phone:", error);
@@ -378,90 +563,234 @@ const Settings = () => {
     }
   };
 
-  // Send test WhatsApp notification
-  const sendTestWhatsAppNotification = async (phone: string) => {
-    try {
-      await apiClient.sendTestNotification('whatsapp', `Welcome to ${branch?.name || 'your branch'} inventory management! WhatsApp notifications are now enabled for stock alerts and reminders.`);
-      console.log('WhatsApp test sent successfully');
-    } catch (error) {
-      console.error('Error sending test WhatsApp:', error);
+  // Format time for display
+  const formatTime = (time: string | undefined) => {
+    if (!time) return 'Not set';
+    return time.slice(0, 5); // Remove seconds
+  };
+
+  // Format day of week for display
+  const formatDayOfWeek = (day: number | undefined) => {
+    if (!day) return 'Not set';
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return days[day] || 'Not set';
+  };
+
+  // Format day of month for display
+  const formatDayOfMonth = (day: number | undefined) => {
+    if (!day) return 'Not set';
+    const suffixes = ['th', 'st', 'nd', 'rd'];
+    const v = day % 100;
+    return day + (suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0]);
+  };
+
+  // Handle stock alert toggle
+  const handleStockAlertToggle = async (checked: boolean) => {
+    setHasTouchedNotifications(true);
+    hasTouchedNotificationsRef.current = true;
+    
+    if (checked) {
+      // Show scheduling modal when enabling stock alerts
+      setShowAlertSchedulingModal(true);
+    } else {
+      // Disable stock alerts immediately
+      setNotifications((prev) => ({ ...prev, stockAlerts: false }));
+      await saveNotificationSetting('stockAlerts', false);
+      
+      // Reset alert scheduling to immediate
+      await apiClient.updateProfile({
+        stock_alert_frequency: 'immediate',
+        stock_alert_schedule_day: null,
+        stock_alert_schedule_date: null,
+        stock_alert_schedule_time: '09:00'
+      });
+
+      setProfileData((prev) => ({
+        ...prev,
+        stock_alert_frequencies: [],
+        daily_schedule_time: undefined,
+        weekly_schedule_day: undefined,
+        weekly_schedule_time: undefined,
+        monthly_schedule_date: undefined,
+        monthly_schedule_time: undefined,
+        stock_alert_frequency: 'immediate',
+        stock_alert_schedule_day: null,
+        stock_alert_schedule_date: null,
+        stock_alert_schedule_time: '09:00'
+      }));
     }
   };
 
-  // Send test hello message
-  const sendTestHelloMessage = async () => {
-    if (!profileData.phone || profileData.phone.trim() === "") {
-      toast({
-        title: "Error",
-        description: "Please add a phone number first",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setTestMessageLoading(true);
+  // Handle alert schedule save
+  const handleAlertScheduleSave = async (schedule: AlertSchedule) => {
     try {
-      await apiClient.sendTestNotification('whatsapp', 'Hello! This is a test message from your inventory management system.');
+      // Enable stock alerts
+      setNotifications((prev) => ({ ...prev, stockAlerts: true }));
+      await saveNotificationSetting('stockAlerts', true);
+      
+      // Prepare separate schedule parameters for each frequency type
+      const updateData: Record<string, any> = {
+        stock_alert_frequencies: schedule.frequencies
+      };
+      
+      // Set separate schedule parameters for each frequency type
+      if (schedule.frequencies.includes('daily')) {
+        updateData.daily_schedule_time = schedule.dailyTime || schedule.scheduleTime;
+      }
+      
+      if (schedule.frequencies.includes('weekly')) {
+        updateData.weekly_schedule_day = schedule.scheduleDay || null;
+        updateData.weekly_schedule_time = schedule.weeklyTime || schedule.scheduleTime;
+      }
+      
+      if (schedule.frequencies.includes('monthly')) {
+        updateData.monthly_schedule_date = schedule.scheduleDate || null;
+        updateData.monthly_schedule_time = schedule.monthlyTime || schedule.scheduleTime;
+      }
+      
+      // Save alert scheduling preferences
+      await apiClient.updateProfile(updateData);
 
-      console.log('WhatsApp test sent successfully');
+      setProfileData((prev) => {
+        const nextFrequencies = schedule.frequencies.length > 0 ? [...schedule.frequencies] : [];
+
+        return {
+          ...prev,
+          stock_alert_frequencies: nextFrequencies,
+          daily_schedule_time: nextFrequencies.includes('daily')
+            ? (schedule.dailyTime || schedule.scheduleTime)
+            : undefined,
+          weekly_schedule_day: nextFrequencies.includes('weekly')
+            ? (schedule.scheduleDay ?? null)
+            : undefined,
+          weekly_schedule_time: nextFrequencies.includes('weekly')
+            ? (schedule.weeklyTime || schedule.scheduleTime)
+            : undefined,
+          monthly_schedule_date: nextFrequencies.includes('monthly')
+            ? (schedule.scheduleDate ?? null)
+            : undefined,
+          monthly_schedule_time: nextFrequencies.includes('monthly')
+            ? (schedule.monthlyTime || schedule.scheduleTime)
+            : undefined,
+          stock_alert_frequency:
+            nextFrequencies.length === 0
+              ? 'immediate'
+              : nextFrequencies.length === 1
+              ? nextFrequencies[0]
+              : 'custom',
+        };
+      });
+      
+      // Create description text
+      const frequencyTexts = schedule.frequencies.map(freq => {
+        switch (freq) {
+          case 'daily':
+            return `daily at ${schedule.dailyTime || schedule.scheduleTime}`;
+          case 'weekly':
+            return `weekly on ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][schedule.scheduleDay || 0]} at ${schedule.weeklyTime || schedule.scheduleTime}`;
+          case 'monthly':
+            return `monthly on the ${schedule.scheduleDate}th at ${schedule.monthlyTime || schedule.scheduleTime}`;
+          default:
+            return freq;
+        }
+      });
+      
       toast({
-        title: "Success",
-        description: "Test message sent! Check your WhatsApp.",
+        title: "Stock Alert Schedule Saved",
+        description: `You will receive stock alerts ${frequencyTexts.join(', ')}.`,
       });
     } catch (error) {
-      console.error('Error sending test WhatsApp:', error);
+      console.error('Error saving alert schedule:', error);
       toast({
         title: "Error",
-        description: "Failed to send test message",
+        description: "Failed to save alert schedule. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setTestMessageLoading(false);
     }
   };
 
-  // Activate alert system
-  const activateAlert = async () => {
-    if (!profileData.phone || profileData.phone.trim() === "") {
-      toast({
-        title: "Error",
-        description: "Please add a phone number first",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setTestMessageLoading(true);
+  // Handle event reminder schedule save
+  const handleEventReminderScheduleSave = async (schedule: EventReminderSchedule) => {
     try {
-      // Send immediate alert message
-      const alertMessage = `🚨 ALERT SYSTEM ACTIVATED!
+      // Enable event reminders
+      setNotifications((prev) => ({ ...prev, eventReminders: true }));
+      await saveNotificationSetting('eventReminders', true);
+      
+      // Prepare separate schedule parameters for each frequency type
+      const updateData: Record<string, any> = {
+        event_reminder_frequencies: schedule.frequencies
+      };
+      
+      // Set separate schedule parameters for each frequency type
+      if (schedule.frequencies.includes('daily')) {
+        updateData.event_daily_schedule_time = schedule.dailyTime;
+      }
+      
+      if (schedule.frequencies.includes('weekly')) {
+        updateData.event_weekly_schedule_day = schedule.scheduleDay || null;
+        updateData.event_weekly_schedule_time = schedule.weeklyTime;
+      }
+      
+      if (schedule.frequencies.includes('monthly')) {
+        updateData.event_monthly_schedule_date = schedule.scheduleDate || null;
+        updateData.event_monthly_schedule_time = schedule.monthlyTime;
+      }
+      
+      // Save event reminder scheduling preferences
+      await apiClient.updateProfile(updateData);
 
-📱 Your WhatsApp alert system is now active.
-⏰ You will receive automated alerts every 5 minutes.
-🏪 Branch: ${branch?.name || 'Your Branch'}
+      setProfileData((prev) => {
+        const nextFrequencies = schedule.frequencies.length > 0 ? [...schedule.frequencies] : [];
 
-This is your first alert. The next one will arrive in 5 minutes.
-
-Activated: ${new Date().toLocaleString()}`;
-
-      await apiClient.sendTestNotification('whatsapp', alertMessage);
-
-      console.log('Alert system activated successfully');
+        return {
+          ...prev,
+          event_reminder_frequencies: nextFrequencies,
+          event_daily_schedule_time: nextFrequencies.includes('daily')
+            ? schedule.dailyTime
+            : undefined,
+          event_weekly_schedule_day: nextFrequencies.includes('weekly')
+            ? (schedule.scheduleDay ?? null)
+            : undefined,
+          event_weekly_schedule_time: nextFrequencies.includes('weekly')
+            ? schedule.weeklyTime
+            : undefined,
+          event_monthly_schedule_date: nextFrequencies.includes('monthly')
+            ? (schedule.scheduleDate ?? null)
+            : undefined,
+          event_monthly_schedule_time: nextFrequencies.includes('monthly')
+            ? schedule.monthlyTime
+            : undefined,
+        };
+      });
+      
+      // Create description text
+      const frequencyTexts = schedule.frequencies.map(freq => {
+        switch (freq) {
+          case 'daily':
+            return `daily at ${schedule.dailyTime}`;
+          case 'weekly':
+            return `weekly on ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][schedule.scheduleDay || 0]} at ${schedule.weeklyTime}`;
+          case 'monthly':
+            return `monthly on the ${schedule.scheduleDate}th at ${schedule.monthlyTime}`;
+          default:
+            return freq;
+        }
+      });
+      
       toast({
-        title: "Success",
-        description: "Alert system activated! First alert sent, automated alerts will follow every 5 minutes.",
+        title: "Event Reminder Schedule Saved",
+        description: `You will receive event reminders ${frequencyTexts.join(', ')} until the event date passes.`,
       });
     } catch (error) {
-      console.error('Error activating alerts:', error);
+      console.error('Error saving event reminder schedule:', error);
       toast({
         title: "Error",
-        description: "Failed to activate alert system",
+        description: "Failed to save event reminder schedule. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setTestMessageLoading(false);
     }
   };
+
 
   if (!profile) {
     return <div className="flex justify-center items-center h-64">Loading...</div>;
@@ -549,15 +878,17 @@ Activated: ${new Date().toLocaleString()}`;
                   <div>
                     <Label>Stock Level Alerts</Label>
                     <p className="text-sm text-muted-foreground">Get notified when stock is low</p>
+                    {profile.stock_alert_frequency && profile.stock_alert_frequency !== 'immediate' && (
+                      <p className="text-xs text-blue-600 mt-1">
+                        Scheduled: {profile.stock_alert_frequency === 'daily' ? 'Daily' :
+                          profile.stock_alert_frequency === 'weekly' ? `Weekly on ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][profile.stock_alert_schedule_day || 0]}` :
+                          profile.stock_alert_frequency === 'monthly' ? `Monthly on ${profile.stock_alert_schedule_date}th` : 'Immediate'} at {profile.stock_alert_schedule_time || '09:00'}
+                      </p>
+                    )}
                   </div>
                   <Switch
                     checked={notifications.stockAlerts}
-                    onCheckedChange={async (checked) => {
-                      setHasTouchedNotifications(true);
-                      hasTouchedNotificationsRef.current = true;
-                      setNotifications((prev) => ({ ...prev, stockAlerts: checked }));
-                      await saveNotificationSetting('stockAlerts', checked);
-                    }}
+                    onCheckedChange={handleStockAlertToggle}
                   />
                 </div>
 
@@ -572,7 +903,23 @@ Activated: ${new Date().toLocaleString()}`;
                       setHasTouchedNotifications(true);
                       hasTouchedNotificationsRef.current = true;
                       setNotifications((prev) => ({ ...prev, eventReminders: checked }));
+                      if (!checked) {
+                        setProfileData((prev) => ({
+                          ...prev,
+                          event_reminder_frequencies: [],
+                          event_daily_schedule_time: undefined,
+                          event_weekly_schedule_day: undefined,
+                          event_weekly_schedule_time: undefined,
+                          event_monthly_schedule_date: undefined,
+                          event_monthly_schedule_time: undefined,
+                        }));
+                      }
                       await saveNotificationSetting('eventReminders', checked);
+                      
+                      // Show scheduling modal when enabling event reminders
+                      if (checked) {
+                        setShowEventReminderSchedulingModal(true);
+                      }
                     }}
                   />
                 </div>
@@ -618,30 +965,75 @@ Activated: ${new Date().toLocaleString()}`;
                      checked={notifications.whatsapp}
                      onCheckedChange={handleWhatsAppToggle}
                    />
+               </div>
+
+                 {/* Current Schedule Details */}
+               <div className="pt-4 border-t">
+                   <h4 className="text-sm font-medium mb-3">Current Alert Schedules</h4>
+                   
+                   {/* Stock Alert Schedules */}
+                   {profileData.stock_alert_frequencies && profileData.stock_alert_frequencies.length > 0 && (
+                     <div className="mb-4">
+                       <h5 className="text-xs font-medium text-muted-foreground mb-2">Stock Level Alerts</h5>
+                       <div className="space-y-2">
+                         {profileData.stock_alert_frequencies.includes('daily') && (
+                           <div className="flex justify-between text-xs">
+                             <span className="text-muted-foreground">Daily:</span>
+                             <span className="font-medium">{formatTime(profileData.daily_schedule_time)}</span>
+                 </div>
+                         )}
+                         {profileData.stock_alert_frequencies.includes('weekly') && (
+                           <div className="flex justify-between text-xs">
+                             <span className="text-muted-foreground">Weekly:</span>
+                             <span className="font-medium">{formatDayOfWeek(profileData.weekly_schedule_day)} at {formatTime(profileData.weekly_schedule_time)}</span>
+               </div>
+                         )}
+                         {profileData.stock_alert_frequencies.includes('monthly') && (
+                           <div className="flex justify-between text-xs">
+                             <span className="text-muted-foreground">Monthly:</span>
+                             <span className="font-medium">{formatDayOfMonth(profileData.monthly_schedule_date)} at {formatTime(profileData.monthly_schedule_time)}</span>
+                           </div>
+                         )}
+                       </div>
+                     </div>
+                   )}
+
+                   {/* Event Reminder Schedules */}
+                   {profileData.event_reminder_frequencies && profileData.event_reminder_frequencies.length > 0 && (
+                     <div>
+                       <h5 className="text-xs font-medium text-muted-foreground mb-2">Event Reminders</h5>
+                       <div className="space-y-2">
+                         {profileData.event_reminder_frequencies.includes('daily') && (
+                           <div className="flex justify-between text-xs">
+                             <span className="text-muted-foreground">Daily:</span>
+                             <span className="font-medium">{formatTime(profileData.event_daily_schedule_time)}</span>
+                           </div>
+                         )}
+                         {profileData.event_reminder_frequencies.includes('weekly') && (
+                           <div className="flex justify-between text-xs">
+                             <span className="text-muted-foreground">Weekly:</span>
+                             <span className="font-medium">{formatDayOfWeek(profileData.event_weekly_schedule_day)} at {formatTime(profileData.event_weekly_schedule_time)}</span>
+                           </div>
+                         )}
+                         {profileData.event_reminder_frequencies.includes('monthly') && (
+                           <div className="flex justify-between text-xs">
+                             <span className="text-muted-foreground">Monthly:</span>
+                             <span className="font-medium">{formatDayOfMonth(profileData.event_monthly_schedule_date)} at {formatTime(profileData.event_monthly_schedule_time)}</span>
+                           </div>
+                         )}
+                       </div>
+                     </div>
+                   )}
+
+                   {(!profileData.stock_alert_frequencies || profileData.stock_alert_frequencies.length === 0) && 
+                    (!profileData.event_reminder_frequencies || profileData.event_reminder_frequencies.length === 0) && (
+                     <p className="text-xs text-muted-foreground">
+                       No scheduled alerts configured. Enable stock alerts or event reminders to set up schedules.
+                     </p>
+                   )}
                  </div>
                </div>
 
-               <div className="pt-4 border-t">
-                 <div className="flex flex-col gap-3">
-                   <Button
-                     onClick={sendTestHelloMessage}
-                     disabled={testMessageLoading || !profileData.phone}
-                     variant="outline"
-                     className="w-full"
-                   >
-                     {testMessageLoading ? "Sending..." : "Send Test Message"}
-                   </Button>
-                   
-                   <Button
-                     onClick={activateAlert}
-                     disabled={testMessageLoading || !profileData.phone}
-                     variant="default"
-                     className="w-full"
-                   >
-                     {testMessageLoading ? "Activating..." : "Activate Alert"}
-                   </Button>
-                 </div>
-               </div>
 
              </CardContent>
           </Card>
@@ -688,21 +1080,6 @@ Activated: ${new Date().toLocaleString()}`;
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="alertFrequency">Alert Frequency</Label>
-                    <select
-                      id="alertFrequency"
-                      value={branchSettings.alertFrequency}
-                      onChange={(e) =>
-                        setBranchSettings({ ...branchSettings, alertFrequency: e.target.value })
-                      }
-                      className="w-full p-2 border border-input rounded-md bg-background"
-                    >
-                      <option value="daily">Daily</option>
-                      <option value="weekly">Weekly</option>
-                      <option value="monthly">Monthly</option>
-                    </select>
-                  </div>
 
                   <Button onClick={updateBranchSettings} disabled={loading} className="w-full">
                     <Save className="h-4 w-4 mr-2" />
@@ -710,6 +1087,39 @@ Activated: ${new Date().toLocaleString()}`;
                   </Button>
                 </>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Permissions Management - Only for Managers */}
+        {profile.role === "manager" && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Permissions Management
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label className="text-base font-medium">Assistant Manager Stock In Access</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Allow Assistant Managers to access the Stock In page
+                    </p>
+                  </div>
+                  <Switch
+                    checked={assistantManagerStockInAccess}
+                    onCheckedChange={setAssistantManagerStockInAccess}
+                  />
+                </div>
+              </div>
+              
+              <Button onClick={updatePermissions} disabled={loading} className="w-full">
+                <Save className="h-4 w-4 mr-2" />
+                Save Permissions
+              </Button>
             </CardContent>
           </Card>
         )}
@@ -785,6 +1195,21 @@ Activated: ${new Date().toLocaleString()}`;
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Alert Scheduling Modal */}
+      <AlertSchedulingModal
+        isOpen={showAlertSchedulingModal}
+        onClose={() => setShowAlertSchedulingModal(false)}
+        onSave={handleAlertScheduleSave}
+        currentSchedule={buildAlertScheduleFromProfile(profileData)}
+      />
+
+      <EventReminderSchedulingModal
+        isOpen={showEventReminderSchedulingModal}
+        onClose={() => setShowEventReminderSchedulingModal(false)}
+        onSave={handleEventReminderScheduleSave}
+        currentSchedule={buildEventScheduleFromProfile(profileData)}
+      />
     </div>
   );
 };

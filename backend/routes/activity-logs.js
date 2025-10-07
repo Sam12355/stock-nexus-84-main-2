@@ -11,7 +11,7 @@ router.get('/', authenticateToken, async (req, res) => {
     const { action, user_id, date_from, date_to } = req.query;
     
     let queryText = `
-      SELECT al.*, u.name as user_name, u.email as user_email
+      SELECT al.*, u.name as user_name, u.email as user_email, u.branch_id, u.branch_context
       FROM activity_logs al
       LEFT JOIN users u ON al.user_id = u.id
     `;
@@ -22,11 +22,60 @@ router.get('/', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin' && req.user.role !== 'regional_manager' && req.user.role !== 'district_manager') {
       conditions.push('u.branch_id = $' + (params.length + 1));
       params.push(req.user.branch_id);
-    } else if ((req.user.role === 'regional_manager' || req.user.role === 'district_manager') && req.user.branch_context) {
-      conditions.push('u.branch_id = $' + (params.length + 1));
-      params.push(req.user.branch_context);
+    } else if (req.user.role === 'regional_manager') {
+      // For regional managers, show activities from users in their region
+      // This includes: regional manager, district managers, managers, assistant managers, and staff
+      // We need to get all branches in the regional manager's region
+      const regionBranchesQuery = `
+        SELECT b.id 
+        FROM branches b
+        JOIN districts d ON b.district_id = d.id
+        JOIN regions r ON d.region_id = r.id
+        WHERE r.id = (
+          SELECT r2.id 
+          FROM regions r2
+          JOIN districts d2 ON r2.id = d2.region_id
+          JOIN branches b2 ON d2.id = b2.district_id
+          WHERE b2.id = $${params.length + 1}
+        )
+      `;
+      
+      // Get the regional manager's branch_context to determine their region
+      const userBranchContext = req.user.branch_context;
+      if (userBranchContext) {
+        // Include users in region branches OR users with null branch_id (regional/district managers)
+        conditions.push(`(u.branch_id IN (${regionBranchesQuery}) OR u.branch_id IS NULL)`);
+        params.push(userBranchContext);
+      } else {
+        // If no branch_context, show only their own activities
+        conditions.push('u.id = $' + (params.length + 1));
+        params.push(req.user.id);
+      }
+    } else if (req.user.role === 'district_manager') {
+      // For district managers, show activities from users in their district
+      // District managers should see activities from all branches in their district
+      const districtBranchesQuery = `
+        SELECT b.id 
+        FROM branches b
+        WHERE b.district_id = (
+          SELECT d.id 
+          FROM districts d
+          JOIN branches b2 ON d.id = b2.district_id
+          WHERE b2.id = $${params.length + 1}
+        )
+      `;
+      
+      const userBranchContext = req.user.branch_context;
+      if (userBranchContext) {
+        // Include users in district branches OR users with null branch_id (district managers)
+        conditions.push(`(u.branch_id IN (${districtBranchesQuery}) OR u.branch_id IS NULL)`);
+        params.push(userBranchContext);
+      } else {
+        // If no branch_context, show only their own activities
+        conditions.push('u.id = $' + (params.length + 1));
+        params.push(req.user.id);
+      }
     }
-    // For regional/district managers without branch_context, show all activities (no additional filter)
 
     // Additional filters
     if (action) {
@@ -55,7 +104,20 @@ router.get('/', authenticateToken, async (req, res) => {
 
     queryText += ' ORDER BY al.created_at DESC LIMIT 100';
 
+    console.log('🔍 Activity logs query:', {
+      queryText,
+      params,
+      userRole: req.user.role,
+      userBranchContext: req.user.branch_context,
+      userBranchId: req.user.branch_id
+    });
+
     const result = await query(queryText, params);
+    
+    console.log('🔍 Activity logs result:', {
+      rowCount: result.rows.length,
+      sampleRows: result.rows.slice(0, 3)
+    });
     
     res.json({
       success: true,

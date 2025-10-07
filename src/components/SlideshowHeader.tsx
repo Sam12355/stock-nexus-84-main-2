@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Thermometer, CalendarDays, MapPin, Droplets, Wind } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api';
+import { AlertTriangle, Calendar, CalendarDays, Clock, Droplets, MapPin, Thermometer, Wind } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 
 interface Event {
   id: string;
@@ -18,7 +18,7 @@ interface WeatherData {
 }
 
 interface Slide {
-  type: 'event' | 'datetime' | 'weather';
+  type: 'event' | 'datetime' | 'weather' | 'stock';
   id: string;
   content: React.ReactNode;
 }
@@ -30,6 +30,7 @@ export function SlideshowHeader() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [branchLocation, setBranchLocation] = useState<string>('');
+  const [stockData, setStockData] = useState<any[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Only show slideshow for management roles
@@ -66,8 +67,8 @@ export function SlideshowHeader() {
         const branches = await apiClient.getBranches();
         const branch = branches.find(b => b.id === branchId);
         
-        if (branch?.location) {
-          setBranchLocation(branch.location);
+        if (branch?.address) {
+          setBranchLocation(branch.address);
         }
 
         // Fetch calendar events
@@ -81,6 +82,20 @@ export function SlideshowHeader() {
           
           setEvents(upcomingEvents);
         }
+
+        // Fetch critical stock items
+        try {
+          const stockResponse = await apiClient.getStockData();
+          if (stockResponse && stockResponse.length > 0) {
+            const criticalItems = stockResponse.filter((item: any) => 
+              item.current_quantity <= item.minimum_quantity
+            );
+            setStockData(criticalItems);
+          }
+        } catch (stockError) {
+          console.error('Error fetching stock data:', stockError);
+          setStockData([]);
+        }
       } catch (error) {
         console.error('Error fetching branch data:', error);
       }
@@ -91,7 +106,17 @@ export function SlideshowHeader() {
   // Fetch weather based on branch location
   useEffect(() => {
     const fetchWeather = async () => {
-      if (!branchLocation) return;
+      if (!branchLocation) {
+        // Set default weather for Vaxjo when no branch location
+        setWeather({
+          temperature: 24,
+          condition: 'Clear Sky',
+          location: 'Vaxjo',
+          humidity: 65,
+          windSpeed: 12
+        });
+        return;
+      }
       
       try {
         const OPENWEATHER_API_KEY = 'cce3be258bc74ac704ddac710486be0c';
@@ -113,10 +138,10 @@ export function SlideshowHeader() {
       } catch (error) {
         console.error('Error fetching weather:', error);
         // Fallback weather data
-        setWeather({ 
-          temperature: 24, 
-          condition: 'Partly Cloudy', 
-          location: branchLocation || 'Colombo',
+        setWeather({
+          temperature: 24,
+          condition: 'Partly Cloudy',
+          location: branchLocation || 'Vaxjo',
           humidity: 65,
           windSpeed: 12
         });
@@ -174,7 +199,25 @@ export function SlideshowHeader() {
           </div>
         </div>
       )
-    }
+    },
+    // Individual Critical Stock Alert slides
+    ...stockData.map((item: { name: string; current_quantity: number }, index) => ({
+      type: 'stock' as const,
+      id: `critical-stock-${index}`,
+      content: (
+        <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-1 text-red-600">
+            <AlertTriangle className="h-4 w-4" />
+            <span className="font-medium">Critical Stock Alert</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="text-red-500 font-medium">
+              {item.name} ({item.current_quantity} left)
+            </span>
+          </div>
+        </div>
+      )
+    }))
   ];
 
   if (weather) {

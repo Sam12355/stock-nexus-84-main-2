@@ -58,6 +58,14 @@ class WhatsAppService {
       console.log(`✅ WhatsApp message sent successfully!`);
       console.log(`   Message SID: ${result.sid}`);
       console.log(`   Status: ${result.status}`);
+      console.log(`   To: ${formattedNumber}`);
+      console.log(`   From: ${this.whatsappNumber}`);
+      
+      // Check if this is a sandbox environment
+      if (this.whatsappNumber.includes('14155238886')) {
+        console.log(`⚠️  SANDBOX MODE: Make sure ${formattedNumber} is verified in Twilio WhatsApp sandbox`);
+        console.log(`   Send "join <sandbox-code>" to +1 415 523 8886 to verify your number`);
+      }
       
       return { 
         success: true, 
@@ -116,6 +124,10 @@ This is a test from your Stock Nexus inventory management system.
 Time: ${new Date().toLocaleString()}`;
 
     return await this.sendMessage(phoneNumber, testMessage);
+  }
+
+  async sendEventReminder(phoneNumber, message) {
+    return await this.sendMessage(phoneNumber, message);
   }
 }
 

@@ -105,6 +105,19 @@ const ActivityLogs = () => {
               friendlyDetails = `${log.user_name} dispensed stock`;
               activityType = 'stock_out';
               break;
+            case 'stock_movement':
+              const movementType = parsedDetails.movement_type === 'in' ? 'received' : 'dispensed';
+              const quantity = parsedDetails.quantity || 0;
+              const reason = parsedDetails.reason ? ` (${parsedDetails.reason})` : '';
+              friendlyAction = `Stock ${movementType}`;
+              friendlyDetails = `${log.user_name} ${movementType} ${quantity} units${reason}`;
+              activityType = movementType === 'received' ? 'stock_in' : 'stock_out';
+              break;
+            case 'stock_initialized':
+              friendlyAction = 'Stock initialized';
+              friendlyDetails = `${log.user_name} initialized stock records for ${parsedDetails.initialized_count || 0} items`;
+              activityType = 'stock_in';
+              break;
             default:
               friendlyAction = log.action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
               friendlyDetails = typeof log.details === 'string' ? log.details : JSON.stringify(parsedDetails);

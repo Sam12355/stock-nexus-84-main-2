@@ -1,13 +1,15 @@
 import { useAuth } from "@/hooks/useAuth";
-import { useState, useEffect, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect, useRef, useCallback } from "react";
+// Supabase integration disabled - using API client instead
 import { apiClient } from "@/lib/api";
+import { notificationEvents } from "@/lib/notificationEvents";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { DateTimePicker } from "@/components/DateTimePicker";
@@ -25,14 +27,29 @@ import {
   Droplets,
   Wind,
   Settings,
-  LogOut
+  LogOut,
+  Plus,
+  Trash2,
+  FileText,
+  Sun,
+  Zap,
+  BarChart3,
+  History
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
 // Extended types for new roles and branch_context
-type ExtendedUserRole = 'regional_manager' | 'district_manager' | 'admin' | 'manager' | 'assistant_manager' | 'staff';
+type ExtendedUserRole = 'admin' | 'manager' | 'assistant_manager' | 'staff';
+
+interface WeatherData {
+  temperature: number;
+  condition: string;
+  location: string;
+  humidity: number;
+  windSpeed: number;
+}
 
 interface ExtendedProfile {
   id: string;
@@ -45,6 +62,9 @@ interface ExtendedProfile {
   role: ExtendedUserRole;
   branch_id: string | null;
   branch_context?: string | null;
+  branch_name?: string | null;
+  district_name?: string | null;
+  region_name?: string | null;
   region_id?: string | null;
   district_id?: string | null;
   last_access: string | null;
@@ -57,10 +77,12 @@ interface DashboardStats {
   totalItems: number;
   lowStockItems: number;
   criticalStockItems: number;
+  thresholdStockItems: number;
   totalStaff: number;
   recentActivities: ActivityLog[];
   lowStockDetails?: any[];
   criticalStockDetails?: any[];
+  thresholdStockDetails?: any[];
 }
 
 interface ActivityLog {
@@ -74,13 +96,6 @@ interface ActivityLog {
   };
 }
 
-interface WeatherData {
-  temperature: number;
-  condition: string;
-  location: string;
-  humidity: number;
-  windSpeed: number;
-}
 
 const Index = () => {
   const { profile, signOut } = useAuth();
@@ -92,16 +107,18 @@ const Index = () => {
     totalItems: 0,
     lowStockItems: 0,
     criticalStockItems: 0,
+    thresholdStockItems: 0,
     totalStaff: 0,
     recentActivities: [],
     lowStockDetails: [],
-    criticalStockDetails: []
+    criticalStockDetails: [],
+    thresholdStockDetails: []
   });
-  const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [weather, setWeather] = useState<WeatherData | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(true);
   const [showStockModal, setShowStockModal] = useState(false);
-  const [modalStockType, setModalStockType] = useState<'low' | 'critical'>('low');
+  const [modalStockType, setModalStockType] = useState<'threshold' | 'low' | 'critical'>('threshold');
   const [showEventModal, setShowEventModal] = useState(false);
   const [events, setEvents] = useState<any[]>([]);
   const [newEvent, setNewEvent] = useState({
@@ -111,7 +128,6 @@ const Index = () => {
     event_type: 'reorder'
   });
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<Date | undefined>(new Date());
-  const hasFetchedWeatherRef = useRef(false);
   const [branches, setBranches] = useState<any[]>([]);
   const [districts, setDistricts] = useState<any[]>([]);
   const [filteredBranches, setFilteredBranches] = useState<any[]>([]);
@@ -119,11 +135,307 @@ const Index = () => {
   const [selectedDistrictOption, setSelectedDistrictOption] = useState<{value: string, label: string} | null>(null);
   const [showBranchSelection, setShowBranchSelection] = useState(false);
   const [showDistrictSelection, setShowDistrictSelection] = useState(false);
+  
+  // Moveout list state
+  const [showMoveoutModal, setShowMoveoutModal] = useState(false);
+  const [availableItems, setAvailableItems] = useState<any[]>([]);
+  const [selectedItems, setSelectedItems] = useState<any[]>([]);
+  const [moveoutList, setMoveoutList] = useState<any[]>([]);
+  const [moveoutListItems, setMoveoutListItems] = useState<{
+    itemId: string;
+    itemName: string;
+    currentQuantity: number;
+    requestingQuantity: number;
+  }[]>([]);
+  const [moveoutListsLoading, setMoveoutListsLoading] = useState(false);
+  const [processingItem, setProcessingItem] = useState<string | null>(null); // Track which item is being processed
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmItem, setConfirmItem] = useState<{listId: string, item: any} | null>(null);
+  const [showGenerateConfirmModal, setShowGenerateConfirmModal] = useState(false);
+  
+  // History functionality state
+  const [showHistory, setShowHistory] = useState(false);
+  const [completedLists, setCompletedLists] = useState<any[]>([]);
+  const [historyLoadedCount, setHistoryLoadedCount] = useState(0);
+  
+  // Completion summary expansion state
+  const [expandedSummaries, setExpandedSummaries] = useState<{[key: string]: boolean}>({});
 
   // Debug state changes
   useEffect(() => {
     console.log('showDistrictSelection state changed:', showDistrictSelection);
   }, [showDistrictSelection]);
+
+  const fetchAvailableItems = useCallback(async () => {
+    try {
+      const stockData = await apiClient.getStockData();
+      console.log('Stock data received:', stockData); // Debug log
+      if (stockData && Array.isArray(stockData)) {
+        // Map the data to the expected format
+        const mappedData = stockData.map(item => ({
+          id: item.item_id, // Use item_id (actual item ID) instead of stock ID
+          name: item.items?.name || item.name, // Handle both nested and flat structure
+          current_quantity: item.current_quantity,
+          category: item.items?.category || item.category,
+          threshold_level: item.items?.threshold_level || item.threshold_level,
+          low_level: item.items?.low_level || item.low_level,
+          critical_level: item.items?.critical_level || item.critical_level,
+          image_url: item.items?.image_url || item.image_url
+        }));
+        console.log('Mapped data:', mappedData); // Debug log
+        setAvailableItems(mappedData);
+      }
+    } catch (error) {
+      console.error('Error fetching available items:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load available items",
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
+
+  const fetchMoveoutLists = useCallback(async () => {
+    try {
+      setMoveoutListsLoading(true);
+      console.log('Fetching moveout lists for user:', extendedProfile?.id);
+      console.log('Profile details:', extendedProfile);
+      console.log('Auth token:', localStorage.getItem('auth_token'));
+      
+      const lists = await apiClient.getMoveoutLists();
+      console.log('Moveout lists received:', lists); // Debug log
+      console.log('Lists type:', typeof lists, 'Array?', Array.isArray(lists));
+      console.log('Lists count:', Array.isArray(lists) ? lists.length : 'Not an array');
+      
+      setMoveoutList(lists || []);
+    } catch (error) {
+      console.error('Error fetching moveout lists:', error);
+      console.error('Error details:', error);
+      
+      toast({
+        title: "Error",
+        description: "Failed to load moveout lists",
+        variant: "destructive",
+      });
+      
+      // Try to load from localStorage as fallback
+      try {
+        const savedLists = localStorage.getItem('moveoutLists');
+        if (savedLists) {
+          const parsedLists = JSON.parse(savedLists);
+          setMoveoutList(parsedLists);
+        }
+      } catch (localError) {
+        console.error('Error loading from localStorage:', localError);
+      }
+    } finally {
+      setMoveoutListsLoading(false);
+    }
+  }, [toast, extendedProfile]);
+
+  // Load moveout lists on component mount
+  useEffect(() => {
+    fetchMoveoutLists();
+  }, [fetchMoveoutLists]);
+
+  // Load available items when modal opens
+  useEffect(() => {
+    if (showMoveoutModal) {
+      fetchAvailableItems();
+    }
+  }, [showMoveoutModal, fetchAvailableItems]);
+
+  const handleAddToList = () => {
+    console.log('Selected items:', selectedItems); // Debug log
+    const newItems = selectedItems.map(item => {
+      console.log('Mapping item:', item); // Debug log
+      return {
+        itemId: item.id, // Now using the correct item ID from mapped data
+        itemName: item.name,
+        currentQuantity: item.current_quantity,
+        requestingQuantity: 1
+      };
+    });
+    
+    console.log('New items to add:', newItems); // Debug log
+    setMoveoutListItems(prev => [...prev, ...newItems]);
+    setSelectedItems([]);
+    
+    toast({
+      title: "Items Added",
+      description: `${newItems.length} items added to moveout list`,
+    });
+  };
+
+  const handleGenerateMoveoutList = async () => {
+    if (moveoutListItems.length === 0) return;
+    
+    // Validate requesting quantities
+    console.log('Validating moveout list items:', moveoutListItems);
+    const invalidItems = moveoutListItems.filter(item => {
+      const isInvalid = item.requestingQuantity > item.currentQuantity;
+      console.log(`Item ${item.itemName}: requesting=${item.requestingQuantity}, current=${item.currentQuantity}, invalid=${isInvalid}`);
+      return isInvalid;
+    });
+    
+    console.log('Invalid items found:', invalidItems);
+    
+    if (invalidItems.length > 0) {
+      toast({
+        title: "Invalid Quantities",
+        description: `Requesting quantity cannot exceed current quantity for: ${invalidItems.map(item => item.itemName).join(', ')}`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Show confirmation modal
+    setShowGenerateConfirmModal(true);
+  };
+
+  const handleConfirmGenerateMoveoutList = async () => {
+    try {
+      // Transform items to match backend validation
+      const transformedItems = moveoutListItems.map(item => ({
+        item_id: item.itemId,
+        item_name: item.itemName,
+        available_amount: item.currentQuantity,
+        request_amount: item.requestingQuantity,
+        category: 'General' // Default category since it's required
+      }));
+
+      // Save to database
+      const newMoveoutList = await apiClient.createMoveoutList({
+        title: `Moveout List - ${new Date().toLocaleDateString()}`,
+        description: `Generated by ${extendedProfile?.name || 'Unknown'}`,
+        items: transformedItems
+      });
+      
+      console.log('Created moveout list:', newMoveoutList);
+      
+      // Refresh the moveout lists from database
+      await fetchMoveoutLists();
+      
+      setMoveoutListItems([]);
+      setShowMoveoutModal(false);
+      setShowGenerateConfirmModal(false);
+      
+      // Hide history view and show only active lists
+      setShowHistory(false);
+      
+      toast({
+        title: "Moveout List Generated",
+        description: `Successfully generated moveout list with ${moveoutListItems.length} items`,
+      });
+      
+    } catch (error) {
+      console.error('Error creating moveout list:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create moveout list",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleMoveoutItemDone = async (listId: string, item: any) => {
+    const itemKey = `${listId}-${item.item_id}`;
+    setProcessingItem(itemKey);
+    
+    try {
+      // Call API to process the moveout item with user name
+      const result = await apiClient.processMoveoutItem(listId, item.item_id, item.request_amount, extendedProfile?.name || 'Unknown');
+      
+      // Refresh the moveout lists from database to get updated completion status
+      const updatedLists = await apiClient.getMoveoutLists();
+      await fetchMoveoutLists();
+      
+      // Check if the current list is now completed and show history if it is
+      const completedList = updatedLists?.find((list: any) => list.id === listId && list.status === 'completed');
+      if (completedList) {
+        // If the list is now completed, show history view to display it
+        setShowHistory(true);
+      }
+      
+      // Trigger notification refresh since stock alerts might have been generated
+      notificationEvents.triggerNotificationUpdate();
+      
+      toast({
+        title: "Item Processed",
+        description: `${item.item_name || item.itemName || 'Item'} has been deducted from stock`,
+      });
+      
+    } catch (error) {
+      console.error('Error processing moveout item:', error);
+      toast({
+        title: "Error",
+        description: "Failed to process moveout item",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingItem(null);
+    }
+  };
+
+  const handleMoveoutItemDoneWithConfirmation = (listId: string, item: any) => {
+    // Set the item to confirm and show modal
+    setConfirmItem({ listId, item });
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmMoveout = () => {
+    if (confirmItem) {
+      handleMoveoutItemDone(confirmItem.listId, confirmItem.item);
+      setShowConfirmModal(false);
+      setConfirmItem(null);
+    }
+  };
+
+  const handleCancelMoveout = () => {
+    setShowConfirmModal(false);
+    setConfirmItem(null);
+  };
+
+  const handleLoadHistory = async () => {
+    try {
+      setMoveoutListsLoading(true);
+      const allLists = await apiClient.getMoveoutLists();
+      const completed = allLists?.filter(list => list.status === 'completed') || [];
+      
+      // Load 5 more completed lists
+      const startIndex = historyLoadedCount;
+      const endIndex = startIndex + 5;
+      const newCompletedLists = completed.slice(startIndex, endIndex);
+      
+      setCompletedLists(prev => [...prev, ...newCompletedLists]);
+      setHistoryLoadedCount(endIndex);
+      setShowHistory(true);
+      
+      toast({
+        title: "History Loaded",
+        description: `Loaded ${newCompletedLists.length} completed lists`,
+      });
+    } catch (error) {
+      console.error('Error loading history:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load history",
+        variant: "destructive",
+      });
+    } finally {
+      setMoveoutListsLoading(false);
+    }
+  };
+
+  const handleToggleHistory = () => {
+    if (!showHistory) {
+      handleLoadHistory();
+    } else {
+      setShowHistory(false);
+      setCompletedLists([]);
+      setHistoryLoadedCount(0);
+    }
+  };
 
   useEffect(() => {
     console.log('selectedDistrictOption state changed:', selectedDistrictOption);
@@ -132,18 +444,11 @@ const Index = () => {
 
   const fetchBranchesData = async () => {
     try {
-      console.log('Fetching branches for role:', extendedProfile?.role, 'region_id:', extendedProfile?.region_id);
+      console.log('Fetching branches for role:', extendedProfile?.role);
       
-      if ((extendedProfile?.role as string) === 'regional_manager' || (extendedProfile?.role as string) === 'district_manager') {
-        // Both regional and district managers can see all branches
-        const branchesData = await apiClient.getBranches();
-        
-        console.log('Branches loaded:', branchesData);
-        setBranches(branchesData || []);
-      } else {
-        console.log('No region_id found for user');
-        setBranches([]);
-      }
+      const branchesData = await apiClient.getBranches();
+      console.log('Branches loaded:', branchesData);
+      setBranches(branchesData || []);
     } catch (error) {
       console.error('Error fetching branches:', error);
       toast({
@@ -154,117 +459,42 @@ const Index = () => {
     }
   };
 
-  const fetchDistrictsData = async () => {
-    try {
-      console.log('Fetching districts for regional manager. Region ID:', extendedProfile?.region_id);
-      
-      if ((extendedProfile?.role as string) === 'regional_manager') {
-        // For regional managers, fetch all districts (since they don't have region_id yet)
-        const districtsData = await apiClient.getDistricts();
-        
-        console.log('Districts loaded:', districtsData);
-        setDistricts(districtsData || []);
-        
-        // Also fetch branches for the regional manager
-        await fetchBranchesData();
-      }
-    } catch (error) {
-      console.error('Error fetching districts:', error);
-      toast({
-        title: "Failed to load districts",
-        description: error?.message || "Unable to fetch district list",
-        variant: "destructive",
-      });
-    }
-  };
 
   const fetchDashboardData = async () => {
     try {
-      // Check if Regional Manager needs to select district first
-      if ((extendedProfile?.role as string) === 'regional_manager' && !extendedProfile?.branch_context) {
-        await fetchDistrictsData();
-        setShowDistrictSelection(true);
-        setLoading(false);
-        return;
-      }
+      // Fetch stock data using API client
+      const stockData = await apiClient.getStockData();
 
-      // Check if District Manager needs to select branch
-      if ((extendedProfile?.role as string) === 'district_manager' && !extendedProfile?.branch_context) {
-        await fetchBranchesData();
-        setShowBranchSelection(true);
-        setLoading(false);
-        return;
-      }
-
-      // ... keep existing code (items and stock data)
-      const { data: stockData, error: stockError } = await supabase
-        .from('stock')
-        .select(`
-          *,
-          items (
-            name,
-            category,
-            threshold_level,
-            branch_id,
-            image_url
-          )
-        `);
-
-      if (stockError) throw stockError;
-
-      // Filter by branch context for regional/district managers, by branch_id for others
+      // Filter by branch for non-admin users
       let filteredStock = stockData || [];
-      const userBranchContext = extendedProfile?.branch_context || extendedProfile?.branch_id;
+      const userBranchId = extendedProfile?.branch_id;
       
-      if ((extendedProfile?.role as string) !== 'regional_manager' && (extendedProfile?.role as string) !== 'district_manager' && userBranchContext) {
-        filteredStock = stockData?.filter(item => item.items.branch_id === userBranchContext) || [];
-      } else if (((extendedProfile?.role as string) === 'regional_manager' || (extendedProfile?.role as string) === 'district_manager') && extendedProfile?.branch_context) {
-        filteredStock = stockData?.filter(item => item.items.branch_id === extendedProfile.branch_context) || [];
+      if (userBranchId) {
+        filteredStock = stockData?.filter(item => item.items.branch_id === userBranchId) || [];
       }
 
-      // Calculate stock statistics - critical items are NOT included in low stock
+      // Calculate stock statistics - match Stock.tsx logic
       const totalItems = filteredStock.length;
       const criticalStock = filteredStock.filter(item => 
         item.current_quantity <= item.items.threshold_level * 0.5
       );
       const lowStock = filteredStock.filter(item => 
+        item.current_quantity > item.items.threshold_level * 0.5 && 
+        item.current_quantity <= item.items.threshold_level
+      );
+      const thresholdStock = filteredStock.filter(item => 
         item.current_quantity <= item.items.threshold_level && 
         item.current_quantity > item.items.threshold_level * 0.5
       );
 
-      // Fetch staff count
-      let staffQuery = supabase.from('profiles').select('*', { count: 'exact' });
-      if (((extendedProfile?.role as string) !== 'regional_manager' && (extendedProfile?.role as string) !== 'district_manager') && userBranchContext) {
-        staffQuery = staffQuery.eq('branch_id', userBranchContext);
-      } else if (((extendedProfile?.role as string) === 'regional_manager' || (extendedProfile?.role as string) === 'district_manager') && extendedProfile?.branch_context) {
-        staffQuery = staffQuery.eq('branch_id', extendedProfile.branch_context);
-      }
-      
-      const { count: staffCount, error: staffError } = await staffQuery;
-      if (staffError) throw staffError;
+      // Fetch staff count using API client
+      const staffData = await apiClient.getStaff();
+      const staffCount = staffData?.length || 0;
 
-      // Fetch recent activities
-      let activityQuery = supabase
-        .from('activity_logs')
-        .select(`
-          *,
-          profiles (
-            name
-          )
-        `)
-        .order('created_at', { ascending: false })
-        .limit(5);
+      // Fetch recent activities using API client
+      const activitiesResponse = await apiClient.getActivityLogs();
+      const activities = activitiesResponse.data || [];
 
-      if (((extendedProfile?.role as string) !== 'regional_manager' && (extendedProfile?.role as string) !== 'district_manager') && userBranchContext) {
-        activityQuery = activityQuery.eq('branch_id', userBranchContext);
-      } else if (((extendedProfile?.role as string) === 'regional_manager' || (extendedProfile?.role as string) === 'district_manager') && extendedProfile?.branch_context) {
-        activityQuery = activityQuery.eq('branch_id', extendedProfile.branch_context);
-      }
-
-      const { data: activities, error: activityError } = await activityQuery;
-      if (activityError) throw activityError;
-
-      // ... keep existing code (events fetch)
       // Fetch calendar events using custom API
       const eventsData = await apiClient.getCalendarEvents();
       if (eventsData && eventsData.length > 0) {
@@ -283,10 +513,12 @@ const Index = () => {
         totalItems,
         lowStockItems: lowStock.length,
         criticalStockItems: criticalStock.length,
+        thresholdStockItems: thresholdStock.length,
         totalStaff: staffCount || 0,
         recentActivities: activities || [],
         lowStockDetails: lowStock,
-        criticalStockDetails: criticalStock
+        criticalStockDetails: criticalStock,
+        thresholdStockDetails: thresholdStock
       });
 
     } catch (error) {
@@ -300,21 +532,36 @@ const Index = () => {
     try {
       setWeatherLoading(true);
       
-      // Determine city from the selected/assigned branch location
+      // Determine city from the user's branch location
       let city = '';
-      const branchId = extendedProfile?.branch_context || extendedProfile?.branch_id || null;
-
+      const branchId = extendedProfile?.branch_id || extendedProfile?.branch_context;
+      
+      console.log('🌤️ Fetching weather for branch:', branchId);
+      
       if (branchId) {
         // Get branch location using custom API
         const branches = await apiClient.getBranches();
         const branch = branches.find(b => b.id === branchId);
-        city = branch?.location || '';
+        console.log('🏢 Found branch:', branch);
+        
+        if (branch?.address) {
+          // Extract city from address - now all branches are in Vaxjo, Sweden
+          const addressParts = branch.address.split(',');
+          city = addressParts[0].trim(); // Get "Vaxjo" from "Vaxjo, Sweden"
+          
+          console.log('📍 Using branch address:', branch.address, '-> extracted city:', city);
+        } else {
+          console.log('⚠️ Branch address is empty, using branch name as fallback');
+          city = branch?.name || '';
+        }
       }
 
       if (!city) {
-        // Default to a common city if no branch location available
-        city = 'Colombo';
+        console.log('⚠️ No branch location available, defaulting to Vaxjo');
+        city = 'Vaxjo';
       }
+      
+      console.log('🌤️ Fetching weather for city:', city);
       
       // Use OpenWeather API directly
       const OPENWEATHER_API_KEY = 'cce3be258bc74ac704ddac710486be0c';
@@ -333,13 +580,15 @@ const Index = () => {
         humidity: data.main.humidity,
         windSpeed: Math.round(data.wind.speed * 3.6) // Convert m/s to km/h
       });
+      
+      console.log('✅ Weather data set for:', city);
     } catch (error) {
       console.error('Error fetching weather:', error);
       // Set default weather data on error
       setWeather({
-        temperature: 25,
+        temperature: 15,
         condition: 'Clear sky',
-        location: 'Colombo',
+        location: 'Vaxjo',
         humidity: 70,
         windSpeed: 10
       });
@@ -368,16 +617,8 @@ const Index = () => {
 
     // Determine branch ID based on user role
     let branchId: string | null = null;
-    if ((extendedProfile?.role as string) === 'regional_manager' || (extendedProfile?.role as string) === 'district_manager') {
-      if (!selectedBranchOption?.value && !extendedProfile?.branch_context) {
-        toast({
-          title: "Branch is required",
-          description: "Please select a branch for this event.",
-          variant: "destructive",
-        });
-        return;
-      }
-      branchId = selectedBranchOption?.value || extendedProfile?.branch_context || null;
+    if (extendedProfile?.role === 'admin') {
+      branchId = selectedBranchOption?.value || null;
     } else {
       // For managers, use their assigned branch
       if (!extendedProfile?.branch_id) {
@@ -395,7 +636,7 @@ const Index = () => {
       const eventData = {
         title: newEvent.title.trim(),
         description: newEvent.description?.trim() || null,
-        event_date: format(newEvent.event_date, 'yyyy-MM-dd'),
+        event_date: typeof newEvent.event_date === 'string' ? newEvent.event_date : format(newEvent.event_date, 'yyyy-MM-dd'),
         event_type: newEvent.event_type,
         branch_id: branchId
       };
@@ -409,7 +650,7 @@ const Index = () => {
         setNewEvent({
           title: '',
           description: '',
-          event_date: new Date(),
+          event_date: '',
           event_type: 'general'
         });
         setShowEventModal(false);
@@ -464,12 +705,14 @@ const Index = () => {
       setSelectedDistrictOption(selectedOption);
       console.log('District option set to:', selectedOption);
       
-      // For regional managers, automatically select the first branch in the district
+      // For regional managers, show branch selection popup after district selection
       if (districtBranches.length > 0) {
-        const firstBranch = districtBranches[0];
-        await handleBranchSelection({ value: firstBranch.id, label: firstBranch.name });
+        // Close district selection and show branch selection
+        setShowDistrictSelection(false);
+        setShowBranchSelection(true);
       } else {
-        // Keep district selection visible to avoid modal flicker and enable branch selection below
+        // No branches available, show branch selection anyway
+        setShowDistrictSelection(false);
         setShowBranchSelection(true);
       }
     } catch (error) {
@@ -507,57 +750,23 @@ const Index = () => {
     }
   };
 
-  // Handle role-based dialogs when profile is loaded
+  // Handle profile loading
   useEffect(() => {
     if (extendedProfile) {
-      console.log('Profile loaded:', extendedProfile);
+      console.log('=== Profile loaded ===');
+      console.log('Role:', extendedProfile.role);
+      console.log('Branch ID:', extendedProfile.branch_id);
       
-      if ((extendedProfile.role as string) === 'regional_manager') {
-        // Regional managers: Show district selection on login only if not completed yet
-        console.log('Regional manager detected, has_completed_selection:', extendedProfile.has_completed_selection);
-        if (!extendedProfile.has_completed_selection) {
-          console.log('Showing district selection popup');
-          setShowDistrictSelection(true);
-          fetchDistrictsData();
-        } else {
-          console.log('Skipping district selection popup - already completed');
-        }
-      } else if ((extendedProfile.role as string) === 'district_manager') {
-        // District managers: show branch selection popup  
-        if (!extendedProfile.branch_context) {
-          setShowBranchSelection(true);
-          fetchBranchesData();
-        }
-      }
+      // Load dashboard data for all users
+      fetchDashboardData();
     }
   }, [extendedProfile]);
 
-  // Add function to manually show district selection
-  const showDistrictSelectionModal = async () => {
-    console.log('Manually showing district selection modal');
-    try {
-      // Reset completion state in database
-      await apiClient.resetSelection();
-      // Refresh profile to get updated state
-      const updatedProfile = await apiClient.getProfile();
-      setExtendedProfile(updatedProfile);
-      setShowDistrictSelection(true);
-      fetchDistrictsData();
-    } catch (error) {
-      console.error('Error resetting selection:', error);
-      // Fallback: just show the modal
-      setShowDistrictSelection(true);
-      fetchDistrictsData();
-    }
-  };
 
   useEffect(() => {
     if (profile) {
       fetchDashboardData();
-      if (!hasFetchedWeatherRef.current) {
-        hasFetchedWeatherRef.current = true;
-        fetchWeatherData();
-      }
+      fetchWeatherData();
     }
   }, [profile]);
 
@@ -577,7 +786,7 @@ const Index = () => {
     return <div className="flex justify-center items-center h-64">Loading dashboard...</div>;
   }
 
-  // Admin Dashboard - Limited view with only greeting and weather
+  // Admin Dashboard - Enhanced view with calendar and moveout lists
   if (extendedProfile?.role === 'admin') {
     return (
       <div className="space-y-6">
@@ -595,44 +804,79 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Weather Widget */}
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Current Weather</CardTitle>
-              <Cloud className="h-4 w-4 text-muted-foreground" />
+        {/* Calendar & Events Row */}
+        <div className="grid gap-6 grid-cols-1 lg:grid-cols-12">
+          {/* Calendar & Events - col-7 */}
+          <Card className="lg:col-span-7">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Calendar & Events</CardTitle>
+                <CardDescription>Upcoming events and reminders</CardDescription>
+              </div>
+              <Button onClick={() => setShowEventModal(true)} size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Event
+              </Button>
             </CardHeader>
             <CardContent>
-              {weatherLoading ? (
-                <div className="space-y-2">
-                  <div className="h-8 bg-muted animate-pulse rounded" />
-                  <div className="h-4 bg-muted animate-pulse rounded w-3/4" />
+              <div className="space-y-4">
+                {/* Calendar */}
+                <div className="flex justify-center">
+                  <Calendar
+                    mode="single"
+                    selected={selectedCalendarDate}
+                    onSelect={setSelectedCalendarDate}
+                    className="rounded-md border"
+                  />
                 </div>
-              ) : weather ? (
+                
+                {/* Upcoming Events */}
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Thermometer className="h-5 w-5 text-orange-500" />
-                    <span className="text-2xl font-bold">{Math.round(weather.temperature)}°C</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground capitalize">{weather.condition}</p>
-                  <div className="flex gap-4 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Droplets className="h-3 w-3" />
-                      <span>{weather.humidity}%</span>
+                  <h4 className="text-sm font-medium">Upcoming Events</h4>
+                  {events.length > 0 ? (
+                    <div className="space-y-2">
+                      {events.map((event, index) => (
+                        <div key={index} className="flex items-center gap-3 p-2 bg-muted/50 rounded-lg">
+                          <CalendarIcon className="h-4 w-4 text-blue-500" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">{event.title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {format(new Date(event.event_date), 'MMM dd, yyyy')}
+                            </p>
+                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            {event.event_type}
+                          </Badge>
+                        </div>
+                      ))}
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Wind className="h-3 w-3" />
-                      <span>{weather.windSpeed}km/h</span>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{weather.location}</p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No upcoming events</p>
+                  )}
                 </div>
-              ) : (
-                <div className="text-sm text-muted-foreground">Weather data unavailable</div>
-              )}
+              </div>
             </CardContent>
           </Card>
+
         </div>
+
+        {/* Generated Moveout Lists Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Generated Moveout Lists
+            </CardTitle>
+            <CardDescription>Recent moveout lists from all branches</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-8 text-muted-foreground">
+              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No moveout lists available</p>
+              <p className="text-sm">Moveout lists will appear here when generated by staff members</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -656,20 +900,14 @@ const Index = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">
-            Welcome back, {extendedProfile?.name || 'User'}! Here's what's happening with your inventory.
+            {extendedProfile?.role === 'manager' || extendedProfile?.role === 'assistant_manager' ? (
+              `Welcome back, ${extendedProfile?.name || 'User'}! Here's what's happening with your inventory in ${extendedProfile?.branch_name || 'branch'}.`
+            ) : (
+              `Welcome back, ${extendedProfile?.name || 'User'}! Here's what's happening with your inventory.`
+            )}
           </p>
         </div>
         <div className="flex items-center gap-4">
-          {(extendedProfile?.role as string) === 'regional_manager' && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={showDistrictSelectionModal}
-              className="text-xs"
-            >
-              Select District & Branch
-            </Button>
-          )}
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Activity className="h-4 w-4" />
             Today: {new Date().toLocaleDateString()}
@@ -677,7 +915,22 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Quick Stats */}
+      {/* Generate Moveout List Button - Only for staff */}
+      {extendedProfile?.role === 'staff' && (
+        <div className="flex justify-center mb-6">
+          <Button 
+            onClick={() => setShowMoveoutModal(true)}
+            className="px-8 py-3 text-lg"
+            size="lg"
+          >
+            <FileText className="h-5 w-5 mr-2" />
+            Generate Moveout List
+          </Button>
+        </div>
+      )}
+
+      {/* Quick Stats - Only show for non-staff roles */}
+      {extendedProfile?.role !== 'staff' && (
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -689,6 +942,23 @@ const Index = () => {
             <p className="text-xs text-muted-foreground">Items in inventory</p>
           </CardContent>
         </Card>
+
+          <Card 
+            className="cursor-pointer hover:shadow-lg transition-shadow"
+            onClick={() => {
+              setModalStockType('threshold');
+              setShowStockModal(true);
+            }}
+          >
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Below Threshold</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-yellow-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-600">{stats.thresholdStockItems}</div>
+              <p className="text-xs text-muted-foreground">Below threshold level</p>
+            </CardContent>
+          </Card>
 
         <Card 
           className="cursor-pointer hover:shadow-lg transition-shadow"
@@ -724,28 +994,20 @@ const Index = () => {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Staff Members</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalStaff}</div>
-            <p className="text-xs text-muted-foreground">Active users</p>
-          </CardContent>
-        </Card>
       </div>
+      )}
 
       {/* Main Content Grid */}
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
-        {/* Calendar & Events */}
+        {/* Calendar & Events - Only show for non-staff roles */}
+        {extendedProfile?.role !== 'staff' && (
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Calendar & Events</CardTitle>
               <CardDescription>Upcoming events and reminders</CardDescription>
             </div>
-            {((extendedProfile?.role as string) === 'regional_manager' || (extendedProfile?.role as string) === 'district_manager' || (extendedProfile?.role as string) === 'manager' || (extendedProfile?.role as string) === 'assistant_manager') && (
+            {(extendedProfile?.role === 'manager' || extendedProfile?.role === 'assistant_manager') && (
               <Button onClick={() => {
                 console.log('Add Event button clicked, current showEventModal:', showEventModal);
                 setShowEventModal(true);
@@ -769,7 +1031,7 @@ const Index = () => {
               </div>
               
               {/* Events List - Show for management roles only */}
-              {['regional_manager', 'district_manager', 'manager', 'assistant_manager'].includes(extendedProfile?.role!) && (
+              {['manager', 'assistant_manager'].includes(extendedProfile?.role!) && (
                 <div className="space-y-4">
                   <h4 className="font-semibold">Upcoming Events</h4>
                   {events.length > 0 ? (
@@ -802,97 +1064,419 @@ const Index = () => {
             </div>
           </CardContent>
         </Card>
+        )}
 
-        {/* Quick Actions & Weather */}
-        <div className="space-y-6">
-          {/* Weather Widget */}
+        {/* Weather Widget - Third column */}
+        <Card className="lg:col-span-1">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Cloud className="h-5 w-5" />
+              {weather?.location ? `Weather in ${weather.location}` : 'Weather'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {weatherLoading ? (
+              <div className="text-center py-4">
+                <div className="text-sm text-muted-foreground">Loading weather...</div>
+              </div>
+            ) : weather ? (
+              <div className="space-y-3">
+                <div className="text-center">
+                  <div className="text-3xl font-bold">{weather.temperature}°C</div>
+                  <p className="text-sm text-muted-foreground capitalize">{weather.condition}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4 pt-2">
+                  <div className="flex items-center gap-2">
+                    <Droplets className="h-4 w-4 text-blue-500" />
+                    <span className="text-sm">{weather.humidity}%</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Wind className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm">{weather.windSpeed} km/h</span>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground text-center mt-2">
+                  Good conditions for deliveries
+                </p>
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <div className="text-sm text-muted-foreground">Weather unavailable</div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+      </div>
+
+      {/* Two Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left Column - Moveout Lists */}
+        <div>
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Cloud className="h-5 w-5" />
-                {weather?.location ? `Weather in ${weather.location}` : 'Weather'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {weatherLoading ? (
-                <div className="text-center py-4">
-                  <div className="text-sm text-muted-foreground">Loading weather...</div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Generated Moveout Lists
+                  </CardTitle>
+                  <CardDescription>
+                    {showHistory ? 'Generated and completed moveout lists' : 'Generated moveout lists'}
+                  </CardDescription>
                 </div>
-              ) : weather ? (
-                <div className="space-y-3">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold">{weather.temperature}°C</div>
-                    <p className="text-sm text-muted-foreground capitalize">{weather.condition}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 pt-2">
-                    <div className="flex items-center gap-2">
-                      <Droplets className="h-4 w-4 text-blue-500" />
-                      <span className="text-sm">{weather.humidity}%</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Wind className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm">{weather.windSpeed} km/h</span>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground text-center mt-2">
-                    Good conditions for deliveries
-                  </p>
-                </div>
-              ) : (
-                <div className="text-center py-4">
-                  <div className="text-sm text-muted-foreground">Weather unavailable</div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {extendedProfile?.role === 'staff' ? (
-                <div className="space-y-2">
-                  <Link to="/stock">
-                    <Button variant="outline" className="w-full justify-start">
-                      <TrendingUp className="h-4 w-4 mr-2" />
-                      Manage Stock
+                <div className="flex items-center gap-2">
+                  {/* Generate Moveout List Button for Managers and Assistant Managers */}
+                  {(extendedProfile?.role === 'manager' || extendedProfile?.role === 'assistant_manager') && (
+                    <Button
+                      onClick={() => setShowMoveoutModal(true)}
+                      size="sm"
+                      variant="outline"
+                    >
+                      <FileText className="h-4 w-4 mr-1" />
+                      Generate Moveout List
                     </Button>
-                  </Link>
-                  <Link to="/settings">
-                    <Button variant="outline" className="w-full justify-start">
-                      <Settings className="h-4 w-4 mr-2" />
-                      Settings
-                    </Button>
-                  </Link>
-                  <Button variant="outline" className="w-full justify-start" onClick={signOut}>
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Sign Out
+                  )}
+                  {/* View History Button - Icon only */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleToggleHistory}
+                    disabled={moveoutListsLoading}
+                    title={showHistory ? 'Hide History' : 'View History'}
+                  >
+                    <History className="h-4 w-4" />
                   </Button>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  <Link to="/items">
-                    <Button variant="outline" className="w-full justify-start">
-                      <Package className="h-4 w-4 mr-2" />
-                      Manage Items
-                    </Button>
-                  </Link>
-                  <Link to="/stock">
-                    <Button variant="outline" className="w-full justify-start">
-                      <TrendingUp className="h-4 w-4 mr-2" />
-                      Stock Movement
-                    </Button>
-                  </Link>
-                  <Link to="/staff">
-                    <Button variant="outline" className="w-full justify-start">
-                      <Users className="h-4 w-4 mr-2" />
-                      Manage Staff
-                    </Button>
-                  </Link>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {moveoutListsLoading ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                  <p>Loading moveout lists...</p>
                 </div>
-              )}
+              ) : (() => {
+                // Always show draft lists at the top (these are the active/generated lists)
+                const activeLists = moveoutList.filter(list => list.status === 'draft');
+                const displayLists = showHistory ? [...activeLists, ...completedLists] : activeLists;
+                
+                return displayLists.length > 0 ? (
+                  <div className="space-y-4">
+                    {/* Generated Lists Section */}
+                    {activeLists.length > 0 && (
+                      <>
+                        {activeLists.map((list, index) => {
+                          console.log('Rendering active moveout list:', list); // Debug log
+                          return (
+                            <Accordion key={list.id || index} type="single" collapsible className="w-full">
+                          <AccordionItem value={`item-${index}`}>
+                            <AccordionTrigger className="text-left">
+                              <div className="flex items-center justify-between w-full mr-4">
+                                <span className="font-semibold">{list.title || `Moveout List #${index + 1}`}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm text-muted-foreground">
+                                    {new Date(list.created_at).toLocaleDateString()}
+                                  </span>
+                                     <Badge variant={list.status === 'draft' ? 'default' : list.status === 'completed' ? 'secondary' : 'destructive'}>
+                                       {list.status === 'draft' ? 'Pending' : list.status === 'completed' ? 'Completed' : list.status}
+                                     </Badge>
+                                </div>
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                              {list.description && (
+                                <p className="text-sm text-muted-foreground mb-4">{list.description}</p>
+                              )}
+                              
+                              {/* Completion Summary - Show only when all items are completed */}
+                              {list.status === 'completed' && list.items && list.items.every((item: any) => item.status === 'completed') && (
+                                <div className="mb-4">
+                                  <button
+                                    onClick={() => {
+                                      const currentState = expandedSummaries[list.id] || false;
+                                      setExpandedSummaries(prev => ({
+                                        ...prev,
+                                        [list.id]: !currentState
+                                      }));
+                                    }}
+                                    className="flex items-center gap-2 text-sm font-medium text-green-800 hover:text-green-900 transition-colors"
+                                  >
+                                    <span>{expandedSummaries[list.id] ? 'Hide completion info' : 'Show completion info'}</span>
+                                    <svg 
+                                      className={`w-4 h-4 transition-transform ${expandedSummaries[list.id] ? 'rotate-180' : ''}`}
+                                      fill="none" 
+                                      stroke="currentColor" 
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                  </button>
+                                  
+                                  {expandedSummaries[list.id] && (
+                                    <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                      <h4 className="text-sm font-medium text-green-800 mb-2">✅ Completion Summary</h4>
+                                      <div className="space-y-1">
+                                        {list.items.map((item: any, index: number) => (
+                                          <div key={index} className="text-xs text-green-700">
+                                            <span className="font-medium">{item.item_name}</span> - Completed by <span className="font-semibold">{item.processed_by}</span> on {new Date(item.processed_at).toLocaleDateString()} at {new Date(item.processed_at).toLocaleTimeString()}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                     <thead>
+                                       <tr className="border-b">
+                                         <th className="text-left p-2">Item Name</th>
+                                         <th className="text-left p-2">Requesting Quantity</th>
+                                         <th className="text-left p-2">Action</th>
+                                       </tr>
+                                     </thead>
+                                  <tbody>
+                                    {list.items && Array.isArray(list.items) ? list.items.map((item: any, itemIndex: number) => (
+                                      <tr key={itemIndex} className="border-b">
+                                        <td className="p-2">{item.item_name || item.itemName || 'Unknown Item'}</td>
+                                        <td className="p-2">{item.request_amount || item.requestingQuantity || 0}</td>
+                                        <td className="p-2">
+                                          {item.status === 'completed' ? (
+                                            <span className="text-sm text-green-600 font-medium">
+                                              Completed
+                                            </span>
+                                          ) : (
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              onClick={() => handleMoveoutItemDoneWithConfirmation(list.id, item)}
+                                              disabled={processingItem === `${list.id}-${item.item_id}`}
+                                            >
+                                              {processingItem === `${list.id}-${item.item_id}` ? (
+                                                <>
+                                                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current mr-2"></div>
+                                                  Processing...
+                                                </>
+                                              ) : (
+                                                'Done'
+                                              )}
+                                            </Button>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    )) : (
+                                      <tr>
+                                        <td colSpan={3} className="p-4 text-center text-muted-foreground">
+                                          No items in this list
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </tbody>
+                                </table>
+                              </div>
+                              
+                              {/* Completion Information */}
+                              {list.items && Array.isArray(list.items) && list.items.some((item: any) => item.completed) && (
+                                <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                    <span className="text-sm font-medium text-green-800">
+                                      Completed by {(() => {
+                                        const completedItems = list.items.filter((item: any) => item.completed);
+                                        const uniqueCompleters = [...new Set(completedItems.map((item: any) => item.completedByName).filter(Boolean))];
+                                        return uniqueCompleters.length > 0 ? uniqueCompleters.join(', ') : 'Unknown';
+                                      })()}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                            </AccordionContent>
+                          </AccordionItem>
+                            </Accordion>
+                          );
+                        })}
+                      </>
+                    )}
+                    
+                    {/* Completed Lists Section */}
+                    {showHistory && completedLists.length > 0 && (
+                      <>
+                        {/* Separator */}
+                        <div className="border-t border-gray-200 my-4"></div>
+                        
+                        {completedLists.map((list, index) => {
+                          console.log('Rendering completed moveout list:', list); // Debug log
+                          return (
+                            <Accordion key={list.id || `completed-${index}`} type="single" collapsible className="w-full">
+                              <AccordionItem value={`completed-item-${index}`}>
+                                <AccordionTrigger className="text-left">
+                                  <div className="flex items-center justify-between w-full mr-4">
+                                    <span className="font-semibold">{list.title || `Moveout List #${index + 1}`}</span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm text-muted-foreground">
+                                        {new Date(list.created_at).toLocaleDateString()}
+                                      </span>
+                                         <Badge variant={list.status === 'active' ? 'default' : list.status === 'completed' ? 'secondary' : 'destructive'}>
+                                           {list.status === 'active' ? 'Active' : list.status === 'completed' ? 'Completed' : list.status}
+                                         </Badge>
+                                    </div>
+                                  </div>
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                  {list.description && (
+                                    <p className="text-sm text-muted-foreground mb-4">{list.description}</p>
+                                  )}
+                                  
+                                  {/* Completion Summary - Show only when all items are completed */}
+                                  {list.status === 'completed' && list.items && list.items.every((item: any) => item.status === 'completed') && (
+                                    <div className="mb-4">
+                                      <button
+                                        onClick={() => {
+                                          const currentState = expandedSummaries[list.id] || false;
+                                          setExpandedSummaries(prev => ({
+                                            ...prev,
+                                            [list.id]: !currentState
+                                          }));
+                                        }}
+                                        className="flex items-center gap-2 text-sm font-medium text-green-800 hover:text-green-900 transition-colors"
+                                      >
+                                        <span>Show completion info</span>
+                                        <svg 
+                                          className={`w-4 h-4 transition-transform ${expandedSummaries[list.id] ? 'rotate-180' : ''}`}
+                                          fill="none" 
+                                          stroke="currentColor" 
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                      </button>
+                                      
+                                      {expandedSummaries[list.id] && (
+                                        <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                          <h4 className="text-sm font-medium text-green-800 mb-2">✅ Completion Summary</h4>
+                                          <div className="space-y-1">
+                                            {list.items.map((item: any, index: number) => (
+                                              <div key={index} className="text-xs text-green-700">
+                                                <span className="font-medium">{item.item_name}</span> - Completed by <span className="font-semibold">{item.processed_by}</span> on {new Date(item.processed_at).toLocaleDateString()} at {new Date(item.processed_at).toLocaleTimeString()}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                  
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                         <thead>
+                                           <tr className="border-b">
+                                             <th className="text-left p-2">Item Name</th>
+                                             <th className="text-left p-2">Requesting Quantity</th>
+                                             <th className="text-left p-2">Action</th>
+                                           </tr>
+                                         </thead>
+                                      <tbody>
+                                        {list.items && Array.isArray(list.items) ? list.items.map((item: any, itemIndex: number) => (
+                                          <tr key={itemIndex} className="border-b">
+                                            <td className="p-2">{item.item_name || item.itemName || 'Unknown Item'}</td>
+                                            <td className="p-2">{item.request_amount || item.requestingQuantity || 0}</td>
+                                            <td className="p-2">
+                                              {item.status === 'completed' ? (
+                                                <span className="text-sm text-green-600 font-medium">
+                                                  Completed
+                                                </span>
+                                              ) : (
+                                                <Button
+                                                  size="sm"
+                                                  variant="outline"
+                                                  onClick={() => handleMoveoutItemDoneWithConfirmation(list.id, item)}
+                                                  disabled={processingItem === `${list.id}-${item.item_id}`}
+                                                >
+                                                  {processingItem === `${list.id}-${item.item_id}` ? (
+                                                    <>
+                                                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current mr-2"></div>
+                                                      Processing...
+                                                    </>
+                                                  ) : (
+                                                    'Done'
+                                                  )}
+                                                </Button>
+                                              )}
+                                            </td>
+                                          </tr>
+                                        )) : (
+                                          <tr>
+                                            <td colSpan={3} className="p-4 text-center text-muted-foreground">
+                                              No items in this list
+                                            </td>
+                                          </tr>
+                                        )}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                  
+                                  {/* Completion Information */}
+                                  {list.items && Array.isArray(list.items) && list.items.some((item: any) => item.completed) && (
+                                    <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                        <span className="text-sm font-medium text-green-800">
+                                          Completed by {(() => {
+                                            const completedItems = list.items.filter((item: any) => item.completed);
+                                            const uniqueCompleters = [...new Set(completedItems.map((item: any) => item.completedByName).filter(Boolean))];
+                                            return uniqueCompleters.length > 0 ? uniqueCompleters.join(', ') : 'Unknown';
+                                          })()}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </AccordionContent>
+                              </AccordionItem>
+                            </Accordion>
+                          );
+                        })}
+                      </>
+                    )}
+                    
+                    {/* Load More button for history */}
+                    {showHistory && (() => {
+                      const allLists = moveoutList.filter(list => list.status === 'completed');
+                      const hasMore = historyLoadedCount < allLists.length;
+                      
+                      return hasMore ? (
+                        <div className="text-center pt-4">
+                          <Button
+                            variant="outline"
+                            onClick={handleLoadHistory}
+                            disabled={moveoutListsLoading}
+                          >
+                            <History className="h-4 w-4 mr-2" />
+                            Load More (5)
+                          </Button>
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>
+                      {showHistory && activeLists.length === 0
+                        ? 'No moveout lists found' 
+                        : 'No active moveout lists generated yet'
+                      }
+                    </p>
+                    {!showHistory && (
+                      <p className="text-sm">Click "Generate Moveout List" to create your first list</p>
+                    )}
+                    {showHistory && activeLists.length === 0 && (
+                      <p className="text-sm">No active or completed moveout lists found</p>
+                    )}
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         </div>
@@ -903,17 +1487,19 @@ const Index = () => {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {modalStockType === 'low' ? 'Low Stock Items' : 'Critical Stock Items'}
+              {modalStockType === 'threshold' ? 'Below Threshold Items' : 
+               modalStockType === 'low' ? 'Low Stock Items' : 'Critical Stock Items'}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 max-h-96 overflow-y-auto">
-            {(modalStockType === 'low' ? stats.lowStockDetails : stats.criticalStockDetails)?.map((item: any) => (
+            {(modalStockType === 'threshold' ? stats.thresholdStockDetails : 
+              modalStockType === 'low' ? stats.lowStockDetails : stats.criticalStockDetails)?.map((item: any) => (
               <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="flex items-center gap-3">
-                  {item.items.image_url ? (
+                  {item.image_url ? (
                     <img 
-                      src={item.items.image_url} 
-                      alt={item.items.name}
+                      src={item.image_url} 
+                      alt={item.name}
                       className="w-10 h-10 rounded object-cover"
                     />
                   ) : (
@@ -922,13 +1508,13 @@ const Index = () => {
                     </div>
                   )}
                   <div>
-                    <p className="font-medium">{item.items.name}</p>
-                    <p className="text-sm text-muted-foreground capitalize">{item.items.category}</p>
+                    <p className="font-medium">{item.name}</p>
+                    <p className="text-sm text-muted-foreground capitalize">{item.category}</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="font-medium">Current: {item.current_quantity}</p>
-                  <p className="text-sm text-muted-foreground">Threshold: {item.items.threshold_level}</p>
+                  <p className="text-sm text-muted-foreground">Threshold: {item.threshold_level}</p>
                 </div>
               </div>
             )) || []}
@@ -980,8 +1566,6 @@ const Index = () => {
                       }}
                       onMenuOpen={() => console.log('Menu opened')}
                       onMenuClose={() => console.log('Menu closed')}
-                      onMouseDown={(e) => console.log('Mouse down on select:', e)}
-                      onMouseUp={(e) => console.log('Mouse up on select:', e)}
                       placeholder="Select a district..."
                       isClearable={false}
                       isSearchable={true}
@@ -1087,7 +1671,7 @@ const Index = () => {
             <DialogTitle>Add New Event</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {((extendedProfile?.role as string) === 'regional_manager' || (extendedProfile?.role as string) === 'district_manager') && !extendedProfile?.branch_context && (
+            {!extendedProfile?.branch_id && (
               <div>
                 <Label htmlFor="event-branch">Branch *</Label>
                 <Select2
@@ -1195,6 +1779,217 @@ const Index = () => {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Moveout List Modal */}
+      <Dialog open={showMoveoutModal} onOpenChange={setShowMoveoutModal}>
+        <DialogContent className="max-w-6xl w-[80vw] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Generate Moveout List</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
+            {/* Item Selection */}
+            <div>
+              <Label htmlFor="item-select">Select Items</Label>
+              <Select2
+                isMulti
+                options={availableItems.map(item => ({
+                  value: item.id,
+                  label: `${item.name} (Current: ${item.current_quantity})`,
+                  item: item
+                }))}
+                value={selectedItems.map(item => ({
+                  value: item.id,
+                  label: `${item.name} (Current: ${item.current_quantity})`,
+                  item: item
+                }))}
+                onChange={(selectedOptions) => {
+                  const items = selectedOptions ? selectedOptions.map(option => option.item) : [];
+                  setSelectedItems(items);
+                }}
+                placeholder="Search and select items..."
+                className="mt-2"
+                styles={{
+                  control: (provided) => ({
+                    ...provided,
+                    backgroundColor: 'hsl(var(--background))',
+                    borderColor: 'hsl(var(--border))',
+                    color: 'hsl(var(--foreground))',
+                    minHeight: '40px'
+                  }),
+                  menu: (provided) => ({
+                    ...provided,
+                    backgroundColor: 'hsl(var(--popover))',
+                    border: '1px solid hsl(var(--border))',
+                    zIndex: 9999
+                  }),
+                  option: (provided, state) => ({
+                    ...provided,
+                    backgroundColor: state.isSelected 
+                      ? 'hsl(var(--accent))' 
+                      : state.isFocused 
+                      ? 'hsl(var(--accent) / 0.5)' 
+                      : 'transparent',
+                    color: 'hsl(var(--popover-foreground))',
+                    padding: '8px 12px'
+                  }),
+                  multiValue: (provided) => ({
+                    ...provided,
+                    backgroundColor: 'hsl(var(--accent))',
+                    color: 'hsl(var(--accent-foreground))'
+                  }),
+                  multiValueLabel: (provided) => ({
+                    ...provided,
+                    color: 'hsl(var(--accent-foreground))'
+                  }),
+                  multiValueRemove: (provided) => ({
+                    ...provided,
+                    color: 'hsl(var(--accent-foreground))',
+                    ':hover': {
+                      backgroundColor: 'hsl(var(--accent-foreground) / 0.2)',
+                      color: 'hsl(var(--accent-foreground))'
+                    }
+                  })
+                }}
+              />
+              <Button 
+                onClick={handleAddToList}
+                className="mt-2"
+                disabled={selectedItems.length === 0}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add to List
+              </Button>
+            </div>
+
+            {/* Moveout List Items Table */}
+            {moveoutListItems.length > 0 && (
+              <div>
+                <Label className="text-base font-semibold">Moveout List Items</Label>
+                <div className="mt-2 border rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted">
+                      <tr>
+                        <th className="text-left p-3 font-medium">Item Name</th>
+                        <th className="text-left p-3 font-medium">Current Quantity</th>
+                        <th className="text-left p-3 font-medium">Requesting Quantity</th>
+                        <th className="text-left p-3 font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {moveoutListItems.map((item, index) => (
+                        <tr key={index} className="border-b">
+                          <td className="p-3">{item.itemName}</td>
+                          <td className="p-3">{item.currentQuantity}</td>
+                          <td className="p-3">
+                            <Input
+                              type="number"
+                              min="1"
+                              max={item.currentQuantity}
+                              value={item.requestingQuantity}
+                              onChange={(e) => {
+                                const newItems = [...moveoutListItems];
+                                newItems[index].requestingQuantity = parseInt(e.target.value) || 0;
+                                setMoveoutListItems(newItems);
+                              }}
+                              className="w-20"
+                            />
+                          </td>
+                          <td className="p-3">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const newItems = moveoutListItems.filter((_, i) => i !== index);
+                                setMoveoutListItems(newItems);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setShowMoveoutModal(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleGenerateMoveoutList}
+                disabled={moveoutListItems.length === 0}
+              >
+                Generate Moveout List
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation Modal for Moveout Item */}
+      <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Moveout</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground mb-4">
+              Are you sure you want to mark <strong>"{confirmItem?.item?.itemName}"</strong> as moved out?
+            </p>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-yellow-800">
+                <strong>Warning:</strong> This will deduct <strong>{confirmItem?.item?.requestingQuantity}</strong> units from stock and cannot be undone.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancelMoveout}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmMoveout} className="bg-red-600 hover:bg-red-700">
+              Confirm Moveout
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation Modal for Generate Moveout List */}
+      <Dialog open={showGenerateConfirmModal} onOpenChange={setShowGenerateConfirmModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Generate Moveout List</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground mb-4">
+              Are you sure you want to generate a moveout list with <strong>{moveoutListItems.length}</strong> items?
+            </p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-blue-800">
+                <strong>Items to be included:</strong>
+              </p>
+              <ul className="text-sm text-blue-700 mt-2 space-y-1">
+                {moveoutListItems.map((item, index) => (
+                  <li key={index}>
+                    • {item.itemName} - Requesting: {item.requestingQuantity} units
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowGenerateConfirmModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmGenerateMoveoutList} className="bg-blue-600 hover:bg-blue-700">
+              Generate Moveout List
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
       </div>

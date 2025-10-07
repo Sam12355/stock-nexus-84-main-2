@@ -1,6 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useState, useEffect } from "react";
 import { apiClient } from "@/lib/api";
+import { notificationEvents } from "@/lib/notificationEvents";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,27 @@ import { useToast } from "@/hooks/use-toast";
 import { Package, TrendingUp, AlertTriangle, Plus, Minus } from "lucide-react";
 import ReactSelect from 'react-select';
 
+// Category labels mapping
+const categoryLabels = {
+  fish_frozen: "Fish Frozen",
+  vegetables: "Vegetables",
+  other_frozen_food: "Other Frozen Food",
+  meat_frozen: "Meat Frozen",
+  kitchen_supplies: "Kitchen Supplies",
+  grains: "Grains",
+  fruits: "Fruits",
+  flour: "Flour",
+  cleaning_supplies: "Cleaning Supplies",
+  canned_prepared_food: "Canned & Prepared Food",
+  beer_non_alc: "Beer, non alc.",
+  sy_product_recipes: "SY Product Recipes",
+  packaging: "Packaging",
+  sauce: "Sauce",
+  softdrinks: "Softdrinks",
+  spices: "Spices",
+  other: "Other"
+};
+
 // Extended interface for profile with branch_context
 interface ExtendedProfile {
   id: string;
@@ -22,7 +44,7 @@ interface ExtendedProfile {
   phone?: string;
   photo_url?: string;
   position?: string;
-  role: 'admin' | 'regional_manager' | 'district_manager' | 'manager' | 'assistant_manager' | 'staff';
+  role: 'admin' | 'manager' | 'assistant_manager' | 'staff';
   branch_id?: string;
   branch_context?: string;
   last_access?: string;
@@ -53,13 +75,14 @@ const Stock = () => {
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null);
-  const [movementType, setMovementType] = useState<'in' | 'out'>('in');
   const [quantity, setQuantity] = useState('');
   const [reason, setReason] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [categorySearchTerms, setCategorySearchTerms] = useState<{ [category: string]: string }>({});
   const [isMovementDialogOpen, setIsMovementDialogOpen] = useState(false);
   const [quickActionItem, setQuickActionItem] = useState<StockItem | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'low' | 'critical'>('all');
+  const [isQuickActionLoading, setIsQuickActionLoading] = useState(false);
 
   const fetchStockData = async () => {
     try {
@@ -95,26 +118,25 @@ const Stock = () => {
     }
   };
 
-  const handleStockMovement = async () => {
+  const handleStockOut = async () => {
     if (!selectedItem || !quantity) return;
 
     try {
       const result = await apiClient.updateStockQuantity(
         selectedItem.item_id,
-        movementType,
+        'out',
         parseInt(quantity),
         reason || null
       );
 
       toast({
         title: "Success",
-        description: `Stock ${movementType === 'in' ? 'added' : 'removed'} successfully`,
+        description: `Stock removed successfully`,
       });
 
-      // Check if stock alert should be sent based on the result
-      if (result && result.new_quantity !== undefined) {
-        await checkAndSendStockAlert(selectedItem, result.new_quantity);
-      }
+      // Stock alerts are automatically handled by the backend
+      // Trigger notification refresh since stock alerts might have been generated
+      notificationEvents.triggerNotificationUpdate();
 
       // Refresh stock data
       fetchStockData();
@@ -123,7 +145,6 @@ const Stock = () => {
       setSelectedItem(null);
       setQuantity('');
       setReason('');
-      setMovementType('in');
       setIsMovementDialogOpen(false);
       setSearchTerm('');
     } catch (error) {
@@ -137,51 +158,9 @@ const Stock = () => {
     }
   };
 
-  const checkAndSendStockAlert = async (item: StockItem, newQuantity: number) => {
-    try {
-      const threshold = item.items.threshold_level;
-      const lowLevel = item.items.low_level || Math.max(1, Math.floor(threshold * 0.5));
-      const criticalLevel = item.items.critical_level || Math.max(1, Math.floor(threshold * 0.2));
-      
-      let alertType: 'low' | 'critical' | null = null;
 
-      if (newQuantity <= criticalLevel) {
-        alertType = 'critical';
-      } else if (newQuantity <= lowLevel) {
-        alertType = 'low';
-      }
 
-      if (alertType) {
-        console.log(`Stock alert: ${item.items.name} is ${alertType} (${newQuantity}/${threshold})`);
-        
-        // Send WhatsApp notification
-        try {
-          await apiClient.sendStockAlert(
-            item.items.name,
-            newQuantity,
-            threshold,
-            alertType
-          );
-          
-          toast({
-            title: "Stock Alert Sent",
-            description: `${alertType.toUpperCase()} stock alert sent for ${item.items.name}`,
-          });
-        } catch (alertError) {
-          console.error('Error sending stock alert:', alertError);
-          toast({
-            title: "Alert Error",
-            description: "Failed to send stock alert notification",
-            variant: "destructive",
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error checking stock alert:', error);
-    }
-  };
-
-  const handleQuickStockAction = async (item: StockItem, action: 'in' | 'out') => {
+  const handleQuickStockOut = async (item: StockItem) => {
     if (!quantity) {
       toast({
         title: "Error",
@@ -191,21 +170,27 @@ const Stock = () => {
       return;
     }
 
+    if (isQuickActionLoading) return; // Prevent multiple clicks
+
+    setIsQuickActionLoading(true);
+
     try {
       const result = await apiClient.updateStockQuantity(
         item.item_id,
-        action,
+        'out',
         parseInt(quantity),
-        `Quick ${action === 'in' ? 'stock in' : 'stock out'}`
+        `Quick stock out`
       );
 
       toast({
         title: "Success",
-        description: `Stock ${action === 'in' ? 'added' : 'removed'} successfully`,
+        description: `Stock removed successfully`,
       });
 
       // Check if stock alert should be sent
-      await checkAndSendStockAlert(item, result.new_quantity);
+      // Stock alerts are automatically handled by the backend
+      // Trigger notification refresh since stock alerts might have been generated
+      notificationEvents.triggerNotificationUpdate();
 
       fetchStockData();
       setQuantity('');
@@ -218,6 +203,8 @@ const Stock = () => {
         description: errMsg,
         variant: "destructive",
       });
+    } finally {
+      setIsQuickActionLoading(false);
     }
   };
 
@@ -263,6 +250,31 @@ const Stock = () => {
     item.items.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Group items by category and apply category-specific search
+  const groupItemsByCategory = (items: StockItem[]) => {
+    const grouped: { [category: string]: StockItem[] } = {};
+    
+    items.forEach(item => {
+      const category = item.items.category;
+      if (!grouped[category]) {
+        grouped[category] = [];
+      }
+      
+      // Apply category-specific search filter
+      const categorySearchTerm = categorySearchTerms[category] || '';
+      const matchesSearch = !categorySearchTerm || 
+        item.items.name.toLowerCase().includes(categorySearchTerm.toLowerCase());
+      
+      if (matchesSearch) {
+        grouped[category].push(item);
+      }
+    });
+    
+    return grouped;
+  };
+
+  const groupedItems = groupItemsByCategory(filteredStockItems);
+
   // Prepare options for react-select (use all items for selection)
   const selectOptions = stockItems.filter(item =>
     item.items.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -273,20 +285,28 @@ const Stock = () => {
     item: item
   }));
 
+  // Handle category search term changes
+  const handleCategorySearchChange = (category: string, value: string) => {
+    setCategorySearchTerms(prev => ({
+      ...prev,
+      [category]: value
+    }));
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Stock Management</h1>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Stock Out</h1>
         <Dialog open={isMovementDialogOpen} onOpenChange={setIsMovementDialogOpen}>
           <DialogTrigger asChild>
             <Button className="w-full sm:w-auto">
-              <Plus className="mr-2 h-4 w-4" />
-              Stock Movement
+              <Minus className="mr-2 h-4 w-4" />
+              Remove Stock
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>Record Stock Movement</DialogTitle>
+              <DialogTitle>Remove Stock</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
@@ -331,25 +351,13 @@ const Stock = () => {
               {selectedItem && (
                 <>
                   <div>
-                    <Label>Movement Type</Label>
-                    <Select onValueChange={(value: 'in' | 'out') => setMovementType(value)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background border shadow-lg z-50">
-                        <SelectItem value="in">Stock In</SelectItem>
-                        <SelectItem value="out">Stock Out</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <Label>Quantity</Label>
+                    <Label>Quantity to Remove</Label>
                     <Input
                       type="number"
                       value={quantity}
                       onChange={(e) => setQuantity(e.target.value)}
-                      placeholder="Enter quantity"
+                      placeholder="Enter quantity to remove"
+                      className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                   </div>
                   
@@ -358,12 +366,12 @@ const Stock = () => {
                     <Textarea
                       value={reason}
                       onChange={(e) => setReason(e.target.value)}
-                      placeholder="Enter reason for stock movement"
+                      placeholder="Enter reason for removing stock"
                     />
                   </div>
                   
-                  <Button onClick={handleStockMovement} className="w-full">
-                    Record Movement
+                  <Button onClick={handleStockOut} className="w-full">
+                    Remove Stock
                   </Button>
                 </>
               )}
@@ -428,107 +436,140 @@ const Stock = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {filteredStockItems.map((item) => {
-              const status = getStockStatus(item);
-              return (
-                <div
-                  key={item.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center space-x-4 min-w-0 flex-1">
-                    {item.items.image_url ? (
-                      <img 
-                        src={item.items.image_url} 
-                        alt={item.items.name}
-                        className="w-12 h-12 rounded object-cover flex-shrink-0"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 rounded bg-muted flex items-center justify-center flex-shrink-0">
-                        <Package className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium truncate">{item.items.name}</h3>
-                      <p className="text-sm text-muted-foreground capitalize">
-                        {item.items.category}
-                      </p>
-                    </div>
+          <div className="space-y-6">
+            {Object.entries(groupedItems).map(([category, items]) => (
+              <div key={category} className="space-y-3">
+                {/* Category Header with Search Bar */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 bg-muted/50 rounded-lg">
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-foreground">
+                      {categoryLabels[category as keyof typeof categoryLabels] || category}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {items.length} item{items.length !== 1 ? 's' : ''}
+                    </p>
                   </div>
-                  
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                    <div className="flex items-center justify-between sm:justify-start gap-4">
-                      <div className="text-right">
-                        <p className="font-medium">Qty: {item.current_quantity}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Threshold: {item.items.threshold_level}
-                        </p>
-                      </div>
-                      
-                      <Badge variant={status.color as any}>
-                        {status.status}
-                      </Badge>
-                    </div>
-                    
-                    <div className="flex justify-end">
-                      {quickActionItem?.id === item.id ? (
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Input
-                            type="number"
-                            placeholder="Qty"
-                            value={quantity}
-                            onChange={(e) => setQuantity(e.target.value)}
-                            className="w-16 h-8 text-xs"
-                          />
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleQuickStockAction(item, 'in')}
-                            className="h-8 px-2"
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleQuickStockAction(item, 'out')}
-                            className="h-8 px-2"
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              setQuickActionItem(null);
-                              setQuantity('');
-                            }}
-                            className="h-8 px-2"
-                          >
-                            ✕
-                          </Button>
-                        </div>
-                      ) : (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setQuickActionItem(item);
-                              setQuantity('');
-                            }}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
+                  <div className="w-full sm:w-64">
+                    <Input
+                      placeholder={`Search within ${categoryLabels[category as keyof typeof categoryLabels] || category}...`}
+                      value={categorySearchTerms[category] || ''}
+                      onChange={(e) => handleCategorySearchChange(category, e.target.value)}
+                      className="w-full"
+                    />
                   </div>
                 </div>
-              );
-            })}
+
+                {/* Items in this category */}
+                <div className="space-y-2">
+                  {items.map((item) => {
+                    const status = getStockStatus(item);
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-center space-x-4 min-w-0 flex-1">
+                          {item.items.image_url ? (
+                            <img 
+                              src={item.items.image_url} 
+                              alt={item.items.name}
+                              className="w-12 h-12 rounded object-cover flex-shrink-0"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                              <Package className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium truncate">{item.items.name}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              {categoryLabels[item.items.category as keyof typeof categoryLabels] || item.items.category}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                          <div className="flex items-center justify-between sm:justify-start gap-4">
+                            <div className="text-right">
+                              <p className="font-medium">Qty: {item.current_quantity}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Threshold: {item.items.threshold_level}
+                              </p>
+                            </div>
+                            
+                            <Badge variant={status.color as any}>
+                              {status.status}
+                            </Badge>
+                          </div>
+                          
+                          <div className="flex justify-end">
+                            {quickActionItem?.id === item.id ? (
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Input
+                                  type="number"
+                                  placeholder="Qty"
+                                  value={quantity}
+                                  onChange={(e) => setQuantity(e.target.value)}
+                                  className="w-16 h-8 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                  disabled={isQuickActionLoading}
+                                />
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleQuickStockOut(item)}
+                                  className="h-8 px-2"
+                                  disabled={isQuickActionLoading}
+                                >
+                                  {isQuickActionLoading ? (
+                                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+                                  ) : (
+                                    <Minus className="h-3 w-3" />
+                                  )}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    setQuickActionItem(null);
+                                    setQuantity('');
+                                  }}
+                                  className="h-8 px-2"
+                                  disabled={isQuickActionLoading}
+                                >
+                                  ✕
+                                </Button>
+                              </div>
+                            ) : (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setQuickActionItem(item);
+                                    setQuantity('');
+                                  }}
+                                  disabled={isQuickActionLoading}
+                                >
+                                  <Minus className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  
+                  {items.length === 0 && (
+                    <div className="text-center py-4 text-muted-foreground text-sm">
+                      No items found in this category
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
             
-            {filteredStockItems.length === 0 && (
+            {Object.keys(groupedItems).length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
                 {filterType === 'all' ? 'No stock items found. Add some items first.' :
                  filterType === 'low' ? 'No low stock items found.' :

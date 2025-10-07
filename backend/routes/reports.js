@@ -20,14 +20,10 @@ router.get('/stock', authenticateToken, async (req, res) => {
     let params = [];
 
     // Filter by branch for non-admin users
-    if (req.user.role !== 'admin' && req.user.role !== 'regional_manager' && req.user.role !== 'district_manager') {
+    if (req.user.role !== 'admin') {
       queryText += ' WHERE i.branch_id = $1';
       params.push(req.user.branch_id);
-    } else if ((req.user.role === 'regional_manager' || req.user.role === 'district_manager') && req.user.branch_context) {
-      queryText += ' WHERE i.branch_id = $1';
-      params.push(req.user.branch_context);
     }
-    // For regional/district managers without branch_context, show all items
 
     queryText += ' ORDER BY i.name';
 
@@ -86,14 +82,10 @@ router.get('/movements', authenticateToken, async (req, res) => {
     let params = [];
 
     // Filter by branch for non-admin users
-    if (req.user.role !== 'admin' && req.user.role !== 'regional_manager' && req.user.role !== 'district_manager') {
+    if (req.user.role !== 'admin') {
       queryText += ' WHERE i.branch_id = $1';
       params.push(req.user.branch_id);
-    } else if ((req.user.role === 'regional_manager' || req.user.role === 'district_manager') && req.user.branch_context) {
-      queryText += ' WHERE i.branch_id = $1';
-      params.push(req.user.branch_context);
     }
-    // For regional/district managers without branch_context, show all movements
 
     queryText += ' ORDER BY sm.created_at DESC';
 

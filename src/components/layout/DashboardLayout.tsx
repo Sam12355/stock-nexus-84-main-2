@@ -31,6 +31,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, [user?.id, fetchProfile]);
 
+  // This logic is no longer needed since we removed regional and district managers
+  // All remaining roles (admin, manager, assistant_manager, staff) have fixed branch assignments
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">

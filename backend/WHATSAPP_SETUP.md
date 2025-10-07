@@ -78,7 +78,7 @@ For production, you'll need:
 1. Check if you joined the sandbox correctly
 2. Verify environment variables are set
 3. Check backend console for errors
-4. Ensure your phone number is in international format (+46722204924)
+4. Ensure your phone number is in international format (+46722204841)
 
 ### Sandbox Limitations
 - Only works with verified phone numbers
@@ -96,6 +96,7 @@ If you need help:
 ---
 
 **Note**: The system will work immediately once you add your Twilio credentials to the `.env` file!
+
 
 
 
