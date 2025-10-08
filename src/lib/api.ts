@@ -1,8 +1,8 @@
 // API client for backend communication
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://stock-nexus-backend.onrender.com/api';
 
-// Demo mode for GitHub Pages
-const DEMO_MODE = window.location.hostname.includes('github.io');
+// Demo mode for GitHub Pages (disabled - using real backend)
+const DEMO_MODE = false;
 
 class ApiClient {
   private token: string | null = null;
