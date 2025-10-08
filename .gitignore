@@ -3,7 +3,7 @@ node_modules/
 */node_modules/
 
 # Production builds
-dist/
+# dist/ - Commented out for GitHub Pages deployment
 build/
 
 # Environment variables
