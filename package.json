@@ -3,7 +3,6 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "homepage": "https://sam12355.github.io/stock-nexus-84-main-2",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

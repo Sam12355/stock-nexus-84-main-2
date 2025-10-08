@@ -1,8 +1,5 @@
 // API client for backend communication
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://stock-nexus-backend.onrender.com/api';
-
-// Demo mode for GitHub Pages (disabled - using real backend)
-const DEMO_MODE = false;
+const API_BASE_URL = 'http://localhost:5000/api';
 
 class ApiClient {
   private token: string | null = null;
@@ -25,11 +22,6 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    // Demo mode - return mock data for GitHub Pages
-    if (DEMO_MODE) {
-      return this.getMockData<T>(endpoint, options);
-    }
-
     const url = `${API_BASE_URL}${endpoint}`;
     
     const headers: HeadersInit = {
@@ -59,63 +51,6 @@ class ApiClient {
       console.error('Request failed:', error);
       throw error;
     }
-  }
-
-  private getMockData<T>(endpoint: string, options: RequestInit): T {
-    // Mock data for demo mode
-    const mockData: { [key: string]: any } = {
-      '/auth/login': {
-        success: true,
-        data: {
-          user: {
-            id: 'demo-user-123',
-            email: 'demo@sushiyama.com',
-            name: 'Demo User',
-            role: 'admin',
-            branch_id: 'demo-branch-123',
-            branch_context: 'demo-branch-123'
-          },
-          token: 'demo-token-123'
-        }
-      },
-      '/auth/me': {
-        success: true,
-        data: {
-          id: 'demo-user-123',
-          email: 'demo@sushiyama.com',
-          name: 'Demo User',
-          role: 'admin',
-          branch_id: 'demo-branch-123',
-          branch_context: 'demo-branch-123'
-        }
-      },
-      '/branches': [
-        { id: 'demo-branch-123', name: 'Demo Branch', location: 'Demo City' }
-      ],
-      '/items': [
-        { id: '1', name: 'Sushi Roll', category: 'Food', threshold_level: 50, current_quantity: 25 },
-        { id: '2', name: 'Miso Soup', category: 'Food', threshold_level: 30, current_quantity: 15 },
-        { id: '3', name: 'Green Tea', category: 'Beverage', threshold_level: 100, current_quantity: 80 }
-      ],
-      '/stock': [
-        { id: '1', item_id: '1', current_quantity: 25, threshold_level: 50, last_updated: new Date().toISOString() },
-        { id: '2', item_id: '2', current_quantity: 15, threshold_level: 30, last_updated: new Date().toISOString() },
-        { id: '3', item_id: '3', current_quantity: 80, threshold_level: 100, last_updated: new Date().toISOString() }
-      ],
-      '/events': [
-        { id: '1', title: 'Demo Event', event_date: new Date().toISOString().split('T')[0], description: 'This is a demo event' }
-      ],
-      '/notifications': [
-        { id: '1', title: 'Demo Notification', message: 'This is a demo notification', created_at: new Date().toISOString() }
-      ]
-    };
-
-    // Simulate network delay
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(mockData[endpoint] || { success: true, data: [] });
-      }, 500);
-    }) as T;
   }
 
   // Authentication methods
