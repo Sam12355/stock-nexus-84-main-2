@@ -1,6 +1,9 @@
 // API client for backend communication
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+// Demo mode for GitHub Pages
+const DEMO_MODE = window.location.hostname.includes('github.io');
+
 class ApiClient {
   private token: string | null = null;
 
