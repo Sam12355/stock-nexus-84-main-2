@@ -5,7 +5,7 @@ class WhatsAppService {
     // Initialize Twilio client
     this.accountSid = process.env.TWILIO_ACCOUNT_SID;
     this.authToken = process.env.TWILIO_AUTH_TOKEN;
-    this.whatsappNumber = process.env.TWILIO_PHONE_NUMBER; // Note: using TWILIO_PHONE_NUMBER
+    this.whatsappNumber = process.env.TWILIO_WHATSAPP_NUMBER || process.env.TWILIO_PHONE_NUMBER; // Support both naming conventions
     
     if (this.accountSid && this.authToken && this.whatsappNumber) {
       this.client = twilio(this.accountSid, this.authToken);
