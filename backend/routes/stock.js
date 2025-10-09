@@ -190,9 +190,9 @@ router.post('/movement', authenticateToken, async (req, res) => {
                   AND (u.phone IS NOT NULL OR u.email IS NOT NULL)
                 `);
 
-                // Since notification_settings column doesn't exist, skip all users for now
-                const subscribedUsers = [];
-                console.log('⚠️ Notification settings column not available, skipping stock alerts');
+                // Since notification_settings column doesn't exist, include all users for testing
+                const subscribedUsers = usersResult.rows;
+                console.log('⚠️ Notification settings column not available, including all users for testing');
 
                 // Remove duplicate phone numbers - keep only the first user with each phone number
                 const uniqueUsers = [];
@@ -219,8 +219,8 @@ router.post('/movement', authenticateToken, async (req, res) => {
                     const isRegionalManager = user.role === 'regional_manager';
                     
                     // Check notification preferences
-                    // Since notification_settings column doesn't exist, default to disabled
-                    const whatsappNotificationsEnabled = false;
+                    // Since notification_settings column doesn't exist, enable for testing
+                    const whatsappNotificationsEnabled = true;
                     const emailNotificationsEnabled = false;
 
                     // Create alert message

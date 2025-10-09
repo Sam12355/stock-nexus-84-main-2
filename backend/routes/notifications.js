@@ -129,12 +129,13 @@ router.post('/stock-alert', authenticateToken, async (req, res) => {
     const isRegionalManager = user.role === 'regional_manager';
     
     // Check if stock level alerts are enabled in notification settings
-    // Since notification_settings column doesn't exist, default to disabled for safety
-    let stockAlertsEnabled = false;
-    let whatsappNotificationsEnabled = false;
-    let emailNotificationsEnabled = false;
+    // Since notification_settings column doesn't exist, we'll enable notifications for testing
+    // TODO: Remove this temporary fix once notification_settings column is added to database
+    let stockAlertsEnabled = true; // Temporarily enable for testing
+    let whatsappNotificationsEnabled = true; // Temporarily enable for testing
+    let emailNotificationsEnabled = false; // Keep email disabled for now
     
-    console.log(`🔍 User ${req.user.id} notification settings: column not available, using defaults`);
+    console.log(`🔍 User ${req.user.id} notification settings: using temporary defaults for testing`);
     console.log(`🔍 Stock alerts enabled: ${stockAlertsEnabled}`);
     console.log(`🔍 WhatsApp notifications enabled: ${whatsappNotificationsEnabled}`);
     console.log(`🔍 Email notifications enabled: ${emailNotificationsEnabled}`);
