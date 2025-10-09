@@ -22,6 +22,7 @@ const branchAssignmentRoutes = require('./routes/branch-assignments');
 const setupRoutes = require('./routes/setup');
 const receiptRoutes = require('./routes/receipts');
 const moveoutListRoutes = require('./routes/moveout-lists');
+const debugRoutes = require('./routes/debug');
 const schedulerService = require('./services/scheduler');
 
 const app = express();
@@ -89,6 +90,7 @@ app.use('/api/branch-assignments', branchAssignmentRoutes);
 app.use('/api/setup', setupRoutes);
 app.use('/api/receipts', receiptRoutes);
 app.use('/api/moveout-lists', moveoutListRoutes);
+app.use('/api/debug', debugRoutes);
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {
