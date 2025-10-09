@@ -4,6 +4,54 @@ const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Initialize database (no auth required for initial setup)
+router.post('/init-database', async (req, res) => {
+  try {
+    console.log('🚀 Initializing database...');
+    
+    // Check if users table exists
+    const tableCheck = await query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'users'
+      );
+    `);
+    
+    if (!tableCheck.rows[0].exists) {
+      console.log('📊 Running migration...');
+      // Import and run migration
+      const migrate = require('../scripts/migrate');
+      await migrate.runMigration();
+    }
+    
+    // Check if there are any users
+    const userCount = await query('SELECT COUNT(*) as count FROM users');
+    console.log('👥 Total users:', userCount.rows[0].count);
+    
+    if (userCount.rows[0].count === '0') {
+      console.log('🌱 Running seed script...');
+      // Import and run seed
+      const seed = require('../scripts/seed');
+      await seed.runSeed();
+    }
+    
+    res.json({
+      success: true,
+      message: 'Database initialized successfully',
+      usersCount: userCount.rows[0].count
+    });
+    
+  } catch (error) {
+    console.error('❌ Database initialization error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Database initialization failed',
+      details: error.message
+    });
+  }
+});
+
 // Create district manager branch assignments table
 router.post('/create-dm-branch-assignments-table', authenticateToken, async (req, res) => {
   try {
