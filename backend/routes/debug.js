@@ -8,7 +8,7 @@ router.get('/debug/database', async (req, res) => {
   try {
     console.log('🔍 Debug: Checking database status...');
     
-    const tables = ['users', 'branches', 'products', 'stock', 'transactions', 'staff'];
+    const tables = ['users', 'branches', 'items', 'stock', 'stock_movements', 'districts', 'regions'];
     const results = {};
     
     for (const table of tables) {
@@ -19,8 +19,8 @@ router.get('/debug/database', async (req, res) => {
           exists: true
         };
         
-        // Get sample data for staff table
-        if (table === 'staff' && results[table].count > 0) {
+        // Get sample data for users table (contains staff)
+        if (table === 'users' && results[table].count > 0) {
           try {
             const sampleResult = await query(`SELECT id, name, email, role FROM ${table} LIMIT 5`);
             results[table].sample = sampleResult.rows;

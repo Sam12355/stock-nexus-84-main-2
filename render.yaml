@@ -3,7 +3,7 @@ services:
     name: stock-nexus-backend
     env: node
     plan: free
-    buildCommand: cp stock_nexus_complete_backup_20251008_032316.sql backend/ && cd backend && npm install
+    buildCommand: apt-get update && apt-get install -y postgresql-client && cp stock_nexus_complete_backup_20251008_032316.sql backend/ && cd backend && npm install
     startCommand: ./start.sh
     healthCheckPath: /api/health
     envVars:

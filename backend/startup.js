@@ -27,7 +27,7 @@ async function startup() {
     `);
     
     // Check if we have all required tables
-    const requiredTables = ['users', 'branches', 'products', 'stock', 'transactions', 'staff'];
+    const requiredTables = ['users', 'branches', 'items', 'stock', 'stock_movements', 'districts', 'regions'];
     let missingTables = [];
     
     for (const table of requiredTables) {
@@ -71,77 +71,114 @@ async function startup() {
         console.log(`📁 Backup file path: ${backupPath}`);
         console.log(`📏 Backup file size: ${fs.statSync(backupPath).size} bytes`);
         
-        // Import the complete backup
-        const { Client } = require('pg');
-        const client = new Client({
-          host: process.env.DB_HOST,
-          port: process.env.DB_PORT,
-          database: process.env.DB_NAME,
-          user: process.env.DB_USER,
-          password: process.env.DB_PASSWORD,
-        });
+        // Import the complete backup using psql command
+        console.log('🔗 Importing backup using psql command...');
         
-        await client.connect();
-        console.log('🔗 Connected to database for import');
+        const { execSync } = require('child_process');
         
-        // Read and execute the backup file
-        const backupSQL = fs.readFileSync(backupPath, 'utf8');
-        console.log(`📄 Read ${backupSQL.length} characters from backup file`);
-        
-        // Split the SQL into individual statements and execute them
-        const statements = backupSQL
-          .split(';')
-          .map(stmt => stmt.trim())
-          .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
-        
-        console.log(`📝 Executing ${statements.length} SQL statements...`);
-        
-        let successCount = 0;
-        let errorCount = 0;
-        
-        for (let i = 0; i < statements.length; i++) {
-          try {
-            if (statements[i].trim()) {
-              // Log every 50th statement for progress tracking
-              if (i % 50 === 0) {
-                console.log(`📝 Progress: ${i + 1}/${statements.length} statements processed`);
+        try {
+          // Set PGPASSWORD environment variable for psql
+          process.env.PGPASSWORD = process.env.DB_PASSWORD;
+          
+          // Use psql to import the backup file
+          const psqlCommand = `psql -h ${process.env.DB_HOST} -p ${process.env.DB_PORT} -U ${process.env.DB_USER} -d ${process.env.DB_NAME} -f "${backupPath}"`;
+          
+          console.log('📝 Executing psql import command...');
+          execSync(psqlCommand, { 
+            stdio: 'pipe',
+            encoding: 'utf8'
+          });
+          
+          console.log('✅ psql import completed successfully');
+          
+        } catch (error) {
+          console.error('❌ psql import failed:', error.message);
+          
+          // Fallback: try to import using Node.js with better error handling
+          console.log('🔄 Falling back to Node.js import with better parsing...');
+          
+          const { Client } = require('pg');
+          const client = new Client({
+            host: process.env.DB_HOST,
+            port: process.env.DB_PORT,
+            database: process.env.DB_NAME,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+          });
+          
+          await client.connect();
+          console.log('🔗 Connected to database for fallback import');
+          
+          // Read and execute the backup file with better parsing
+          const backupSQL = fs.readFileSync(backupPath, 'utf8');
+          console.log(`📄 Read ${backupSQL.length} characters from backup file`);
+          
+          // Better parsing: split by semicolon and filter out comments and empty lines
+          const statements = backupSQL
+            .split(';')
+            .map(stmt => stmt.trim())
+            .filter(stmt => {
+              // Filter out comments, empty statements, and problematic lines
+              return stmt.length > 0 && 
+                     !stmt.startsWith('--') && 
+                     !stmt.startsWith('SET ') &&
+                     !stmt.startsWith('SELECT pg_catalog') &&
+                     !stmt.includes('Intel') &&
+                     !stmt.includes('Type:') &&
+                     !stmt.includes('Schema:') &&
+                     !stmt.includes('Owner:') &&
+                     !stmt.match(/^[a-f0-9]{8}$/); // Filter out hex strings
+            });
+          
+          console.log(`📝 Executing ${statements.length} filtered SQL statements...`);
+          
+          let successCount = 0;
+          let errorCount = 0;
+          
+          for (let i = 0; i < statements.length; i++) {
+            try {
+              if (statements[i].trim()) {
+                // Log every 50th statement for progress tracking
+                if (i % 50 === 0) {
+                  console.log(`📝 Progress: ${i + 1}/${statements.length} statements processed`);
+                }
+                
+                await client.query(statements[i]);
+                successCount++;
               }
-              
-              await client.query(statements[i]);
-              successCount++;
-            }
-          } catch (error) {
-            errorCount++;
-            // Skip errors for statements that might already exist
-            if (!error.message.includes('already exists') && 
-                !error.message.includes('does not exist') &&
-                !error.message.includes('duplicate key')) {
-              console.warn(`⚠️ Warning executing statement ${i + 1}:`, error.message);
+            } catch (error) {
+              errorCount++;
+              // Skip errors for statements that might already exist
+              if (!error.message.includes('already exists') && 
+                  !error.message.includes('does not exist') &&
+                  !error.message.includes('duplicate key')) {
+                console.warn(`⚠️ Warning executing statement ${i + 1}:`, error.message);
+              }
             }
           }
+          
+          console.log(`📊 Fallback Import Summary: ${successCount} successful, ${errorCount} errors`);
+          
+          await client.end();
         }
-        
-        console.log(`📊 Import Summary: ${successCount} successful, ${errorCount} errors`);
-        
-        await client.end();
         console.log('✅ Complete backup imported successfully');
         
         // Verify data was imported by checking table counts
         console.log('🔍 Verifying imported data...');
         try {
-          const tables = ['users', 'branches', 'products', 'stock', 'transactions', 'staff'];
+          const tables = ['users', 'branches', 'items', 'stock', 'stock_movements', 'districts', 'regions'];
           for (const table of tables) {
             try {
               const result = await query(`SELECT COUNT(*) as count FROM ${table}`);
               console.log(`📊 Table ${table}: ${result.rows[0].count} records`);
               
-              // Show sample data for staff table
-              if (table === 'staff' && parseInt(result.rows[0].count) > 0) {
+              // Show sample data for users table (contains staff)
+              if (table === 'users' && parseInt(result.rows[0].count) > 0) {
                 try {
-                  const sampleStaff = await query(`SELECT id, name, email, role FROM ${table} LIMIT 3`);
-                  console.log(`👥 Sample staff records:`, sampleStaff.rows);
+                  const sampleUsers = await query(`SELECT id, name, email, role FROM ${table} LIMIT 3`);
+                  console.log(`👥 Sample user records:`, sampleUsers.rows);
                 } catch (error) {
-                  console.log(`⚠️ Could not fetch sample staff data: ${error.message}`);
+                  console.log(`⚠️ Could not fetch sample user data: ${error.message}`);
                 }
               }
             } catch (error) {
@@ -162,19 +199,19 @@ async function startup() {
       // Still verify what data we have
       console.log('🔍 Checking existing data...');
       try {
-        const tables = ['users', 'branches', 'products', 'stock', 'transactions', 'staff'];
+        const tables = ['users', 'branches', 'items', 'stock', 'stock_movements', 'districts', 'regions'];
         for (const table of tables) {
           try {
             const result = await query(`SELECT COUNT(*) as count FROM ${table}`);
             console.log(`📊 Table ${table}: ${result.rows[0].count} records`);
             
-            // Show sample data for staff table
-            if (table === 'staff' && parseInt(result.rows[0].count) > 0) {
+            // Show sample data for users table (contains staff)
+            if (table === 'users' && parseInt(result.rows[0].count) > 0) {
               try {
-                const sampleStaff = await query(`SELECT id, name, email, role FROM ${table} LIMIT 3`);
-                console.log(`👥 Sample staff records:`, sampleStaff.rows);
+                const sampleUsers = await query(`SELECT id, name, email, role FROM ${table} LIMIT 3`);
+                console.log(`👥 Sample user records:`, sampleUsers.rows);
               } catch (error) {
-                console.log(`⚠️ Could not fetch sample staff data: ${error.message}`);
+                console.log(`⚠️ Could not fetch sample user data: ${error.message}`);
               }
             }
           } catch (error) {
