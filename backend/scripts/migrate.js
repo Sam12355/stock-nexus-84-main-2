@@ -25,6 +25,15 @@ async function runMigration() {
     // Execute schema
     await pool.query(schema);
     
+    // Read and execute missing columns migration
+    const missingColumnsPath = path.join(__dirname, 'add_missing_columns.sql');
+    if (fs.existsSync(missingColumnsPath)) {
+      console.log('🔧 Adding missing columns...');
+      const missingColumns = fs.readFileSync(missingColumnsPath, 'utf8');
+      await pool.query(missingColumns);
+      console.log('✅ Missing columns added successfully!');
+    }
+    
     console.log('✅ Database migration completed successfully!');
     console.log('📊 Database tables created:');
     console.log('   - regions');

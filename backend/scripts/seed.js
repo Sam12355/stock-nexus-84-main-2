@@ -24,12 +24,12 @@ async function seedDatabase() {
       ['admin@stocknexus.com', adminPassword, 'System Administrator', 'admin', '+1234567890', 'System Admin']
     );
     
-    // Create Lakshan's user
-    const lakshanPassword = await bcrypt.hash('Lakshan12355@', 12);
-    await pool.query(
-      'INSERT INTO users (email, password_hash, name, role, phone, position) VALUES ($1, $2, $3, $4, $5, $6)',
-      ['aa@aa.com', lakshanPassword, 'Lakshan Admin', 'admin', '+1234567890', 'System Admin']
-    );
+          // Create Lakshan's user
+          const lakshanPassword = await bcrypt.hash('Lakshan12355@', 12);
+          await pool.query(
+            'INSERT INTO users (email, password_hash, name, role, phone, position) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (email) DO UPDATE SET password_hash = $2, name = $3, role = $4',
+            ['aa@aa.com', lakshanPassword, 'Lakshan Admin', 'admin', '+1234567890', 'System Admin']
+          );
     
     // Create sample regions
     const regions = [
