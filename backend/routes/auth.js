@@ -229,35 +229,37 @@ router.post('/login',
 // Get current user profile
 router.get('/profile', async (req, res) => {
   try {
+    console.log('🔍 Profile request received');
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
+      console.log('❌ No token provided in profile request');
       return res.status(401).json({
         success: false,
         error: 'Access token required'
       });
     }
 
+    console.log('🔑 Token found, verifying...');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('✅ Token verified for user:', decoded.userId);
     const result = await query(
       `SELECT id, email, name, role, branch_id, branch_context, phone, position, photo_url, access_count, last_access, created_at, 
-              CASE WHEN branch_context IS NOT NULL THEN true ELSE false END as has_completed_selection,
-              stock_alert_frequency, stock_alert_schedule_day, stock_alert_schedule_date, stock_alert_schedule_time,
-              stock_alert_frequencies, daily_schedule_time, weekly_schedule_day, weekly_schedule_time,
-              monthly_schedule_date, monthly_schedule_time, event_reminder_frequencies,
-              event_daily_schedule_time, event_weekly_schedule_day, event_weekly_schedule_time,
-              event_monthly_schedule_date, event_monthly_schedule_time, notification_settings
+              CASE WHEN branch_context IS NOT NULL THEN true ELSE false END as has_completed_selection
        FROM users WHERE id = $1 AND is_active = true`,
       [decoded.userId]
     );
 
     if (result.rows.length === 0) {
+      console.log('❌ User not found in database:', decoded.userId);
       return res.status(401).json({
         success: false,
         error: 'User not found'
       });
     }
+
+    console.log('✅ User found in database:', result.rows[0].email);
 
     const user = result.rows[0];
 
@@ -306,6 +308,7 @@ router.get('/profile', async (req, res) => {
       region_name: regionName
     };
 
+    console.log('✅ Profile response sent successfully for:', userWithLocation.email);
     res.json({
       success: true,
       data: userWithLocation
