@@ -172,4 +172,73 @@ router.get('/debug/database', async (req, res) => {
   }
 });
 
+// Debug endpoint to test email service
+router.post('/debug/test-email', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email address required'
+      });
+    }
+    
+    const emailService = require('../services/email');
+    
+    // Test email configuration
+    const emailStatus = emailService.getStatus();
+    
+    if (!emailStatus.configured) {
+      return res.status(500).json({
+        success: false,
+        error: 'Email service not configured. Please check EMAIL_USER and EMAIL_PASS environment variables.',
+        status: emailStatus
+      });
+    }
+    
+    // Send test email
+    const result = await emailService.sendTestEmail(email, 'Test User');
+    
+    res.json({
+      success: result.success,
+      message: result.success ? 'Test email sent successfully' : 'Failed to send test email',
+      error: result.error,
+      status: emailStatus
+    });
+    
+  } catch (error) {
+    console.error('Debug test email error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Debug endpoint to check email service status
+router.get('/debug/email-status', (req, res) => {
+  try {
+    const emailService = require('../services/email');
+    const status = emailService.getStatus();
+    
+    res.json({
+      success: true,
+      emailService: status,
+      environment: {
+        EMAIL_HOST: process.env.EMAIL_HOST || 'Not set',
+        EMAIL_PORT: process.env.EMAIL_PORT || 'Not set',
+        EMAIL_USER: process.env.EMAIL_USER ? 'Set' : 'Not set',
+        EMAIL_PASS: process.env.EMAIL_PASS ? 'Set' : 'Not set'
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;

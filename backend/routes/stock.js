@@ -221,7 +221,7 @@ router.post('/movement', authenticateToken, async (req, res) => {
                     // Check notification preferences
                     // Since notification_settings column doesn't exist, enable for testing
                     const whatsappNotificationsEnabled = true;
-                    const emailNotificationsEnabled = false;
+                    const emailNotificationsEnabled = true;
 
                     // Create alert message
                     let message = `📉 STOCK ALERT - ${alertType.toUpperCase()} LEVEL\n\n`;

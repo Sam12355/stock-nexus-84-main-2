@@ -11,14 +11,26 @@ class EmailService {
 
   async configure() {
     try {
-      console.log('🔧 Configuring email service with Office365...');
+      // Check if email configuration is available
+      const emailHost = process.env.EMAIL_HOST || 'smtp.gmail.com';
+      const emailPort = process.env.EMAIL_PORT || 587;
+      const emailUser = process.env.EMAIL_USER;
+      const emailPass = process.env.EMAIL_PASS;
+      
+      if (!emailUser || !emailPass) {
+        console.log('⚠️ Email credentials not configured. Email service will be disabled.');
+        this.isConfigured = false;
+        return;
+      }
+
+      console.log(`🔧 Configuring email service with ${emailHost}...`);
       this.transporter = nodemailer.createTransport({
-        host: 'smtp.office365.com',
-        port: 587,
-        secure: false, // true for 465, false for other ports
+        host: emailHost,
+        port: parseInt(emailPort),
+        secure: emailPort === '465', // true for 465, false for other ports
         auth: {
-          user: 'info@lbdhospitals.com',
-          pass: 'Alivexbs12355@'
+          user: emailUser,
+          pass: emailPass
         },
         tls: {
           ciphers: 'SSLv3',
@@ -29,10 +41,10 @@ class EmailService {
         socketTimeout: 60000 // 60 seconds
       });
 
-      console.log('📧 Office365 transporter created, verifying connection...');
+      console.log(`📧 ${emailHost} transporter created, verifying connection...`);
 
       // Set as configured without verification (verification can be slow)
-      console.log('✅ Email service configured successfully with Office365');
+      console.log(`✅ Email service configured successfully with ${emailHost}`);
       this.isConfigured = true;
     } catch (error) {
       console.error('❌ Error configuring email service:', error);
@@ -53,7 +65,7 @@ class EmailService {
       const mailOptions = {
         from: {
           name: 'Inventory Management System',
-          address: 'info@lbdhospitals.com'
+          address: process.env.EMAIL_USER || 'noreply@stocknexus.com'
         },
         to: to,
         subject: subject,
@@ -465,9 +477,9 @@ This email was sent to ${userEmail}. If you believe you received this in error, 
   getStatus() {
     return {
       configured: this.isConfigured,
-      host: 'smtp.office365.com',
-      port: 587,
-      from: 'info@lbdhospitals.com'
+      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+      port: process.env.EMAIL_PORT || 587,
+      from: process.env.EMAIL_USER || 'noreply@stocknexus.com'
     };
   }
 }

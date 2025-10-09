@@ -133,7 +133,7 @@ router.post('/stock-alert', authenticateToken, async (req, res) => {
     // TODO: Remove this temporary fix once notification_settings column is added to database
     let stockAlertsEnabled = true; // Temporarily enable for testing
     let whatsappNotificationsEnabled = true; // Temporarily enable for testing
-    let emailNotificationsEnabled = false; // Keep email disabled for now
+    let emailNotificationsEnabled = true; // Enable email notifications
     
     console.log(`🔍 User ${req.user.id} notification settings: using temporary defaults for testing`);
     console.log(`🔍 Stock alerts enabled: ${stockAlertsEnabled}`);
