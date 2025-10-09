@@ -19,6 +19,9 @@ class EmailService {
       
       if (!emailUser || !emailPass) {
         console.log('⚠️ Email credentials not configured. Email service will be disabled.');
+        console.log('⚠️ Please set EMAIL_USER and EMAIL_PASS environment variables in Render dashboard.');
+        console.log('⚠️ Current EMAIL_USER:', emailUser ? 'Set' : 'Not set');
+        console.log('⚠️ Current EMAIL_PASS:', emailPass ? 'Set' : 'Not set');
         this.isConfigured = false;
         return;
       }
@@ -111,9 +114,25 @@ class EmailService {
       };
     } catch (error) {
       console.error('❌ Failed to send email:', error);
+      console.error('❌ Error details:', {
+        code: error.code,
+        command: error.command,
+        message: error.message
+      });
+      
+      // Provide helpful error messages
+      if (error.code === 'ETIMEDOUT') {
+        console.error('❌ Connection timeout - Check EMAIL_HOST and EMAIL_PORT settings');
+      } else if (error.code === 'EAUTH') {
+        console.error('❌ Authentication failed - Check EMAIL_USER and EMAIL_PASS credentials');
+      } else if (error.code === 'ECONNECTION') {
+        console.error('❌ Connection failed - Check network connectivity and SMTP settings');
+      }
+      
       return {
         success: false,
-        error: error.message
+        error: error.message,
+        code: error.code
       };
     }
   }
