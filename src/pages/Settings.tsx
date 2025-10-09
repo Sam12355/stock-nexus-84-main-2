@@ -480,9 +480,7 @@ const Settings = () => {
         console.log('Current settings:', currentSettings);
         console.log('Updated notification settings:', updatedSettings);
 
-        await apiClient.updateProfile({
-          notification_settings: updatedSettings
-        });
+        await apiClient.updateNotificationSettings(updatedSettings);
         
         console.log(`Successfully updated ${settingType} in database`);
         

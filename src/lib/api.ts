@@ -798,6 +798,13 @@ class ApiClient {
     });
   }
 
+  async updateNotificationSettings(notificationSettings: any): Promise<any> {
+    return this.request<any>('/users/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ notification_settings: notificationSettings }),
+    });
+  }
+
   // Moveout List methods
   async getMoveoutLists(): Promise<any[]> {
     const response = await this.request<{
