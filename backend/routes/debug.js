@@ -3,6 +3,61 @@ const { query } = require('../config/database');
 
 const router = express.Router();
 
+// Debug endpoint to add a user
+router.post('/debug/add-user', async (req, res) => {
+  try {
+    const { email, password, name, role } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and password required'
+      });
+    }
+    
+    const bcrypt = require('bcryptjs');
+    
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 12);
+    
+    // Check if user already exists
+    const existingUser = await query('SELECT id FROM users WHERE email = $1', [email]);
+    
+    if (existingUser.rows.length > 0) {
+      // Update existing user
+      await query(
+        'UPDATE users SET password_hash = $1, name = $2, role = $3 WHERE email = $4',
+        [hashedPassword, name || 'Admin User', role || 'admin', email]
+      );
+      
+      res.json({
+        success: true,
+        message: 'User updated successfully',
+        user: { email, name: name || 'Admin User', role: role || 'admin' }
+      });
+    } else {
+      // Create new user
+      const result = await query(
+        'INSERT INTO users (email, password_hash, name, role, phone, position) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, name, role',
+        [email, hashedPassword, name || 'Admin User', role || 'admin', '+1234567890', 'System Admin']
+      );
+      
+      res.json({
+        success: true,
+        message: 'User created successfully',
+        user: result.rows[0]
+      });
+    }
+    
+  } catch (error) {
+    console.error('Debug add user error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Debug endpoint to test login
 router.post('/debug/login', async (req, res) => {
   try {
