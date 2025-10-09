@@ -100,8 +100,20 @@ class EmailService {
 
       console.log(`📧 Attempting to send email to: ${to}`);
       console.log(`📧 Subject: ${subject}`);
+      console.log(`📧 Email service configured: ${this.isConfigured}`);
+      console.log(`📧 Transporter exists: ${!!this.transporter}`);
 
-      const result = await this.transporter.sendMail(mailOptions);
+      // Add timeout to prevent hanging
+      const sendEmailWithTimeout = () => {
+        return Promise.race([
+          this.transporter.sendMail(mailOptions),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Email send timeout after 30 seconds')), 30000)
+          )
+        ]);
+      };
+
+      const result = await sendEmailWithTimeout();
       
       console.log('✅ Email sent successfully!');
       console.log(`   Message ID: ${result.messageId}`);

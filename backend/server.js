@@ -24,6 +24,7 @@ const receiptRoutes = require('./routes/receipts');
 const moveoutListRoutes = require('./routes/moveout-lists');
 const debugRoutes = require('./routes/debug');
 const schedulerService = require('./services/scheduler');
+const emailService = require('./services/email');
 
 const app = express();
 const server = http.createServer(app);
@@ -71,6 +72,29 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });
+});
+
+// Email service status endpoint
+app.get('/api/email-status', (req, res) => {
+  try {
+    const status = emailService.getStatus();
+    res.json({
+      success: true,
+      emailService: status,
+      environment: {
+        EMAIL_HOST: process.env.EMAIL_HOST || 'Not set',
+        EMAIL_PORT: process.env.EMAIL_PORT || 'Not set',
+        EMAIL_USER: process.env.EMAIL_USER ? 'Set' : 'Not set',
+        EMAIL_PASS: process.env.EMAIL_PASS ? 'Set' : 'Not set'
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 });
 
 // API Routes
