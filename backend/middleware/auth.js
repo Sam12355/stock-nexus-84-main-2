@@ -16,7 +16,7 @@ const authenticateToken = async (req, res, next) => {
     
     // Get user from database
     const result = await query(
-      'SELECT id, email, name, role, branch_id, branch_context, district_id, is_active FROM users WHERE id = $1',
+      'SELECT id, email, name, role, branch_id, branch_context, is_active FROM users WHERE id = $1',
       [decoded.userId]
     );
 
@@ -93,7 +93,7 @@ const optionalAuth = async (req, res, next) => {
     if (token) {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const result = await query(
-        'SELECT id, email, name, role, branch_id, branch_context, district_id, is_active FROM users WHERE id = $1',
+        'SELECT id, email, name, role, branch_id, branch_context, is_active FROM users WHERE id = $1',
         [decoded.userId]
       );
 
