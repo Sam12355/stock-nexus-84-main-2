@@ -18,13 +18,13 @@ services:
       - key: FRONTEND_URL
         value: https://stock-nexus-84-main-2-kmth.vercel.app
       - key: EMAIL_HOST
-        value: smtp-mail.outlook.com
+        value: smtp.sendgrid.net
       - key: EMAIL_PORT
         value: 587
       - key: EMAIL_USER
-        value: info@lbdhospitals.com
+        value: apikey
       - key: EMAIL_PASS
-        value: Alivexbs12355@
+        value: SG.your_sendgrid_api_key_here
     database:
       name: stock-nexus-db
       plan: free
