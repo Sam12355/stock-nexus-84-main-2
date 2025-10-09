@@ -3,6 +3,71 @@ const { query } = require('../config/database');
 
 const router = express.Router();
 
+// Debug endpoint to test login
+router.post('/debug/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and password required'
+      });
+    }
+    
+    // Check if user exists
+    const userResult = await query(
+      'SELECT id, email, password_hash, name, role FROM users WHERE email = $1',
+      [email]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+    
+    const user = userResult.rows[0];
+    
+    // For debug purposes, let's just return user info without password verification
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role
+      },
+      message: 'User found (password verification skipped for debug)'
+    });
+    
+  } catch (error) {
+    console.error('Debug login error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Debug endpoint to check JWT configuration
+router.get('/debug/jwt', (req, res) => {
+  try {
+    res.json({
+      success: true,
+      jwtSecret: process.env.JWT_SECRET ? 'Set' : 'Not set',
+      jwtExpiresIn: process.env.JWT_EXPIRES_IN || 'Not set',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Debug endpoint to check database status
 router.get('/debug/database', async (req, res) => {
   try {
