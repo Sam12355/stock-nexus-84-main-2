@@ -30,6 +30,14 @@ async function seedDatabase() {
             'INSERT INTO users (email, password_hash, name, role, phone, position) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (email) DO UPDATE SET password_hash = $2, name = $3, role = $4',
             ['aa@aa.com', lakshanPassword, 'Lakshan Admin', 'admin', '+1234567890', 'System Admin']
           );
+
+          // Verify Lakshan's user was created/updated
+          const lakshanCheck = await pool.query('SELECT id, email, name, role FROM users WHERE email = $1', ['aa@aa.com']);
+          if (lakshanCheck.rows.length > 0) {
+            console.log('✅ Lakshan user verified:', lakshanCheck.rows[0]);
+          } else {
+            console.log('❌ Lakshan user NOT found in database!');
+          }
     
     // Create sample regions
     const regions = [
@@ -128,20 +136,27 @@ async function seedDatabase() {
       );
     }
     
-    console.log('✅ Database seeding completed successfully!');
-    console.log('👤 Sample users created:');
-    console.log('   - aa@aa.com (password: Lakshan12355@) - Admin');
-    console.log('   - admin@stocknexus.com (password: admin123) - Admin');
-    console.log('   - manager@stocknexus.com (password: manager123) - Manager');
-    console.log('   - staff1@stocknexus.com (password: staff123) - Staff');
-    console.log('   - staff2@stocknexus.com (password: staff123) - Staff');
-    console.log('   - staff3@stocknexus.com (password: staff123) - Staff');
-    console.log('   - staff4@stocknexus.com (password: staff123) - Staff');
-    console.log('   - staff5@stocknexus.com (password: staff123) - Staff');
-    console.log('   - staff6@stocknexus.com (password: staff123) - Staff');
-    console.log('🏢 Sample data created:');
-    console.log('   - 4 regions, 6 districts, 6 branches');
-    console.log('   - 5 sample items');
+          // Final verification - show all users in database
+          console.log('🔍 Final verification - All users in database:');
+          const allUsers = await pool.query('SELECT id, email, name, role FROM users ORDER BY created_at');
+          allUsers.rows.forEach((user, index) => {
+            console.log(`   ${index + 1}. ${user.email} (${user.name}) - ${user.role} - ID: ${user.id}`);
+          });
+
+          console.log('✅ Database seeding completed successfully!');
+          console.log('👤 Sample users created:');
+          console.log('   - aa@aa.com (password: Lakshan12355@) - Admin');
+          console.log('   - admin@stocknexus.com (password: admin123) - Admin');
+          console.log('   - manager@stocknexus.com (password: manager123) - Manager');
+          console.log('   - staff1@stocknexus.com (password: staff123) - Staff');
+          console.log('   - staff2@stocknexus.com (password: staff123) - Staff');
+          console.log('   - staff3@stocknexus.com (password: staff123) - Staff');
+          console.log('   - staff4@stocknexus.com (password: staff123) - Staff');
+          console.log('   - staff5@stocknexus.com (password: staff123) - Staff');
+          console.log('   - staff6@stocknexus.com (password: staff123) - Staff');
+          console.log('🏢 Sample data created:');
+          console.log('   - 4 regions, 6 districts, 6 branches');
+          console.log('   - 5 sample items');
     
   } catch (error) {
     console.error('❌ Seeding failed:', error.message);
