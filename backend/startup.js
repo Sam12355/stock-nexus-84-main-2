@@ -26,8 +26,40 @@ async function startup() {
       );
     `);
     
-    if (!tableCheck.rows[0].exists) {
-      console.log('📊 No tables found, importing complete backup...');
+    // Check if we have all required tables
+    const requiredTables = ['users', 'branches', 'products', 'stock', 'transactions', 'staff'];
+    let missingTables = [];
+    
+    for (const table of requiredTables) {
+      try {
+        await query(`SELECT 1 FROM ${table} LIMIT 1`);
+      } catch (error) {
+        missingTables.push(table);
+      }
+    }
+    
+    // Check if users table has required columns (indicates incomplete schema)
+    let hasIncompleteSchema = false;
+    if (tableCheck.rows[0].exists) {
+      try {
+        await query(`SELECT stock_alert_frequency FROM users LIMIT 1`);
+      } catch (error) {
+        if (error.message.includes('does not exist')) {
+          hasIncompleteSchema = true;
+          console.log('📊 Users table missing required columns, schema appears incomplete');
+        }
+      }
+    }
+    
+    if (!tableCheck.rows[0].exists || missingTables.length > 0 || hasIncompleteSchema) {
+      if (missingTables.length > 0) {
+        console.log(`📊 Missing tables detected: ${missingTables.join(', ')}`);
+        console.log('📊 Importing complete backup to fix missing tables...');
+      } else if (hasIncompleteSchema) {
+        console.log('📊 Incomplete schema detected, importing complete backup...');
+      } else {
+        console.log('📊 No tables found, importing complete backup...');
+      }
       
       // Check if backup file exists (try both locations)
       let backupPath = path.join(__dirname, 'stock_nexus_complete_backup_20251008_032316.sql');
