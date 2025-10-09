@@ -138,7 +138,7 @@ router.post('/movement', authenticateToken, async (req, res) => {
       try {
         // Get item details for alert
         const itemResult = await query(`
-          SELECT i.name as item_name, i.threshold_level, i.low_level, i.critical_level
+          SELECT i.name as item_name, i.threshold_level
           FROM items i
           WHERE i.id = $1
         `, [item_id]);
@@ -146,8 +146,8 @@ router.post('/movement', authenticateToken, async (req, res) => {
         if (itemResult.rows.length > 0) {
           const item = itemResult.rows[0];
           const threshold = item.threshold_level;
-          const lowLevel = item.low_level || Math.floor(threshold * 0.5);
-          const criticalLevel = item.critical_level || Math.floor(threshold * 0.2);
+          const lowLevel = Math.floor(threshold * 0.5); // Calculate low level as 50% of threshold
+          const criticalLevel = Math.floor(threshold * 0.2); // Calculate critical level as 20% of threshold
 
           let alertType = null;
           if (newQuantity <= criticalLevel) {
