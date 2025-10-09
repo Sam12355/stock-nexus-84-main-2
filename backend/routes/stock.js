@@ -10,8 +10,10 @@ const router = express.Router();
 // Get stock data with item details
 router.get('/', authenticateToken, async (req, res) => {
   try {
+    console.log('🔍 Fetching stock data for user:', req.user.email, 'role:', req.user.role);
+    
     let queryText = `
-      SELECT s.*, i.name, i.category, i.threshold_level, i.low_level, i.critical_level, i.image_url, i.branch_id
+      SELECT s.*, i.name, i.category, i.threshold_level, i.image_url, i.branch_id
       FROM stock s
       JOIN items i ON s.item_id = i.id
     `;
@@ -21,11 +23,14 @@ router.get('/', authenticateToken, async (req, res) => {
     if (req.user.role === 'manager') {
       queryText += ' WHERE i.branch_id = $1';
       params.push(req.user.branch_id);
+      console.log('🔍 Filtering by branch_id:', req.user.branch_id);
     }
 
     queryText += ' ORDER BY s.last_updated DESC';
 
+    console.log('🔍 Executing stock query:', queryText);
     const result = await query(queryText, params);
+    console.log('✅ Found', result.rows.length, 'stock records');
 
     // Transform the data to match frontend expectations
     const stockData = result.rows.map(row => ({
@@ -37,8 +42,6 @@ router.get('/', authenticateToken, async (req, res) => {
         name: row.name,
         category: row.category,
         threshold_level: row.threshold_level,
-        low_level: row.low_level,
-        critical_level: row.critical_level,
         image_url: row.image_url,
         branch_id: row.branch_id
       }

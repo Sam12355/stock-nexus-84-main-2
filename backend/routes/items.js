@@ -77,8 +77,11 @@ router.post('/',
   ],
   async (req, res) => {
     try {
+      console.log('🔍 Create item request body:', req.body);
+      
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
+        console.log('❌ Validation errors:', errors.array());
         return res.status(400).json({
           success: false,
           error: 'Validation failed',
@@ -108,8 +111,8 @@ router.post('/',
       }
 
       const result = await query(
-        'INSERT INTO items (name, category, description, image_url, storage_temperature, threshold_level, low_level, critical_level, branch_id, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
-        [name, category, description || null, image_url || null, storage_temperature || null, threshold_level, lowLevel, criticalLevel, branch_id, created_by]
+        'INSERT INTO items (name, category, description, image_url, storage_temperature, threshold_level, branch_id, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+        [name, category, description || null, image_url || null, storage_temperature || null, threshold_level, branch_id, created_by]
       );
 
       // Create initial stock record for the item
@@ -125,6 +128,7 @@ router.post('/',
         JSON.stringify({ item_id: result.rows[0].id, name: name })
       ]);
 
+      console.log('✅ Item created successfully:', result.rows[0].name);
       res.status(201).json({
         success: true,
         data: result.rows[0]
@@ -197,8 +201,8 @@ router.put('/:id',
       const criticalLevel = critical_level || Math.max(1, Math.floor(threshold_level * 0.2));
 
       const result = await query(
-        'UPDATE items SET name = $1, category = $2, description = $3, image_url = $4, storage_temperature = $5, threshold_level = $6, low_level = $7, critical_level = $8, updated_at = NOW() WHERE id = $9 RETURNING *',
-        [name, category, description || null, image_url || null, storage_temperature || null, threshold_level, lowLevel, criticalLevel, id]
+        'UPDATE items SET name = $1, category = $2, description = $3, image_url = $4, storage_temperature = $5, threshold_level = $6, updated_at = NOW() WHERE id = $7 RETURNING *',
+        [name, category, description || null, image_url || null, storage_temperature || null, threshold_level, id]
       );
 
       if (result.rows.length === 0) {
