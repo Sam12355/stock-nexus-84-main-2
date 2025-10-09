@@ -28,30 +28,29 @@ class EmailService {
 
       console.log(`🔧 Configuring email service with ${emailHost}...`);
       
-      // Try different SMTP configurations based on the host
+      // Microsoft 365/Office 365 specific configuration
       let smtpConfig = {
         host: emailHost,
         port: parseInt(emailPort),
-        secure: emailPort === '465', // true for 465, false for other ports
+        secure: false, // Always use STARTTLS for Microsoft 365
         auth: {
           user: emailUser,
           pass: emailPass
         },
-        connectionTimeout: 10000, // Reduced to 10 seconds
-        greetingTimeout: 5000, // Reduced to 5 seconds
-        socketTimeout: 10000 // Reduced to 10 seconds
-      };
-
-      // Special configuration for Microsoft 365/Office 365
-      if (emailHost.includes('outlook.com') || emailHost.includes('office365.com') || emailHost.includes('live.com')) {
-        smtpConfig.secure = false; // Use STARTTLS
-        smtpConfig.requireTLS = true;
-        smtpConfig.tls = {
+        tls: {
           ciphers: 'SSLv3',
           rejectUnauthorized: false
-        };
-        console.log('🔧 Using Microsoft 365/Office 365 SMTP configuration');
-      }
+        },
+        connectionTimeout: 30000, // 30 seconds
+        greetingTimeout: 15000, // 15 seconds
+        socketTimeout: 30000, // 30 seconds
+        requireTLS: true,
+        pool: true,
+        maxConnections: 1,
+        maxMessages: 1
+      };
+
+      console.log('🔧 Using Microsoft 365/Office 365 SMTP configuration');
 
       // Special configuration for Gmail
       if (emailHost.includes('gmail.com')) {
@@ -130,12 +129,12 @@ class EmailService {
       console.log(`📧 Email service configured: ${this.isConfigured}`);
       console.log(`📧 Transporter exists: ${!!this.transporter}`);
 
-      // Add timeout to prevent hanging
+      // Add timeout to prevent hanging - longer timeout for Microsoft 365
       const sendEmailWithTimeout = () => {
         return Promise.race([
           this.transporter.sendMail(mailOptions),
           new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Email send timeout after 15 seconds')), 15000)
+            setTimeout(() => reject(new Error('Email send timeout after 45 seconds')), 45000)
           )
         ]);
       };
@@ -161,11 +160,17 @@ class EmailService {
       
       // Provide helpful error messages
       if (error.code === 'ETIMEDOUT') {
-        console.error('❌ Connection timeout - Check EMAIL_HOST and EMAIL_PORT settings');
+        console.error('❌ Connection timeout - Microsoft 365 SMTP may be slow from cloud servers');
+        console.error('❌ Try increasing timeout or check Microsoft 365 admin settings');
       } else if (error.code === 'EAUTH') {
         console.error('❌ Authentication failed - Check EMAIL_USER and EMAIL_PASS credentials');
+        console.error('❌ Make sure SMTP AUTH is enabled in Microsoft 365 admin center');
       } else if (error.code === 'ECONNECTION') {
         console.error('❌ Connection failed - Check network connectivity and SMTP settings');
+        console.error('❌ Microsoft 365 may block connections from cloud providers');
+      } else if (error.code === 'ECONNRESET') {
+        console.error('❌ Connection reset - Microsoft 365 may have dropped the connection');
+        console.error('❌ This is common with cloud hosting providers');
       }
       
       return {
