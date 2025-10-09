@@ -42,6 +42,17 @@ class EmailService {
         socketTimeout: 10000 // Reduced to 10 seconds
       };
 
+      // Special configuration for Microsoft 365/Office 365
+      if (emailHost.includes('outlook.com') || emailHost.includes('office365.com') || emailHost.includes('live.com')) {
+        smtpConfig.secure = false; // Use STARTTLS
+        smtpConfig.requireTLS = true;
+        smtpConfig.tls = {
+          ciphers: 'SSLv3',
+          rejectUnauthorized: false
+        };
+        console.log('🔧 Using Microsoft 365/Office 365 SMTP configuration');
+      }
+
       // Special configuration for Gmail
       if (emailHost.includes('gmail.com')) {
         smtpConfig.tls = {
