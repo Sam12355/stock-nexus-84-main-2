@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: stock-nexus-backend
+    env: node
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: FRONTEND_URL
+        value: https://your-vercel-app.vercel.app
+    database:
+      name: stock-nexus-db
+      plan: free
+      databaseName: stock_nexus
