@@ -36,6 +36,9 @@ const io = new Server(server, {
 
 const PORT = process.env.PORT || 5000;
 
+// Trust proxy for rate limiting (required for Render)
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet());
 

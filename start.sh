@@ -18,7 +18,7 @@ sleep 5
 
 # Run migration
 echo "📊 Running database migration..."
-npm run migrate
+node scripts/migrate.js
 
 # Run seed if no users exist
 echo "🌱 Checking if users exist..."
@@ -35,7 +35,7 @@ query('SELECT COUNT(*) as count FROM users').then(result => {
 
 if [ "$USER_COUNT" = "0" ]; then
     echo "👥 No users found, running seed..."
-    npm run seed
+    node scripts/seed.js
 else
     echo "👥 Users already exist, skipping seed"
 fi
