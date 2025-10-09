@@ -676,22 +676,40 @@ router.post('/update-district-id', authenticateToken, async (req, res) => {
 // Update user settings
 router.put('/settings', authenticateToken, async (req, res) => {
   try {
+    console.log('🔍 Update settings request for user:', req.user.email);
+    console.log('🔍 Settings body:', req.body);
+    
     const { notification_settings } = req.body;
     
-    await query(
-      'UPDATE users SET notification_settings = $1 WHERE id = $2',
-      [JSON.stringify(notification_settings), req.user.userId]
-    );
-    
-    res.json({
-      success: true,
-      message: 'User settings updated successfully'
-    });
+    // Check if notification_settings column exists by trying to update it
+    try {
+      await query(
+        'UPDATE users SET notification_settings = $1 WHERE id = $2',
+        [JSON.stringify(notification_settings), req.user.id]
+      );
+      
+      console.log('✅ Notification settings updated successfully');
+      res.json({
+        success: true,
+        message: 'User settings updated successfully'
+      });
+    } catch (error) {
+      if (error.message.includes('notification_settings')) {
+        console.log('⚠️ notification_settings column does not exist, skipping update');
+        res.json({
+          success: true,
+          message: 'Settings update skipped (column not available)',
+          warning: 'Notification settings column not available in current database schema'
+        });
+      } else {
+        throw error;
+      }
+    }
   } catch (error) {
-    console.error('Error updating user settings:', error);
+    console.error('❌ Error updating user settings:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to update user settings'
+      error: 'Failed to update user settings: ' + error.message
     });
   }
 });

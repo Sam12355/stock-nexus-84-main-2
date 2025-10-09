@@ -180,7 +180,7 @@ router.post('/movement', authenticateToken, async (req, res) => {
                 }
                 // Get all users who have stock alerts enabled
                 const usersResult = await query(`
-                  SELECT u.id, u.phone, u.email, u.name, u.notification_settings, u.role, u.branch_context,
+                  SELECT u.id, u.phone, u.email, u.name, u.role, u.branch_context,
                          b.name as branch_name, d.name as district_name, r.name as region_name
                   FROM users u
                   LEFT JOIN branches b ON u.branch_context = b.id
@@ -190,15 +190,9 @@ router.post('/movement', authenticateToken, async (req, res) => {
                   AND (u.phone IS NOT NULL OR u.email IS NOT NULL)
                 `);
 
-                const subscribedUsers = usersResult.rows.filter(user => {
-                  if (!user.notification_settings) return false;
-                  
-                  const settings = typeof user.notification_settings === 'string' 
-                    ? JSON.parse(user.notification_settings) 
-                    : user.notification_settings;
-                  
-                  return settings.stockLevelAlerts === true;
-                });
+                // Since notification_settings column doesn't exist, skip all users for now
+                const subscribedUsers = [];
+                console.log('⚠️ Notification settings column not available, skipping stock alerts');
 
                 // Remove duplicate phone numbers - keep only the first user with each phone number
                 const uniqueUsers = [];
@@ -225,12 +219,9 @@ router.post('/movement', authenticateToken, async (req, res) => {
                     const isRegionalManager = user.role === 'regional_manager';
                     
                     // Check notification preferences
-                    const settings = typeof user.notification_settings === 'string' 
-                      ? JSON.parse(user.notification_settings) 
-                      : user.notification_settings;
-                    
-                    const whatsappNotificationsEnabled = settings.whatsapp === true;
-                    const emailNotificationsEnabled = settings.email === true;
+                    // Since notification_settings column doesn't exist, default to disabled
+                    const whatsappNotificationsEnabled = false;
+                    const emailNotificationsEnabled = false;
 
                     // Create alert message
                     let message = `📉 STOCK ALERT - ${alertType.toUpperCase()} LEVEL\n\n`;

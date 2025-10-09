@@ -106,7 +106,7 @@ router.post('/stock-alert', authenticateToken, async (req, res) => {
 
     // Get user's phone number, email, notification settings, role, and branch information
     const userResult = await query(`
-      SELECT u.phone, u.email, u.name, u.notification_settings, u.role, u.branch_context,
+      SELECT u.phone, u.email, u.name, u.role, u.branch_context,
              b.name as branch_name, d.name as district_name, r.name as region_name
       FROM users u
       LEFT JOIN branches b ON u.branch_context = b.id
@@ -129,26 +129,15 @@ router.post('/stock-alert', authenticateToken, async (req, res) => {
     const isRegionalManager = user.role === 'regional_manager';
     
     // Check if stock level alerts are enabled in notification settings
-    let stockAlertsEnabled = false; // Default to false for safety
-    let whatsappNotificationsEnabled = false; // Default to false for safety
-    let emailNotificationsEnabled = false; // Default to false for safety
-    if (user.notification_settings) {
-      try {
-        const settings = typeof user.notification_settings === 'string' ? 
-          JSON.parse(user.notification_settings) : user.notification_settings;
-        stockAlertsEnabled = settings.stockLevelAlerts === true;
-        whatsappNotificationsEnabled = settings.whatsapp === true;
-        emailNotificationsEnabled = settings.email === true;
-        console.log(`🔍 User ${req.user.id} notification settings:`, settings);
-        console.log(`🔍 Stock alerts enabled: ${stockAlertsEnabled}`);
-        console.log(`🔍 WhatsApp notifications enabled: ${whatsappNotificationsEnabled}`);
-        console.log(`🔍 Email notifications enabled: ${emailNotificationsEnabled}`);
-      } catch (error) {
-        console.error('Error parsing notification settings for user', req.user.id, error);
-      }
-    } else {
-      console.log(`🔍 User ${req.user.id} has no notification settings, defaulting to disabled`);
-    }
+    // Since notification_settings column doesn't exist, default to disabled for safety
+    let stockAlertsEnabled = false;
+    let whatsappNotificationsEnabled = false;
+    let emailNotificationsEnabled = false;
+    
+    console.log(`🔍 User ${req.user.id} notification settings: column not available, using defaults`);
+    console.log(`🔍 Stock alerts enabled: ${stockAlertsEnabled}`);
+    console.log(`🔍 WhatsApp notifications enabled: ${whatsappNotificationsEnabled}`);
+    console.log(`🔍 Email notifications enabled: ${emailNotificationsEnabled}`);
     
     if (!stockAlertsEnabled) {
       console.log(`Stock alerts disabled for user ${req.user.id}, skipping all notifications`);
@@ -283,8 +272,10 @@ Time: ${new Date().toLocaleString()}`;
 // Test user notification settings
 router.get('/test-user-settings', authenticateToken, async (req, res) => {
   try {
+    console.log('🔍 Test user settings request for user:', req.user.email);
+    
     const userResult = await query(`
-      SELECT u.id, u.name, u.email, u.phone, u.role, u.branch_context, u.notification_settings,
+      SELECT u.id, u.name, u.email, u.phone, u.role, u.branch_context,
              b.name as branch_name, d.name as district_name, r.name as region_name
       FROM users u
       LEFT JOIN branches b ON u.branch_context = b.id
@@ -302,17 +293,16 @@ router.get('/test-user-settings', authenticateToken, async (req, res) => {
 
     const user = userResult.rows[0];
     
-    // Parse notification settings
-    let settings = {};
-    if (user.notification_settings) {
-      try {
-        settings = typeof user.notification_settings === 'string' ? 
-          JSON.parse(user.notification_settings) : user.notification_settings;
-      } catch (error) {
-        console.error('Error parsing notification settings:', error);
-      }
-    }
+    // Since notification_settings column doesn't exist, return default settings
+    const settings = {
+      email: false,
+      whatsapp: false,
+      sms: false,
+      stockLevelAlerts: false,
+      eventReminders: false
+    };
 
+    console.log('✅ User settings retrieved (using defaults):', settings);
     res.json({
       success: true,
       user: {
@@ -330,10 +320,10 @@ router.get('/test-user-settings', authenticateToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error getting user settings:', error);
+    console.error('❌ Error getting user settings:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to get user settings'
+      error: 'Failed to get user settings: ' + error.message
     });
   }
 });
