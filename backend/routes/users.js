@@ -29,11 +29,15 @@ router.get('/', authenticateToken, authorize('admin'), async (req, res) => {
 // Get staff members
 router.get('/staff', authenticateToken, async (req, res) => {
   try {
+    console.log('🔍 Fetching staff members for user:', req.user.email, 'role:', req.user.role);
+    
     let queryText = `
-      SELECT u.id, u.email, u.name, u.role, u.branch_id, u.district_id, u.phone, u.position, u.photo_url, u.is_active, u.created_at, u.access_count, u.last_access, u.branch_context,
-             d.name as district_name
+      SELECT u.id, u.email, u.name, u.role, u.branch_id, u.phone, u.position, u.photo_url, u.is_active, u.created_at, u.access_count, u.last_access, u.branch_context,
+             b.name as branch_name, d.name as district_name, r.name as region_name
       FROM users u
-      LEFT JOIN districts d ON u.district_id = d.id
+      LEFT JOIN branches b ON u.branch_id = b.id
+      LEFT JOIN districts d ON b.district_id = d.id
+      LEFT JOIN regions r ON d.region_id = r.id
       WHERE u.role IN ('staff', 'assistant_manager', 'manager')
       AND u.is_active = true
     `;
@@ -43,18 +47,21 @@ router.get('/staff', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') {
       queryText += ' AND branch_id = $1';
       params.push(req.user.branch_id);
+      console.log('🔍 Filtering by branch_id:', req.user.branch_id);
     }
 
     queryText += ' ORDER BY created_at DESC';
 
+    console.log('🔍 Executing staff query:', queryText);
     const result = await query(queryText, params);
+    console.log('✅ Found', result.rows.length, 'staff members');
 
     res.json({
       success: true,
       data: result.rows
     });
   } catch (error) {
-    console.error('Error fetching staff:', error);
+    console.error('❌ Error fetching staff:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch staff'
@@ -231,6 +238,7 @@ router.post('/staff',
         ]
       );
 
+      console.log('✅ Staff member created successfully:', result.rows[0].email);
       res.status(201).json({
         success: true,
         data: result.rows[0],
