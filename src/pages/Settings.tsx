@@ -440,7 +440,7 @@ const Settings = () => {
       localStorage.setItem(`notifications_${profile?.id}`, JSON.stringify(updatedNotifications));
 
       // Save to database for notification delivery methods - update USER settings, not branch settings
-      if (['email', 'sms', 'whatsapp'].includes(settingType)) {
+      if (['email', 'sms', 'whatsapp', 'stockAlerts', 'eventReminders'].includes(settingType)) {
         // Get current notification settings safely and ensure all fields are preserved
         const currentSettings = profile?.notification_settings || {};
         
