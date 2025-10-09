@@ -437,29 +437,13 @@ router.delete('/staff/:id',
 // Update user profile
 router.put('/profile', authenticateToken, async (req, res) => {
   try {
+    console.log('🔍 Profile update request for user:', req.user.email);
+    console.log('🔍 Profile update body:', req.body);
+    
     const { 
       name, 
       phone, 
-      position, 
-      stock_alert_frequency, 
-      stock_alert_schedule_day, 
-      stock_alert_schedule_date, 
-      stock_alert_schedule_time,
-      stock_alert_frequencies,
-      notification_settings,
-      // New separate schedule parameters
-      daily_schedule_time,
-      weekly_schedule_day,
-      weekly_schedule_time,
-      monthly_schedule_date,
-      monthly_schedule_time,
-      // Event reminder scheduling parameters
-      event_reminder_frequencies,
-      event_daily_schedule_time,
-      event_weekly_schedule_day,
-      event_weekly_schedule_time,
-      event_monthly_schedule_date,
-      event_monthly_schedule_time
+      position
     } = req.body;
     const userId = req.user.id;
 
@@ -479,89 +463,6 @@ router.put('/profile', authenticateToken, async (req, res) => {
       updates.push(`position = $${paramCount++}`);
       values.push(position);
     }
-    if (stock_alert_frequency !== undefined) {
-      updates.push(`stock_alert_frequency = $${paramCount++}`);
-      values.push(stock_alert_frequency);
-    }
-    if (stock_alert_schedule_day !== undefined) {
-      updates.push(`stock_alert_schedule_day = $${paramCount++}`);
-      values.push(stock_alert_schedule_day);
-    }
-    if (stock_alert_schedule_date !== undefined) {
-      updates.push(`stock_alert_schedule_date = $${paramCount++}`);
-      values.push(stock_alert_schedule_date);
-    }
-    if (stock_alert_schedule_time !== undefined) {
-      updates.push(`stock_alert_schedule_time = $${paramCount++}`);
-      values.push(stock_alert_schedule_time);
-    }
-    if (stock_alert_frequencies !== undefined) {
-      updates.push(`stock_alert_frequencies = $${paramCount++}`);
-      values.push(JSON.stringify(stock_alert_frequencies));
-    }
-          if (notification_settings !== undefined) {
-            // Respect user's notification settings from frontend EXACTLY as sent
-            const userSettings = {
-              email: notification_settings.email !== undefined ? notification_settings.email : false, // Default to false if not specified
-              whatsapp: notification_settings.whatsapp || false,
-              sms: notification_settings.sms || false,
-              stockLevelAlerts: notification_settings.stockLevelAlerts !== false, // Default to true
-              eventReminders: notification_settings.eventReminders !== false, // Default to true
-              ...notification_settings // Spread to preserve any other settings
-            };
-            
-            console.log('🔧 RESPECTING USER SETTINGS - Original:', notification_settings);
-            console.log('🔧 RESPECTING USER SETTINGS - Processed:', userSettings);
-            
-            updates.push(`notification_settings = $${paramCount++}`);
-            values.push(JSON.stringify(userSettings));
-          }
-    // New separate schedule parameters
-    if (daily_schedule_time !== undefined) {
-      updates.push(`daily_schedule_time = $${paramCount++}`);
-      values.push(daily_schedule_time);
-    }
-    if (weekly_schedule_day !== undefined) {
-      updates.push(`weekly_schedule_day = $${paramCount++}`);
-      values.push(weekly_schedule_day);
-    }
-    if (weekly_schedule_time !== undefined) {
-      updates.push(`weekly_schedule_time = $${paramCount++}`);
-      values.push(weekly_schedule_time);
-    }
-    if (monthly_schedule_date !== undefined) {
-      updates.push(`monthly_schedule_date = $${paramCount++}`);
-      values.push(monthly_schedule_date);
-    }
-    if (monthly_schedule_time !== undefined) {
-      updates.push(`monthly_schedule_time = $${paramCount++}`);
-      values.push(monthly_schedule_time);
-    }
-    // Event reminder scheduling parameters
-    if (event_reminder_frequencies !== undefined) {
-      updates.push(`event_reminder_frequencies = $${paramCount++}`);
-      values.push(JSON.stringify(event_reminder_frequencies));
-    }
-    if (event_daily_schedule_time !== undefined) {
-      updates.push(`event_daily_schedule_time = $${paramCount++}`);
-      values.push(event_daily_schedule_time);
-    }
-    if (event_weekly_schedule_day !== undefined) {
-      updates.push(`event_weekly_schedule_day = $${paramCount++}`);
-      values.push(event_weekly_schedule_day);
-    }
-    if (event_weekly_schedule_time !== undefined) {
-      updates.push(`event_weekly_schedule_time = $${paramCount++}`);
-      values.push(event_weekly_schedule_time);
-    }
-    if (event_monthly_schedule_date !== undefined) {
-      updates.push(`event_monthly_schedule_date = $${paramCount++}`);
-      values.push(event_monthly_schedule_date);
-    }
-    if (event_monthly_schedule_time !== undefined) {
-      updates.push(`event_monthly_schedule_time = $${paramCount++}`);
-      values.push(event_monthly_schedule_time);
-    }
 
     if (updates.length === 0) {
       return res.status(400).json({
@@ -571,17 +472,21 @@ router.put('/profile', authenticateToken, async (req, res) => {
     }
 
     values.push(userId);
-    const queryText = `UPDATE users SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${paramCount} RETURNING id, name, email, phone, position, role, branch_id, branch_context, stock_alert_frequency, stock_alert_schedule_day, stock_alert_schedule_date, stock_alert_schedule_time, notification_settings, stock_alert_frequencies, daily_schedule_time, weekly_schedule_day, weekly_schedule_time, monthly_schedule_date, monthly_schedule_time, event_reminder_frequencies, event_daily_schedule_time, event_weekly_schedule_day, event_weekly_schedule_time, event_monthly_schedule_date, event_monthly_schedule_time, created_at, updated_at`;
+    const queryText = `UPDATE users SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${paramCount} RETURNING id, name, email, phone, position, role, branch_id, branch_context, created_at, updated_at`;
 
+    console.log('🔍 Profile update query:', queryText);
+    console.log('🔍 Profile update values:', values);
     const result = await query(queryText, values);
 
     if (result.rows.length === 0) {
+      console.log('❌ User not found for profile update:', userId);
       return res.status(404).json({
         success: false,
         error: 'User not found'
       });
     }
 
+    console.log('✅ Profile updated successfully for:', result.rows[0].email);
     res.json({
       success: true,
       data: result.rows[0],
