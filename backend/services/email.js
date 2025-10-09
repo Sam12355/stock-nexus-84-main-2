@@ -27,7 +27,9 @@ class EmailService {
       }
 
       console.log(`🔧 Configuring email service with ${emailHost}...`);
-      this.transporter = nodemailer.createTransport({
+      
+      // Try different SMTP configurations based on the host
+      let smtpConfig = {
         host: emailHost,
         port: parseInt(emailPort),
         secure: emailPort === '465', // true for 465, false for other ports
@@ -35,14 +37,28 @@ class EmailService {
           user: emailUser,
           pass: emailPass
         },
-        tls: {
+        connectionTimeout: 10000, // Reduced to 10 seconds
+        greetingTimeout: 5000, // Reduced to 5 seconds
+        socketTimeout: 10000 // Reduced to 10 seconds
+      };
+
+      // Special configuration for Gmail
+      if (emailHost.includes('gmail.com')) {
+        smtpConfig.tls = {
           ciphers: 'SSLv3',
           rejectUnauthorized: false
-        },
-        connectionTimeout: 60000, // 60 seconds
-        greetingTimeout: 30000, // 30 seconds
-        socketTimeout: 60000 // 60 seconds
-      });
+        };
+        smtpConfig.secure = false; // Force STARTTLS
+        smtpConfig.requireTLS = true;
+      }
+
+      // Special configuration for SendGrid
+      if (emailHost.includes('sendgrid.net')) {
+        smtpConfig.secure = false;
+        smtpConfig.requireTLS = true;
+      }
+
+      this.transporter = nodemailer.createTransport(smtpConfig);
 
       console.log(`📧 ${emailHost} transporter created, verifying connection...`);
 
@@ -108,7 +124,7 @@ class EmailService {
         return Promise.race([
           this.transporter.sendMail(mailOptions),
           new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Email send timeout after 30 seconds')), 30000)
+            setTimeout(() => reject(new Error('Email send timeout after 15 seconds')), 15000)
           )
         ]);
       };
