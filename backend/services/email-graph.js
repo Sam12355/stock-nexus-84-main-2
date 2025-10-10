@@ -29,6 +29,11 @@ class EmailService {
       }
 
       console.log('🔧 Configuring Microsoft Graph API email service...');
+      console.log('🔧 Environment check:');
+      console.log('   - MICROSOFT_CLIENT_ID:', clientId ? 'Set' : 'Not set');
+      console.log('   - MICROSOFT_CLIENT_SECRET:', clientSecret ? 'Set' : 'Not set');
+      console.log('   - MICROSOFT_TENANT_ID:', tenantId ? 'Set' : 'Not set');
+      console.log('   - EMAIL_USER:', userEmail ? 'Set' : 'Not set');
       
       // Configure MSAL
       const msalConfig = {
@@ -59,6 +64,10 @@ class EmailService {
           }
         }
       });
+
+      // Test the Graph client
+      console.log('🔧 Graph client initialized:', typeof this.graphClient);
+      console.log('🔧 Graph client users method:', typeof this.graphClient.users);
 
       this.isConfigured = true;
       console.log('✅ Microsoft Graph API email service configured successfully');
