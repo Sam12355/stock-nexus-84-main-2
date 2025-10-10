@@ -263,13 +263,23 @@ const Reports = () => {
       
       // Add title
       doc.setFontSize(20);
-      doc.text(`${selectedReport === 'stock' ? 'Stock' : 'Stock Movement'} Report`, 14, 22);
+      let reportTitle = '';
+      if (selectedReport === 'stock') {
+        reportTitle = 'Stock Report';
+      } else if (selectedReport === 'movements') {
+        reportTitle = 'Stock Movement Report';
+      } else if (selectedReport === 'softdrinks') {
+        reportTitle = 'Soft Drinks Weekly Comparison Report';
+      }
+      doc.text(reportTitle, 14, 22);
       
-      // Add date and month filter info
+      // Add date and filter info
       doc.setFontSize(10);
       doc.text(`Generated on: ${currentDate}`, 14, 30);
       if (selectedReport === 'movements') {
         doc.text(`Filtered by: ${format(selectedMonth, 'MMMM yyyy')}`, 14, 37);
+      } else if (selectedReport === 'softdrinks') {
+        doc.text(`Analysis Period: Last ${selectedWeeks} weeks`, 14, 37);
       }
       
       if (selectedReport === 'stock') {
@@ -340,9 +350,74 @@ const Reports = () => {
             4: { cellWidth: 25 },
           },
         });
+      } else if (selectedReport === 'softdrinks') {
+        // Soft drinks report table
+        const tableData: any[] = [];
+        
+        // Add summary data
+        if (softDrinksSummary) {
+          tableData.push(['SUMMARY', '', '', '', '']);
+          tableData.push(['Total Weeks', softDrinksSummary.total_weeks.toString(), '', '', '']);
+          tableData.push(['Total Stock In', softDrinksSummary.total_stock_in.toString(), '', '', '']);
+          tableData.push(['Total Stock Out', softDrinksSummary.total_stock_out.toString(), '', '', '']);
+          tableData.push(['Net Change', softDrinksSummary.total_net_change.toString(), '', '', '']);
+          tableData.push(['', '', '', '', '']); // Empty row
+        }
+        
+        // Add weekly data
+        softDrinksReport.forEach((week, index) => {
+          tableData.push([`Week ${index + 1}`, '', '', '', '']);
+          tableData.push(['Week Start', new Date(week.week_start).toLocaleDateString(), '', '', '']);
+          tableData.push(['Week End', new Date(week.week_end).toLocaleDateString(), '', '', '']);
+          tableData.push(['Total Stock In', week.total_stock_in.toString(), '', '', '']);
+          tableData.push(['Total Stock Out', week.total_stock_out.toString(), '', '', '']);
+          tableData.push(['Net Change', week.total_net_change.toString(), '', '', '']);
+          tableData.push(['Trend', week.overall_trend.toUpperCase(), '', '', '']);
+          tableData.push(['', '', '', '', '']); // Empty row
+          
+          // Add item details
+          week.items.forEach(item => {
+            tableData.push([`  ${item.item_name}`, `In: ${item.stock_in}`, `Out: ${item.stock_out}`, `Net: ${item.net_change}`, item.trend.toUpperCase()]);
+          });
+          tableData.push(['', '', '', '', '']); // Empty row
+        });
+        
+        autoTable(doc, {
+          head: [['Item/Week', 'Stock In', 'Stock Out', 'Net Change', 'Trend']],
+          body: tableData,
+          startY: 47,
+          styles: {
+            fontSize: 9,
+            cellPadding: 2,
+          },
+          headStyles: {
+            fillColor: [41, 128, 185],
+            textColor: 255,
+            fontStyle: 'bold',
+          },
+          alternateRowStyles: {
+            fillColor: [245, 245, 245],
+          },
+          columnStyles: {
+            0: { cellWidth: 50 },
+            1: { cellWidth: 25 },
+            2: { cellWidth: 25 },
+            3: { cellWidth: 25 },
+            4: { cellWidth: 20 },
+          },
+        });
       }
       
-      doc.save(`${selectedReport === 'stock' ? 'stock' : 'movement'}-report-${currentDate.replace(/\//g, '-')}.pdf`);
+      let fileName = '';
+      if (selectedReport === 'stock') {
+        fileName = 'stock-report';
+      } else if (selectedReport === 'movements') {
+        fileName = 'movement-report';
+      } else if (selectedReport === 'softdrinks') {
+        fileName = 'softdrinks-weekly-report';
+      }
+      
+      doc.save(`${fileName}-${currentDate.replace(/\//g, '-')}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Error generating PDF. Please try again.');
@@ -366,7 +441,7 @@ const Reports = () => {
           ])
         ];
         fileName = 'stock-report.xlsx';
-      } else {
+      } else if (selectedReport === 'movements') {
         worksheetData = [
           ['Date', 'Item', 'Type', 'Quantity', 'Updated By'],
           ...filteredMovementReport.map(movement => [
@@ -378,6 +453,33 @@ const Reports = () => {
           ])
         ];
         fileName = `movement-report-${format(selectedMonth, 'yyyy-MM')}.xlsx`;
+      } else if (selectedReport === 'softdrinks') {
+        worksheetData = [
+          ['Week', 'Item', 'Stock In', 'Stock Out', 'Net Change', 'Trend', 'Week Start', 'Week End']
+        ];
+        
+        // Add summary row
+        if (softDrinksSummary) {
+          worksheetData.push(['SUMMARY', 'TOTAL', softDrinksSummary.total_stock_in, softDrinksSummary.total_stock_out, softDrinksSummary.total_net_change, '', '', '']);
+        }
+        
+        // Add weekly data
+        softDrinksReport.forEach((week, weekIndex) => {
+          week.items.forEach(item => {
+            worksheetData.push([
+              `Week ${weekIndex + 1}`,
+              item.item_name,
+              item.stock_in,
+              item.stock_out,
+              item.net_change,
+              item.trend.toUpperCase(),
+              new Date(week.week_start).toLocaleDateString(),
+              new Date(week.week_end).toLocaleDateString()
+            ]);
+          });
+        });
+        
+        fileName = `softdrinks-weekly-report-${selectedWeeks}weeks.xlsx`;
       }
     
       const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
@@ -430,8 +532,24 @@ const Reports = () => {
       csvData = 'Date,Item,Movement Type,Quantity,Updated By\n';
         csvData += filteredMovementReport.map(movement => 
           `"${new Date(movement.created_at).toLocaleDateString()}","${movement.item_name}","${movement.movement_type}",${movement.quantity},"${movement.user_name || 'Unknown'}"`
-      ).join('\n');
+        ).join('\n');
         fileName = `movement-report-${format(selectedMonth, 'yyyy-MM')}.csv`;
+    } else if (selectedReport === 'softdrinks') {
+      csvData = 'Week,Item,Stock In,Stock Out,Net Change,Trend,Week Start,Week End\n';
+      
+      // Add summary row
+      if (softDrinksSummary) {
+        csvData += `"SUMMARY","TOTAL",${softDrinksSummary.total_stock_in},${softDrinksSummary.total_stock_out},${softDrinksSummary.total_net_change},"","",""\n`;
+      }
+      
+      // Add weekly data
+      softDrinksReport.forEach((week, weekIndex) => {
+        week.items.forEach(item => {
+          csvData += `"Week ${weekIndex + 1}","${item.item_name}",${item.stock_in},${item.stock_out},${item.net_change},"${item.trend.toUpperCase()}","${new Date(week.week_start).toLocaleDateString()}","${new Date(week.week_end).toLocaleDateString()}"\n`;
+        });
+      });
+      
+      fileName = `softdrinks-weekly-report-${selectedWeeks}weeks.csv`;
     }
 
     // Download CSV
@@ -455,7 +573,11 @@ const Reports = () => {
         <div className="flex gap-2">
           <Button 
             onClick={exportToPDF} 
-            disabled={selectedReport === 'stock' ? (loadingStock && !stockLoaded) : (loadingMovements && !movementsLoaded)}
+            disabled={
+              selectedReport === 'stock' ? (loadingStock && !stockLoaded) : 
+              selectedReport === 'movements' ? (loadingMovements && !movementsLoaded) :
+              selectedReport === 'softdrinks' ? (loadingSoftDrinks && !softDrinksLoaded) : false
+            }
             variant="outline"
           >
             <File className="h-4 w-4 mr-2" />
@@ -463,7 +585,11 @@ const Reports = () => {
           </Button>
           <Button 
             onClick={exportToExcel} 
-            disabled={selectedReport === 'stock' ? (loadingStock && !stockLoaded) : (loadingMovements && !movementsLoaded)}
+            disabled={
+              selectedReport === 'stock' ? (loadingStock && !stockLoaded) : 
+              selectedReport === 'movements' ? (loadingMovements && !movementsLoaded) :
+              selectedReport === 'softdrinks' ? (loadingSoftDrinks && !softDrinksLoaded) : false
+            }
             variant="outline"
           >
             <FileSpreadsheet className="h-4 w-4 mr-2" />
@@ -471,12 +597,16 @@ const Reports = () => {
           </Button>
           <Button 
             onClick={exportToCSV} 
-            disabled={selectedReport === 'stock' ? (loadingStock && !stockLoaded) : (loadingMovements && !movementsLoaded)}
+            disabled={
+              selectedReport === 'stock' ? (loadingStock && !stockLoaded) : 
+              selectedReport === 'movements' ? (loadingMovements && !movementsLoaded) :
+              selectedReport === 'softdrinks' ? (loadingSoftDrinks && !softDrinksLoaded) : false
+            }
             variant="outline"
           >
           <Download className="h-4 w-4 mr-2" />
             CSV
-        </Button>
+          </Button>
         </div>
       </div>
       
