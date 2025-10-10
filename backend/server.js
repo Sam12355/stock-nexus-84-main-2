@@ -33,7 +33,7 @@ const io = new Server(server, {
     origin: [
       process.env.FRONTEND_URL || 'http://localhost:8081',
       'https://stock-nexus-84-main-2-kmth.vercel.app',
-      'https://ims-sy.vercel.app'
+      'https://ms-sy.vercel.app'
     ].filter(Boolean),
     methods: ['GET', 'POST'],
     credentials: true
@@ -60,7 +60,7 @@ app.use('/api/', limiter);
 const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:8081',
   'https://stock-nexus-84-main-2-kmth.vercel.app',
-  'https://ims-sy.vercel.app'
+  'https://ms-sy.vercel.app'
 ].filter(Boolean); // Remove any undefined values
 
 app.use(cors({
