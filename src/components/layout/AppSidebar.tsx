@@ -99,7 +99,7 @@ const menuItems = [
     title: "Moveout List",
     url: "/moveout-list",
     icon: ArrowRight,
-    roles: ['manager', 'assistant_manager']
+    roles: ['staff']
   }
 ];
 
