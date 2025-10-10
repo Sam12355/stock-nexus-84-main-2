@@ -1,5 +1,5 @@
 // API client for backend communication
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://stock-nexus-84-main-2-1.onrender.com/api';
 
 class ApiClient {
   private token: string | null = null;
