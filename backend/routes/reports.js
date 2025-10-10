@@ -205,9 +205,9 @@ router.get('/softdrinks-weekly', authenticateToken, async (req, res) => {
         trend: row.trend
       });
       
-      weeklyData[weekKey].total_stock_in += row.stock_in;
-      weeklyData[weekKey].total_stock_out += row.stock_out;
-      weeklyData[weekKey].total_net_change += row.net_change;
+      weeklyData[weekKey].total_stock_in += parseInt(row.stock_in) || 0;
+      weeklyData[weekKey].total_stock_out += parseInt(row.stock_out) || 0;
+      weeklyData[weekKey].total_net_change += parseInt(row.net_change) || 0;
     });
 
     // Convert to array and add overall trend and advice
@@ -251,9 +251,9 @@ router.get('/softdrinks-weekly', authenticateToken, async (req, res) => {
       data: weeklyArray,
       summary: {
         total_weeks: weeklyArray.length,
-        total_stock_in: weeklyArray.reduce((sum, week) => sum + week.total_stock_in, 0),
-        total_stock_out: weeklyArray.reduce((sum, week) => sum + week.total_stock_out, 0),
-        total_net_change: weeklyArray.reduce((sum, week) => sum + week.total_net_change, 0)
+        total_stock_in: weeklyArray.reduce((sum, week) => sum + (parseInt(week.total_stock_in) || 0), 0),
+        total_stock_out: weeklyArray.reduce((sum, week) => sum + (parseInt(week.total_stock_out) || 0), 0),
+        total_net_change: weeklyArray.reduce((sum, week) => sum + (parseInt(week.total_net_change) || 0), 0)
       }
     });
   } catch (error) {
