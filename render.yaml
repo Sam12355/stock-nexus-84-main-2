@@ -17,14 +17,14 @@ services:
         value: 7d
       - key: FRONTEND_URL
         value: https://stock-nexus-84-main-2-kmth.vercel.app
-      - key: EMAIL_HOST
-        value: smtp-mail.outlook.com
-      - key: EMAIL_PORT
-        value: 587
       - key: EMAIL_USER
         value: info@lbdhospitals.com
-      - key: EMAIL_PASS
-        value: Alivexbs12355@
+      - key: MICROSOFT_CLIENT_ID
+        value: your_client_id_here
+      - key: MICROSOFT_CLIENT_SECRET
+        value: your_client_secret_here
+      - key: MICROSOFT_TENANT_ID
+        value: your_tenant_id_here
     database:
       name: stock-nexus-db
       plan: free
