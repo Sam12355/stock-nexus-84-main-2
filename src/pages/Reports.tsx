@@ -691,26 +691,59 @@ const Reports = () => {
               <div className="space-y-6">
                 {/* Summary Cards */}
                 {softDrinksSummary && (
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <Card className="p-4">
-                      <div className="text-sm text-muted-foreground">Total Weeks</div>
-                      <div className="text-2xl font-bold">{softDrinksSummary.total_weeks}</div>
-                    </Card>
-                    <Card className="p-4">
-                      <div className="text-sm text-muted-foreground">Total Stock In</div>
-                      <div className="text-2xl font-bold text-green-600">{softDrinksSummary.total_stock_in}</div>
-                    </Card>
-                    <Card className="p-4">
-                      <div className="text-sm text-muted-foreground">Total Stock Out</div>
-                      <div className="text-2xl font-bold text-red-600">{softDrinksSummary.total_stock_out}</div>
-                    </Card>
-                    <Card className="p-4">
-                      <div className="text-sm text-muted-foreground">Net Change</div>
-                      <div className={`text-2xl font-bold ${
-                        softDrinksSummary.total_net_change > 0 ? 'text-green-600' : 
-                        softDrinksSummary.total_net_change < 0 ? 'text-red-600' : 'text-gray-600'
-                      }`}>
-                        {softDrinksSummary.total_net_change > 0 ? '+' : ''}{softDrinksSummary.total_net_change}
+                  <div className="space-y-4 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <Card className="p-4">
+                        <div className="text-sm text-muted-foreground">Total Weeks</div>
+                        <div className="text-2xl font-bold">{softDrinksSummary.total_weeks}</div>
+                      </Card>
+                      <Card className="p-4">
+                        <div className="text-sm text-muted-foreground">Total Stock In</div>
+                        <div className="text-2xl font-bold text-green-600">{softDrinksSummary.total_stock_in}</div>
+                      </Card>
+                      <Card className="p-4">
+                        <div className="text-sm text-muted-foreground">Total Stock Out</div>
+                        <div className="text-2xl font-bold text-red-600">{softDrinksSummary.total_stock_out}</div>
+                      </Card>
+                      <Card className="p-4">
+                        <div className="text-sm text-muted-foreground">Net Change</div>
+                        <div className={`text-2xl font-bold ${
+                          softDrinksSummary.total_net_change > 0 ? 'text-green-600' : 
+                          softDrinksSummary.total_net_change < 0 ? 'text-red-600' : 'text-gray-600'
+                        }`}>
+                          {softDrinksSummary.total_net_change > 0 ? '+' : ''}{softDrinksSummary.total_net_change}
+                        </div>
+                      </Card>
+                    </div>
+                    
+                    {/* Overall Analysis */}
+                    <Card className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+                      <div className="flex items-start gap-3">
+                        <div className="text-blue-600 mt-1">🎯</div>
+                        <div>
+                          <h4 className="font-semibold text-blue-900 mb-2">Overall Analysis & Strategic Recommendations</h4>
+                          <div className="text-blue-800 text-sm space-y-2">
+                            {softDrinksSummary.total_net_change > 0 ? (
+                              <div>
+                                <p><strong>📈 Positive Trend:</strong> Your soft drinks inventory is growing over the selected period.</p>
+                                <p><strong>💡 Recommendation:</strong> Consider maintaining current ordering patterns. If stock continues accumulating, you might want to slightly reduce order quantities to optimize storage space and cash flow.</p>
+                              </div>
+                            ) : softDrinksSummary.total_net_change < 0 ? (
+                              <div>
+                                <p><strong>📉 Declining Trend:</strong> You're consuming soft drinks faster than restocking.</p>
+                                <p><strong>⚠️ Action Required:</strong> Increase order quantities or frequency to prevent stockouts. Consider ordering 20-30% more to build safety stock.</p>
+                              </div>
+                            ) : (
+                              <div>
+                                <p><strong>➡️ Stable Trend:</strong> Your inventory levels are well-balanced.</p>
+                                <p><strong>✅ Recommendation:</strong> Current ordering practices are working well. Continue with existing patterns and monitor for any seasonal changes.</p>
+                              </div>
+                            )}
+                            <p className="text-xs text-blue-600 mt-2">
+                              <strong>Pro Tip:</strong> Review individual item trends below for specific ordering adjustments.
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </Card>
                   </div>
@@ -750,39 +783,61 @@ const Reports = () => {
                         </div>
                       </div>
                       
+                      {/* Weekly Advice */}
+                      {week.advice && (
+                        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="flex items-start gap-2">
+                            <div className="text-blue-600 mt-0.5">💡</div>
+                            <div>
+                              <h5 className="font-medium text-blue-900 mb-1">Weekly Analysis & Recommendations</h5>
+                              <p className="text-blue-800 text-sm">{week.advice}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Items in this week */}
                       {week.items.length > 0 && (
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="border-b">
-                                <th className="text-left p-2 font-medium">Item</th>
-                                <th className="text-right p-2 font-medium">Stock In</th>
-                                <th className="text-right p-2 font-medium">Stock Out</th>
-                                <th className="text-right p-2 font-medium">Net Change</th>
-                                <th className="text-center p-2 font-medium">Trend</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {week.items.map((item, itemIndex) => (
-                                <tr key={itemIndex} className="border-b hover:bg-muted/50">
-                                  <td className="p-2 font-medium">{item.item_name}</td>
-                                  <td className="p-2 text-right text-green-600">{item.stock_in}</td>
-                                  <td className="p-2 text-right text-red-600">{item.stock_out}</td>
-                                  <td className={`p-2 text-right font-semibold ${
-                                    item.net_change > 0 ? 'text-green-600' :
-                                    item.net_change < 0 ? 'text-red-600' : 'text-gray-600'
-                                  }`}>
-                                    {item.net_change > 0 ? '+' : ''}{item.net_change}
-                                  </td>
-                                  <td className="p-2 text-center">
-                                    {item.trend === 'positive' ? '📈' :
-                                     item.trend === 'negative' ? '📉' : '➡️'}
-                                  </td>
+                        <div className="space-y-3">
+                          <h5 className="font-medium text-gray-700">Item Details & Recommendations:</h5>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b">
+                                  <th className="text-left p-2 font-medium">Item</th>
+                                  <th className="text-right p-2 font-medium">Stock In</th>
+                                  <th className="text-right p-2 font-medium">Stock Out</th>
+                                  <th className="text-right p-2 font-medium">Net Change</th>
+                                  <th className="text-center p-2 font-medium">Trend</th>
+                                  <th className="text-left p-2 font-medium">Recommendation</th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                              </thead>
+                              <tbody>
+                                {week.items.map((item, itemIndex) => (
+                                  <tr key={itemIndex} className="border-b hover:bg-muted/50">
+                                    <td className="p-2 font-medium">{item.item_name}</td>
+                                    <td className="p-2 text-right text-green-600">{item.stock_in}</td>
+                                    <td className="p-2 text-right text-red-600">{item.stock_out}</td>
+                                    <td className={`p-2 text-right font-semibold ${
+                                      item.net_change > 0 ? 'text-green-600' :
+                                      item.net_change < 0 ? 'text-red-600' : 'text-gray-600'
+                                    }`}>
+                                      {item.net_change > 0 ? '+' : ''}{item.net_change}
+                                    </td>
+                                    <td className="p-2 text-center">
+                                      {item.trend === 'positive' ? '📈' :
+                                       item.trend === 'negative' ? '📉' : '➡️'}
+                                    </td>
+                                    <td className="p-2 text-xs text-gray-600">
+                                      {item.trend === 'positive' ? '✅ Maintain current ordering' :
+                                       item.trend === 'negative' ? '⚠️ Increase order quantity' : 
+                                       '➡️ Current ordering adequate'}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
                       )}
                     </Card>

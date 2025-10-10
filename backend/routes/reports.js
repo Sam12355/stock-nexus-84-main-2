@@ -210,12 +210,41 @@ router.get('/softdrinks-weekly', authenticateToken, async (req, res) => {
       weeklyData[weekKey].total_net_change += row.net_change;
     });
 
-    // Convert to array and add overall trend
-    const weeklyArray = Object.values(weeklyData).map(week => ({
-      ...week,
-      overall_trend: week.total_net_change > 0 ? 'positive' : 
-                    week.total_net_change < 0 ? 'negative' : 'neutral'
-    }));
+    // Convert to array and add overall trend and advice
+    const weeklyArray = Object.values(weeklyData).map(week => {
+      const overallTrend = week.total_net_change > 0 ? 'positive' : 
+                          week.total_net_change < 0 ? 'negative' : 'neutral';
+      
+      // Generate advice based on trend
+      let advice = '';
+      if (overallTrend === 'positive') {
+        advice = '📈 Great! You\'re gaining inventory. Consider maintaining current ordering patterns or slightly reducing if stock is accumulating too much.';
+      } else if (overallTrend === 'negative') {
+        advice = '📉 Warning! You\'re losing inventory faster than restocking. Consider increasing order quantities or frequency to prevent stockouts.';
+      } else {
+        advice = '➡️ Stable inventory levels. Current ordering patterns are working well - maintain current practices.';
+      }
+      
+      // Add item-specific advice
+      const itemAdvice = week.items.map(item => {
+        let itemAdvice = '';
+        if (item.trend === 'positive') {
+          itemAdvice = `✅ ${item.item_name}: Stock growing well - maintain current ordering`;
+        } else if (item.trend === 'negative') {
+          itemAdvice = `⚠️ ${item.item_name}: High consumption - consider increasing order quantity`;
+        } else {
+          itemAdvice = `➡️ ${item.item_name}: Stable consumption - current ordering is adequate`;
+        }
+        return itemAdvice;
+      });
+      
+      return {
+        ...week,
+        overall_trend: overallTrend,
+        advice: advice,
+        item_advice: itemAdvice
+      };
+    });
 
     res.json({
       success: true,
