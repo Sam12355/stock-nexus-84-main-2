@@ -591,44 +591,6 @@ const Reports = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
-        <div className="flex gap-2">
-          <Button 
-            onClick={exportToPDF} 
-            disabled={
-              selectedReport === 'stock' ? (loadingStock && !stockLoaded) : 
-              selectedReport === 'movements' ? (loadingMovements && !movementsLoaded) :
-              selectedReport === 'softdrinks' ? (loadingSoftDrinks && !softDrinksLoaded) : false
-            }
-            variant="outline"
-          >
-            <File className="h-4 w-4 mr-2" />
-            PDF
-          </Button>
-          <Button 
-            onClick={exportToExcel} 
-            disabled={
-              selectedReport === 'stock' ? (loadingStock && !stockLoaded) : 
-              selectedReport === 'movements' ? (loadingMovements && !movementsLoaded) :
-              selectedReport === 'softdrinks' ? (loadingSoftDrinks && !softDrinksLoaded) : false
-            }
-            variant="outline"
-          >
-            <FileSpreadsheet className="h-4 w-4 mr-2" />
-            Excel
-          </Button>
-          <Button 
-            onClick={exportToCSV} 
-            disabled={
-              selectedReport === 'stock' ? (loadingStock && !stockLoaded) : 
-              selectedReport === 'movements' ? (loadingMovements && !movementsLoaded) :
-              selectedReport === 'softdrinks' ? (loadingSoftDrinks && !softDrinksLoaded) : false
-            }
-            variant="outline"
-          >
-          <Download className="h-4 w-4 mr-2" />
-            CSV
-          </Button>
-        </div>
       </div>
       
       <div className="flex gap-4 mb-6">
@@ -680,10 +642,41 @@ const Reports = () => {
       {selectedReport === 'stock' && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              Current Stock Levels
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Current Stock Levels
+              </CardTitle>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={exportToPDF} 
+                  disabled={loadingStock && !stockLoaded}
+                  variant="outline"
+                  size="sm"
+                >
+                  <File className="h-4 w-4 mr-2" />
+                  PDF
+                </Button>
+                <Button 
+                  onClick={exportToExcel} 
+                  disabled={loadingStock && !stockLoaded}
+                  variant="outline"
+                  size="sm"
+                >
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Excel
+                </Button>
+                <Button 
+                  onClick={exportToCSV} 
+                  disabled={loadingStock && !stockLoaded}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  CSV
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {(loadingStock && !stockLoaded) ? (
@@ -740,10 +733,41 @@ const Reports = () => {
       {selectedReport === 'movements' && (
         <Card className="shadow-lg">
           <CardHeader className="bg-gradient-to-r from-secondary/10 to-secondary/5">
-            <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-              <TrendingUp className="h-5 w-5 text-secondary-foreground" />
-              Stock Movement History Report
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                <TrendingUp className="h-5 w-5 text-secondary-foreground" />
+                Stock Movement History Report
+              </CardTitle>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={exportToPDF} 
+                  disabled={loadingMovements && !movementsLoaded}
+                  variant="outline"
+                  size="sm"
+                >
+                  <File className="h-4 w-4 mr-2" />
+                  PDF
+                </Button>
+                <Button 
+                  onClick={exportToExcel} 
+                  disabled={loadingMovements && !movementsLoaded}
+                  variant="outline"
+                  size="sm"
+                >
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Excel
+                </Button>
+                <Button 
+                  onClick={exportToCSV} 
+                  disabled={loadingMovements && !movementsLoaded}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  CSV
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {(loadingMovements && !movementsLoaded) ? (
@@ -820,13 +844,46 @@ const Reports = () => {
       {selectedReport === 'softdrinks' && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              Soft Drinks Weekly Comparison Report
-            </CardTitle>
-            <CardDescription>
-              Compare stock-in vs stock-out for soft drinks over the last {selectedWeeks} weeks
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  Soft Drinks Weekly Comparison Report
+                </CardTitle>
+                <CardDescription>
+                  Compare stock-in vs stock-out for soft drinks over the last {selectedWeeks} weeks
+                </CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={exportToPDF} 
+                  disabled={loadingSoftDrinks && !softDrinksLoaded}
+                  variant="outline"
+                  size="sm"
+                >
+                  <File className="h-4 w-4 mr-2" />
+                  PDF
+                </Button>
+                <Button 
+                  onClick={exportToExcel} 
+                  disabled={loadingSoftDrinks && !softDrinksLoaded}
+                  variant="outline"
+                  size="sm"
+                >
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Excel
+                </Button>
+                <Button 
+                  onClick={exportToCSV} 
+                  disabled={loadingSoftDrinks && !softDrinksLoaded}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  CSV
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {loadingSoftDrinks ? (
