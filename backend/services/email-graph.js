@@ -175,8 +175,6 @@ class EmailService {
     const urgency = alertType === 'critical' ? 'CRITICAL' : 'LOW';
     const alertColor = alertType === 'critical' ? '#dc2626' : '#ea580c';
     const urgencyIcon = alertType === 'critical' ? '🚨' : '⚠️';
-    const urgencyBg = alertType === 'critical' ? '#fef2f2' : '#fff7ed';
-    const urgencyBorder = alertType === 'critical' ? '#fecaca' : '#fed7aa';
     
     const subject = `🚨 ${urgency} Stock Alert: ${itemName} - Immediate Action Required`;
     
@@ -187,111 +185,202 @@ class EmailService {
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${urgency} Stock Alert - ${itemName}</title>
-        <style>
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        </style>
       </head>
-      <body style="margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; line-height: 1.6;">
-        <div style="max-width: 680px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
-          
-          <!-- Header -->
-          <div style="background: linear-gradient(135deg, ${alertColor} 0%, ${alertColor}dd 100%); color: white; padding: 32px 24px; text-align: center; position: relative;">
-            <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #ffffff20, #ffffff40, #ffffff20);"></div>
-            <div style="font-size: 48px; margin-bottom: 16px;">${urgencyIcon}</div>
-            <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">${urgency} STOCK ALERT</h1>
-            <p style="margin: 8px 0 0 0; font-size: 16px; opacity: 0.95; font-weight: 500;">Inventory Management System</p>
-          </div>
-          
-          <!-- Content -->
-          <div style="padding: 40px 32px;">
-            <div style="margin-bottom: 32px;">
-              <h2 style="color: #1e293b; margin: 0 0 16px 0; font-size: 24px; font-weight: 600;">Hello ${userName},</h2>
-              <p style="color: #64748b; font-size: 16px; margin: 0;">
-                We're alerting you about a stock level that requires <strong style="color: ${alertColor};">immediate attention</strong>.
-              </p>
-            </div>
-            
-            <!-- Alert Card -->
-            <div style="background: ${urgencyBg}; border: 2px solid ${urgencyBorder}; border-radius: 12px; padding: 24px; margin: 24px 0; position: relative;">
-              <div style="position: absolute; top: -12px; left: 24px; background: ${alertColor}; color: white; padding: 6px 16px; border-radius: 20px; font-size: 14px; font-weight: 600;">
-                ${urgency} LEVEL
-              </div>
-              
-              <div style="margin-top: 16px;">
-                <h3 style="margin: 0 0 20px 0; color: #1e293b; font-size: 20px; font-weight: 600;">📦 ${itemName}</h3>
+      <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f5f5f5; line-height: 1.6;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5;">
+          <tr>
+            <td align="center" style="padding: 20px 0;">
+              <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
                 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
-                  <div style="background: white; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                    <div style="font-size: 14px; color: #64748b; font-weight: 500; margin-bottom: 4px;">CURRENT STOCK</div>
-                    <div style="font-size: 24px; font-weight: 700; color: ${alertColor};">${currentQuantity}</div>
-                  </div>
-                  <div style="background: white; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                    <div style="font-size: 14px; color: #64748b; font-weight: 500; margin-bottom: 4px;">THRESHOLD LEVEL</div>
-                    <div style="font-size: 24px; font-weight: 700; color: #1e293b;">${threshold}</div>
-                  </div>
-                </div>
+                <!-- Header -->
+                <tr>
+                  <td style="background: ${alertColor}; color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td align="center">
+                          <div style="font-size: 40px; margin-bottom: 15px;">${urgencyIcon}</div>
+                          <h1 style="margin: 0; font-size: 24px; font-weight: bold; color: white;">${urgency} STOCK ALERT</h1>
+                          <p style="margin: 8px 0 0 0; font-size: 14px; color: white; opacity: 0.9;">Inventory Management System</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
                 
-                ${branchName ? `
-                <div style="background: white; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 12px;">
-                  <span style="font-size: 14px; color: #64748b; font-weight: 500;">🏢 Branch:</span>
-                  <span style="font-size: 16px; color: #1e293b; font-weight: 600; margin-left: 8px;">${branchName}</span>
-                </div>
-                ` : ''}
+                <!-- Content -->
+                <tr>
+                  <td style="padding: 30px 20px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td>
+                          <h2 style="color: #333; margin: 0 0 15px 0; font-size: 20px;">Hello ${userName},</h2>
+                          <p style="color: #666; font-size: 16px; margin: 0 0 25px 0;">
+                            We're alerting you about a stock level that requires <strong style="color: ${alertColor};">immediate attention</strong>.
+                          </p>
+                        </td>
+                      </tr>
+                      
+                      <!-- Alert Card -->
+                      <tr>
+                        <td>
+                          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border: 2px solid ${alertColor}; border-radius: 6px;">
+                            <tr>
+                              <td style="padding: 20px;">
+                                <table width="100%" cellpadding="0" cellspacing="0">
+                                  <tr>
+                                    <td style="background: ${alertColor}; color: white; padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: bold; display: inline-block;">
+                                      ${urgency} LEVEL
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td style="padding-top: 15px;">
+                                      <h3 style="margin: 0 0 20px 0; color: #333; font-size: 18px;">📦 ${itemName}</h3>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td>
+                                      <table width="100%" cellpadding="0" cellspacing="0">
+                                        <tr>
+                                          <td width="50%" style="padding-right: 10px;">
+                                            <table width="100%" cellpadding="0" cellspacing="0" style="background-color: white; border: 1px solid #ddd; border-radius: 4px;">
+                                              <tr>
+                                                <td style="padding: 15px; text-align: center;">
+                                                  <div style="font-size: 12px; color: #666; font-weight: bold; margin-bottom: 5px;">CURRENT STOCK</div>
+                                                  <div style="font-size: 24px; font-weight: bold; color: ${alertColor};">${currentQuantity}</div>
+                                                </td>
+                                              </tr>
+                                            </table>
+                                          </td>
+                                          <td width="50%" style="padding-left: 10px;">
+                                            <table width="100%" cellpadding="0" cellspacing="0" style="background-color: white; border: 1px solid #ddd; border-radius: 4px;">
+                                              <tr>
+                                                <td style="padding: 15px; text-align: center;">
+                                                  <div style="font-size: 12px; color: #666; font-weight: bold; margin-bottom: 5px;">THRESHOLD LEVEL</div>
+                                                  <div style="font-size: 24px; font-weight: bold; color: #333;">${threshold}</div>
+                                                </td>
+                                              </tr>
+                                            </table>
+                                          </td>
+                                        </tr>
+                                      </table>
+                                    </td>
+                                  </tr>
+                                  ${branchName ? `
+                                  <tr>
+                                    <td style="padding-top: 15px;">
+                                      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: white; border: 1px solid #ddd; border-radius: 4px;">
+                                        <tr>
+                                          <td style="padding: 12px;">
+                                            <span style="font-size: 14px; color: #666; font-weight: bold;">🏢 Branch:</span>
+                                            <span style="font-size: 16px; color: #333; font-weight: bold; margin-left: 8px;">${branchName}</span>
+                                          </td>
+                                        </tr>
+                                      </table>
+                                    </td>
+                                  </tr>
+                                  ` : ''}
+                                  ${districtName ? `
+                                  <tr>
+                                    <td style="padding-top: 10px;">
+                                      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: white; border: 1px solid #ddd; border-radius: 4px;">
+                                        <tr>
+                                          <td style="padding: 12px;">
+                                            <span style="font-size: 14px; color: #666; font-weight: bold;">📍 District:</span>
+                                            <span style="font-size: 16px; color: #333; font-weight: bold; margin-left: 8px;">${districtName}</span>
+                                          </td>
+                                        </tr>
+                                      </table>
+                                    </td>
+                                  </tr>
+                                  ` : ''}
+                                </table>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      
+                      <!-- Action Required -->
+                      <tr>
+                        <td style="padding-top: 25px;">
+                          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #e3f2fd; border-left: 4px solid #2196f3; border-radius: 4px;">
+                            <tr>
+                              <td style="padding: 20px;">
+                                <table width="100%" cellpadding="0" cellspacing="0">
+                                  <tr>
+                                    <td>
+                                      <div style="font-size: 20px; margin-right: 10px; display: inline-block;">💡</div>
+                                      <h3 style="margin: 0; color: #1976d2; font-size: 16px; font-weight: bold; display: inline-block;">IMMEDIATE ACTION REQUIRED</h3>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td style="padding-top: 10px;">
+                                      <p style="margin: 0; color: #1976d2; font-size: 14px;">
+                                        Please contact your supplier immediately to place an urgent restock order to prevent stockout and maintain smooth operations.
+                                      </p>
+                                    </td>
+                                  </tr>
+                                </table>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      
+                      <!-- Priority Badge -->
+                      <tr>
+                        <td style="padding-top: 25px; text-align: center;">
+                          <table cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+                            <tr>
+                              <td style="background: ${alertColor}; color: white; padding: 12px 24px; border-radius: 20px; font-weight: bold; font-size: 14px;">
+                                ${alertType === 'critical' ? '🔴 HIGHEST PRIORITY' : '🟠 HIGH PRIORITY'}
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      
+                      <!-- Timestamp -->
+                      <tr>
+                        <td style="padding-top: 25px; border-top: 1px solid #eee;">
+                          <p style="margin: 0; color: #999; font-size: 12px; text-align: center;">
+                            Alert generated on ${new Date().toLocaleString('en-US', { 
+                              weekday: 'long', 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
                 
-                ${districtName ? `
-                <div style="background: white; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                  <span style="font-size: 14px; color: #64748b; font-weight: 500;">📍 District:</span>
-                  <span style="font-size: 16px; color: #1e293b; font-weight: 600; margin-left: 8px;">${districtName}</span>
-                </div>
-                ` : ''}
-              </div>
-            </div>
-            
-            <!-- Action Required -->
-            <div style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #3b82f6;">
-              <div style="display: flex; align-items: center; margin-bottom: 12px;">
-                <div style="font-size: 24px; margin-right: 12px;">💡</div>
-                <h3 style="margin: 0; color: #1e40af; font-size: 18px; font-weight: 600;">IMMEDIATE ACTION REQUIRED</h3>
-              </div>
-              <p style="margin: 0; color: #1e40af; font-size: 16px;">
-                Please contact your supplier immediately to place an urgent restock order to prevent stockout and maintain smooth operations.
-              </p>
-            </div>
-            
-            <!-- Priority Badge -->
-            <div style="text-align: center; margin: 32px 0;">
-              <div style="display: inline-block; background: ${alertColor}; color: white; padding: 12px 24px; border-radius: 24px; font-weight: 600; font-size: 16px;">
-                ${alertType === 'critical' ? '🔴 HIGHEST PRIORITY' : '🟠 HIGH PRIORITY'}
-              </div>
-            </div>
-            
-            <div style="border-top: 1px solid #e2e8f0; padding-top: 24px; margin-top: 32px;">
-              <p style="margin: 0; color: #94a3b8; font-size: 14px; text-align: center;">
-                Alert generated on ${new Date().toLocaleString('en-US', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </p>
-            </div>
-          </div>
-          
-          <!-- Footer -->
-          <div style="background: #f8fafc; padding: 32px; text-align: center; border-top: 1px solid #e2e8f0;">
-            <div style="margin-bottom: 16px;">
-              <div style="font-size: 18px; font-weight: 700; color: #1e293b; margin-bottom: 8px;">Inventory Management System</div>
-              <div style="font-size: 14px; color: #64748b;">Professional Stock Management Solution</div>
-            </div>
-            <div style="font-size: 12px; color: #94a3b8;">
-              <p style="margin: 0;">&copy; ${new Date().getFullYear()} Inventory Management System. All rights reserved.</p>
-              <p style="margin: 4px 0 0 0;">This is an automated notification. Please do not reply to this email.</p>
-            </div>
-          </div>
-          
-        </div>
+                <!-- Footer -->
+                <tr>
+                  <td style="background-color: #f8f9fa; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; border-top: 1px solid #eee;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td align="center">
+                          <div style="font-size: 16px; font-weight: bold; color: #333; margin-bottom: 5px;">Inventory Management System</div>
+                          <div style="font-size: 12px; color: #666;">Professional Stock Management Solution</div>
+                          <div style="font-size: 10px; color: #999; margin-top: 10px;">
+                            <p style="margin: 0;">&copy; ${new Date().getFullYear()} Inventory Management System. All rights reserved.</p>
+                            <p style="margin: 2px 0 0 0;">This is an automated notification. Please do not reply to this email.</p>
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                
+              </table>
+            </td>
+          </tr>
+        </table>
       </body>
       </html>
     `;
@@ -310,128 +399,216 @@ class EmailService {
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${frequencyText} Stock Report</title>
-        <style>
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        </style>
       </head>
-      <body style="margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; line-height: 1.6;">
-        <div style="max-width: 680px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
-          
-          <!-- Header -->
-          <div style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; padding: 32px 24px; text-align: center; position: relative;">
-            <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #ffffff20, #ffffff40, #ffffff20);"></div>
-            <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
-            <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">${frequencyText.toUpperCase()} STOCK REPORT</h1>
-            <p style="margin: 8px 0 0 0; font-size: 16px; opacity: 0.95; font-weight: 500;">Inventory Management System</p>
-          </div>
-          
-          <!-- Content -->
-          <div style="padding: 40px 32px;">
-            <div style="margin-bottom: 32px;">
-              <h2 style="color: #1e293b; margin: 0 0 16px 0; font-size: 24px; font-weight: 600;">Hello ${userName},</h2>
-              <p style="color: #64748b; font-size: 16px; margin: 0;">
-                Here's your ${frequencyText.toLowerCase()} stock level report for <strong style="color: #3b82f6;">${branchName}</strong>.
-              </p>
-            </div>
-            
-            <!-- Summary Stats -->
-            <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid #bae6fd;">
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 16px; text-align: center;">
-                <div>
-                  <div style="font-size: 32px; font-weight: 700; color: #0369a1; margin-bottom: 4px;">${lowStockItems.length}</div>
-                  <div style="font-size: 14px; color: #0369a1; font-weight: 500;">ITEMS NEEDING ATTENTION</div>
-                </div>
-                <div>
-                  <div style="font-size: 32px; font-weight: 700; color: #dc2626; margin-bottom: 4px;">${lowStockItems.filter(item => item.current_quantity <= (item.critical_level || Math.floor(item.threshold_level * 0.2))).length}</div>
-                  <div style="font-size: 14px; color: #dc2626; font-weight: 500;">CRITICAL LEVEL</div>
-                </div>
-                <div>
-                  <div style="font-size: 32px; font-weight: 700; color: #ea580c; margin-bottom: 4px;">${lowStockItems.filter(item => item.current_quantity > (item.critical_level || Math.floor(item.threshold_level * 0.2)) && item.current_quantity <= (item.low_level || Math.floor(item.threshold_level * 0.5))).length}</div>
-                  <div style="font-size: 14px; color: #ea580c; font-weight: 500;">LOW LEVEL</div>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Items List -->
-            <div style="background: #ffffff; border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid #e2e8f0;">
-              <h3 style="margin: 0 0 20px 0; color: #1e293b; font-size: 20px; font-weight: 600;">📦 Items Requiring Attention</h3>
-              
-              ${lowStockItems.map((item, index) => {
-                const isCritical = item.current_quantity <= (item.critical_level || Math.floor(item.threshold_level * 0.2));
-                const isLow = item.current_quantity <= (item.low_level || Math.floor(item.threshold_level * 0.5));
-                const statusColor = isCritical ? '#dc2626' : isLow ? '#ea580c' : '#f59e0b';
-                const statusText = isCritical ? 'CRITICAL' : isLow ? 'LOW' : 'BELOW THRESHOLD';
-                const statusIcon = isCritical ? '🚨' : isLow ? '⚠️' : '📉';
+      <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f5f5f5; line-height: 1.6;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5;">
+          <tr>
+            <td align="center" style="padding: 20px 0;">
+              <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
                 
-                return `
-                  <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 12px; background: ${isCritical ? '#fef2f2' : isLow ? '#fff7ed' : '#fffbeb'};">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-                      <div style="flex: 1;">
-                        <h4 style="margin: 0 0 4px 0; color: #1e293b; font-size: 16px; font-weight: 600;">${item.name}</h4>
-                        <p style="margin: 0; color: #64748b; font-size: 14px;">Category: ${item.category || 'General'}</p>
-                      </div>
-                      <div style="text-align: right;">
-                        <div style="display: inline-block; background: ${statusColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
-                          ${statusIcon} ${statusText}
-                        </div>
-                      </div>
-                    </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
-                      <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
-                        <div style="font-size: 12px; color: #64748b; font-weight: 500; margin-bottom: 4px;">CURRENT STOCK</div>
-                        <div style="font-size: 20px; font-weight: 700; color: ${statusColor};">${item.current_quantity}</div>
-                      </div>
-                      <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
-                        <div style="font-size: 12px; color: #64748b; font-weight: 500; margin-bottom: 4px;">THRESHOLD</div>
-                        <div style="font-size: 20px; font-weight: 700; color: #1e293b;">${item.threshold_level}</div>
-                      </div>
-                    </div>
-                  </div>
-                `;
-              }).join('')}
-            </div>
-            
-            <!-- Action Required -->
-            <div style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #3b82f6;">
-              <div style="display: flex; align-items: center; margin-bottom: 12px;">
-                <div style="font-size: 24px; margin-right: 12px;">💡</div>
-                <h3 style="margin: 0; color: #1e40af; font-size: 18px; font-weight: 600;">RECOMMENDED ACTIONS</h3>
-              </div>
-              <ul style="margin: 0; padding-left: 20px; color: #1e40af; font-size: 16px;">
-                <li style="margin-bottom: 8px;">Review critical items and place urgent orders</li>
-                <li style="margin-bottom: 8px;">Update reorder points for frequently low items</li>
-                <li style="margin-bottom: 8px;">Consider increasing order quantities for high-demand items</li>
-                <li>Schedule regular inventory reviews to prevent future shortages</li>
-              </ul>
-            </div>
-            
-            <div style="border-top: 1px solid #e2e8f0; padding-top: 24px; margin-top: 32px;">
-              <p style="margin: 0; color: #94a3b8; font-size: 14px; text-align: center;">
-                Report generated on ${new Date().toLocaleString('en-US', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </p>
-            </div>
-          </div>
-          
-          <!-- Footer -->
-          <div style="background: #f8fafc; padding: 32px; text-align: center; border-top: 1px solid #e2e8f0;">
-            <div style="margin-bottom: 16px;">
-              <div style="font-size: 18px; font-weight: 700; color: #1e293b; margin-bottom: 8px;">Inventory Management System</div>
-              <div style="font-size: 14px; color: #64748b;">Professional Stock Management Solution</div>
-            </div>
-            <div style="font-size: 12px; color: #94a3b8;">
-              <p style="margin: 0;">&copy; ${new Date().getFullYear()} Inventory Management System. All rights reserved.</p>
-              <p style="margin: 4px 0 0 0;">This is an automated notification. Please do not reply to this email.</p>
-            </div>
-          </div>
-          
-        </div>
+                <!-- Header -->
+                <tr>
+                  <td style="background: #3b82f6; color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td align="center">
+                          <div style="font-size: 40px; margin-bottom: 15px;">📊</div>
+                          <h1 style="margin: 0; font-size: 24px; font-weight: bold; color: white;">${frequencyText.toUpperCase()} STOCK REPORT</h1>
+                          <p style="margin: 8px 0 0 0; font-size: 14px; color: white; opacity: 0.9;">Inventory Management System</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                
+                <!-- Content -->
+                <tr>
+                  <td style="padding: 30px 20px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td>
+                          <h2 style="color: #333; margin: 0 0 15px 0; font-size: 20px;">Hello ${userName},</h2>
+                          <p style="color: #666; font-size: 16px; margin: 0 0 25px 0;">
+                            Here's your ${frequencyText.toLowerCase()} stock level report for <strong style="color: #3b82f6;">${branchName}</strong>.
+                          </p>
+                        </td>
+                      </tr>
+                      
+                      <!-- Summary Stats -->
+                      <tr>
+                        <td>
+                          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px;">
+                            <tr>
+                              <td style="padding: 20px;">
+                                <table width="100%" cellpadding="0" cellspacing="0">
+                                  <tr>
+                                    <td width="33%" style="text-align: center; padding: 0 10px;">
+                                      <div style="font-size: 28px; font-weight: bold; color: #0369a1; margin-bottom: 5px;">${lowStockItems.length}</div>
+                                      <div style="font-size: 12px; color: #0369a1; font-weight: bold;">ITEMS NEEDING ATTENTION</div>
+                                    </td>
+                                    <td width="33%" style="text-align: center; padding: 0 10px;">
+                                      <div style="font-size: 28px; font-weight: bold; color: #dc2626; margin-bottom: 5px;">${lowStockItems.filter(item => item.current_quantity <= (item.critical_level || Math.floor(item.threshold_level * 0.2))).length}</div>
+                                      <div style="font-size: 12px; color: #dc2626; font-weight: bold;">CRITICAL LEVEL</div>
+                                    </td>
+                                    <td width="33%" style="text-align: center; padding: 0 10px;">
+                                      <div style="font-size: 28px; font-weight: bold; color: #ea580c; margin-bottom: 5px;">${lowStockItems.filter(item => item.current_quantity > (item.critical_level || Math.floor(item.threshold_level * 0.2)) && item.current_quantity <= (item.low_level || Math.floor(item.threshold_level * 0.5))).length}</div>
+                                      <div style="font-size: 12px; color: #ea580c; font-weight: bold;">LOW LEVEL</div>
+                                    </td>
+                                  </tr>
+                                </table>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      
+                      <!-- Items List -->
+                      <tr>
+                        <td style="padding-top: 25px;">
+                          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px;">
+                            <tr>
+                              <td style="padding: 20px;">
+                                <h3 style="margin: 0 0 20px 0; color: #333; font-size: 18px;">📦 Items Requiring Attention</h3>
+                                
+                                ${lowStockItems.map((item, index) => {
+                                  const isCritical = item.current_quantity <= (item.critical_level || Math.floor(item.threshold_level * 0.2));
+                                  const isLow = item.current_quantity <= (item.low_level || Math.floor(item.threshold_level * 0.5));
+                                  const statusColor = isCritical ? '#dc2626' : isLow ? '#ea580c' : '#f59e0b';
+                                  const statusText = isCritical ? 'CRITICAL' : isLow ? 'LOW' : 'BELOW THRESHOLD';
+                                  const statusIcon = isCritical ? '🚨' : isLow ? '⚠️' : '📉';
+                                  const bgColor = isCritical ? '#fef2f2' : isLow ? '#fff7ed' : '#fffbeb';
+                                  
+                                  return `
+                                    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: ${bgColor}; border: 1px solid #e2e8f0; border-radius: 4px; margin-bottom: 12px;">
+                                      <tr>
+                                        <td style="padding: 15px;">
+                                          <table width="100%" cellpadding="0" cellspacing="0">
+                                            <tr>
+                                              <td>
+                                                <h4 style="margin: 0 0 5px 0; color: #333; font-size: 16px;">${item.name}</h4>
+                                                <p style="margin: 0; color: #666; font-size: 14px;">Category: ${item.category || 'General'}</p>
+                                              </td>
+                                              <td align="right">
+                                                <table cellpadding="0" cellspacing="0">
+                                                  <tr>
+                                                    <td style="background: ${statusColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: bold;">
+                                                      ${statusIcon} ${statusText}
+                                                    </td>
+                                                  </tr>
+                                                </table>
+                                              </td>
+                                            </tr>
+                                            <tr>
+                                              <td colspan="2" style="padding-top: 12px;">
+                                                <table width="100%" cellpadding="0" cellspacing="0">
+                                                  <tr>
+                                                    <td width="50%" style="padding-right: 8px;">
+                                                      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: white; border: 1px solid #ddd; border-radius: 4px;">
+                                                        <tr>
+                                                          <td style="padding: 10px; text-align: center;">
+                                                            <div style="font-size: 10px; color: #666; font-weight: bold; margin-bottom: 3px;">CURRENT STOCK</div>
+                                                            <div style="font-size: 18px; font-weight: bold; color: ${statusColor};">${item.current_quantity}</div>
+                                                          </td>
+                                                        </tr>
+                                                      </table>
+                                                    </td>
+                                                    <td width="50%" style="padding-left: 8px;">
+                                                      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: white; border: 1px solid #ddd; border-radius: 4px;">
+                                                        <tr>
+                                                          <td style="padding: 10px; text-align: center;">
+                                                            <div style="font-size: 10px; color: #666; font-weight: bold; margin-bottom: 3px;">THRESHOLD</div>
+                                                            <div style="font-size: 18px; font-weight: bold; color: #333;">${item.threshold_level}</div>
+                                                          </td>
+                                                        </tr>
+                                                      </table>
+                                                    </td>
+                                                  </tr>
+                                                </table>
+                                              </td>
+                                            </tr>
+                                          </table>
+                                        </td>
+                                      </tr>
+                                    </table>
+                                  `;
+                                }).join('')}
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      
+                      <!-- Action Required -->
+                      <tr>
+                        <td style="padding-top: 25px;">
+                          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #e3f2fd; border-left: 4px solid #2196f3; border-radius: 4px;">
+                            <tr>
+                              <td style="padding: 20px;">
+                                <table width="100%" cellpadding="0" cellspacing="0">
+                                  <tr>
+                                    <td>
+                                      <div style="font-size: 20px; margin-right: 10px; display: inline-block;">💡</div>
+                                      <h3 style="margin: 0; color: #1976d2; font-size: 16px; font-weight: bold; display: inline-block;">RECOMMENDED ACTIONS</h3>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td style="padding-top: 10px;">
+                                      <ul style="margin: 0; padding-left: 20px; color: #1976d2; font-size: 14px;">
+                                        <li style="margin-bottom: 5px;">Review critical items and place urgent orders</li>
+                                        <li style="margin-bottom: 5px;">Update reorder points for frequently low items</li>
+                                        <li style="margin-bottom: 5px;">Consider increasing order quantities for high-demand items</li>
+                                        <li>Schedule regular inventory reviews to prevent future shortages</li>
+                                      </ul>
+                                    </td>
+                                  </tr>
+                                </table>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      
+                      <!-- Timestamp -->
+                      <tr>
+                        <td style="padding-top: 25px; border-top: 1px solid #eee;">
+                          <p style="margin: 0; color: #999; font-size: 12px; text-align: center;">
+                            Report generated on ${new Date().toLocaleString('en-US', { 
+                              weekday: 'long', 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                
+                <!-- Footer -->
+                <tr>
+                  <td style="background-color: #f8f9fa; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; border-top: 1px solid #eee;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td align="center">
+                          <div style="font-size: 16px; font-weight: bold; color: #333; margin-bottom: 5px;">Inventory Management System</div>
+                          <div style="font-size: 12px; color: #666;">Professional Stock Management Solution</div>
+                          <div style="font-size: 10px; color: #999; margin-top: 10px;">
+                            <p style="margin: 0;">&copy; ${new Date().getFullYear()} Inventory Management System. All rights reserved.</p>
+                            <p style="margin: 2px 0 0 0;">This is an automated notification. Please do not reply to this email.</p>
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                
+              </table>
+            </td>
+          </tr>
+        </table>
       </body>
       </html>
     `;
