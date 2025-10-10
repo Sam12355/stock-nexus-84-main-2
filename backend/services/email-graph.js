@@ -118,12 +118,19 @@ class EmailService {
       console.log(`📧 Subject: ${subject}`);
       console.log(`📧 From: ${userEmail}`);
       console.log(`📧 Graph client configured: ${this.isConfigured}`);
+      console.log(`📧 Graph client type: ${typeof this.graphClient}`);
+      console.log(`📧 Graph client has api method: ${typeof this.graphClient.api}`);
+
+      // Check if Graph client is properly initialized
+      if (!this.graphClient || typeof this.graphClient.api !== 'function') {
+        console.error('❌ Graph client is not properly initialized');
+        return { success: false, error: 'Graph client not properly initialized' };
+      }
 
       // Send email using Microsoft Graph API
       const result = await this.graphClient
-        .users(userEmail)
-        .sendMail(message)
-        .post();
+        .api(`/users/${userEmail}/sendMail`)
+        .post(message);
 
       console.log('✅ Email sent successfully via Microsoft Graph API!');
       console.log(`   Graph API Response: ${JSON.stringify(result)}`);
