@@ -421,7 +421,7 @@ router.post('/:id/process-item',
         try {
           // Get current stock level and item details
           const stockResult = await query(`
-            SELECT s.current_quantity, i.name as item_name, i.threshold_level, i.low_level, i.critical_level
+            SELECT s.current_quantity, i.name as item_name, i.threshold_level
             FROM stock s
             JOIN items i ON s.item_id = i.id
             WHERE s.item_id = $1
@@ -435,8 +435,8 @@ router.post('/:id/process-item',
           const stockData = stockResult.rows[0];
           const newQuantity = stockData.current_quantity;
           const threshold = stockData.threshold_level;
-          const lowLevel = stockData.low_level || Math.floor(threshold * 0.5);
-          const criticalLevel = stockData.critical_level || Math.floor(threshold * 0.2);
+          const lowLevel = Math.floor(threshold * 0.5); // Calculate low level as 50% of threshold
+          const criticalLevel = Math.floor(threshold * 0.2); // Calculate critical level as 20% of threshold
 
           let alertType = null;
           if (newQuantity <= criticalLevel) {
@@ -464,9 +464,9 @@ router.post('/:id/process-item',
               return;
             }
 
-            // Get all users who have stock alerts enabled
+            // Get all users who should receive stock alerts
             const usersResult = await query(`
-              SELECT u.id, u.phone, u.email, u.name, u.notification_settings, u.role, u.branch_context,
+              SELECT u.id, u.phone, u.email, u.name, u.role, u.branch_context,
                      b.name as branch_name, d.name as district_name, r.name as region_name
               FROM users u
               LEFT JOIN branches b ON u.branch_context = b.id
@@ -476,15 +476,8 @@ router.post('/:id/process-item',
               AND (u.phone IS NOT NULL OR u.email IS NOT NULL)
             `);
 
-            const subscribedUsers = usersResult.rows.filter(user => {
-              if (!user.notification_settings) return false;
-              
-              const settings = typeof user.notification_settings === 'string' 
-                ? JSON.parse(user.notification_settings) 
-                : user.notification_settings;
-              
-              return settings.stockLevelAlerts === true;
-            });
+            // Since notification_settings column doesn't exist, include all users for now
+            const subscribedUsers = usersResult.rows;
 
             // Remove duplicate phone numbers - keep only the first user with each phone number
             const uniqueUsers = [];
@@ -510,13 +503,9 @@ router.post('/:id/process-item',
                 const userName = user.name;
                 const isRegionalManager = user.role === 'regional_manager';
                 
-                // Check notification preferences
-                const settings = typeof user.notification_settings === 'string' 
-                  ? JSON.parse(user.notification_settings) 
-                  : user.notification_settings;
-                
-                const whatsappNotificationsEnabled = settings.whatsapp === true;
-                const emailNotificationsEnabled = settings.email === true;
+                // Since notification_settings column doesn't exist, enable notifications for all users
+                const whatsappNotificationsEnabled = true;
+                const emailNotificationsEnabled = true;
 
                 // Create alert message
                 const emoji = alertType === 'critical' ? '🚨' : alertType === 'low' ? '⚠️' : '📉';
