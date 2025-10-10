@@ -133,7 +133,8 @@ router.get('/softdrinks-weekly', authenticateToken, async (req, res) => {
         FROM stock_movements sm
         LEFT JOIN items i ON sm.item_id = i.id
         WHERE i.category = 'softdrinks'
-        AND sm.created_at >= NOW() - INTERVAL '${parseInt(weeks)} weeks'
+        AND sm.created_at >= DATE_TRUNC('week', NOW()) - INTERVAL '${parseInt(weeks) - 1} weeks'
+        AND sm.created_at < DATE_TRUNC('week', NOW()) + INTERVAL '1 week'
     `;
     
     let params = [];
