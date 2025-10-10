@@ -111,10 +111,10 @@ router.post('/',
 
       // Create moveout list in transaction
       const result = await transaction(async (client) => {
-        // Insert moveout list
+        // Insert moveout list (using actual schema: created_by, items, status)
         const moveoutResult = await client.query(
-          'INSERT INTO moveout_lists (created_by, items, status, title, description) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-          [req.user.id, JSON.stringify(items), 'draft', title, description]
+          'INSERT INTO moveout_lists (created_by, items, status) VALUES ($1, $2, $3) RETURNING *',
+          [req.user.id, JSON.stringify(items), 'draft']
         );
 
         // Log activity
@@ -125,7 +125,9 @@ router.post('/',
             'moveout_list_generated',
             JSON.stringify({
               list_id: moveoutResult.rows[0].id,
-              item_count: items.length
+              item_count: items.length,
+              title: title,
+              description: description
             })
           ]
         );
@@ -139,7 +141,7 @@ router.post('/',
         if (branchId) {
           // Get staff members in the same branch
           const staffResult = await query(
-            'SELECT id, name, email, phone FROM users WHERE branch_id = $1 AND role IN ($2, $3) AND is_active = true',
+            'SELECT id, name, email, phone FROM users WHERE (branch_id = $1 OR branch_context = $1) AND role IN ($2, $3) AND is_active = true',
             [branchId, 'staff', 'assistant_manager']
           );
 
