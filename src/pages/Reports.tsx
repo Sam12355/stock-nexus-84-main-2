@@ -319,7 +319,7 @@ const Reports = () => {
             4: { cellWidth: 20 },
           },
         });
-      } else {
+      } else if (selectedReport === 'movements') {
         // Movement report table - use filtered data
         const tableData = filteredMovementReport.map(movement => [
           new Date(movement.created_at).toLocaleDateString(),
