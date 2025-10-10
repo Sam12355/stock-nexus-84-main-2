@@ -16,7 +16,7 @@ services:
       - key: JWT_EXPIRES_IN
         value: 7d
       - key: FRONTEND_URL
-        value: https://ms-sy.vercel.app
+        value: https://ims-sy.vercel.app
       - key: EMAIL_USER
         value: info@lbdhospitals.com
       - key: MICROSOFT_CLIENT_ID
