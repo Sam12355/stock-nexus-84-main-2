@@ -258,6 +258,9 @@ const Reports = () => {
 
   const exportToPDF = () => {
     try {
+      console.log('Exporting PDF for report:', selectedReport);
+      console.log('Soft drinks data:', { softDrinksReport, softDrinksSummary, softDrinksLoaded });
+      
       const doc = new jsPDF();
       const currentDate = new Date().toLocaleDateString();
       
@@ -353,6 +356,12 @@ const Reports = () => {
       } else if (selectedReport === 'softdrinks') {
         // Soft drinks report table
         const tableData: any[] = [];
+        
+        // Check if we have data
+        if (!softDrinksReport || softDrinksReport.length === 0) {
+          alert('No soft drinks data available. Please ensure the report is loaded.');
+          return;
+        }
         
         // Add summary data
         if (softDrinksSummary) {
@@ -454,6 +463,12 @@ const Reports = () => {
         ];
         fileName = `movement-report-${format(selectedMonth, 'yyyy-MM')}.xlsx`;
       } else if (selectedReport === 'softdrinks') {
+        // Check if we have data
+        if (!softDrinksReport || softDrinksReport.length === 0) {
+          alert('No soft drinks data available. Please ensure the report is loaded.');
+          return;
+        }
+        
         worksheetData = [
           ['Week', 'Item', 'Stock In', 'Stock Out', 'Net Change', 'Trend', 'Week Start', 'Week End']
         ];
@@ -535,6 +550,12 @@ const Reports = () => {
         ).join('\n');
         fileName = `movement-report-${format(selectedMonth, 'yyyy-MM')}.csv`;
     } else if (selectedReport === 'softdrinks') {
+      // Check if we have data
+      if (!softDrinksReport || softDrinksReport.length === 0) {
+        alert('No soft drinks data available. Please ensure the report is loaded.');
+        return;
+      }
+      
       csvData = 'Week,Item,Stock In,Stock Out,Net Change,Trend,Week Start,Week End\n';
       
       // Add summary row
