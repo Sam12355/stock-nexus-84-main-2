@@ -224,6 +224,15 @@ class ApiClient {
     return response.data;
   }
 
+  async getSoftDrinksWeeklyReport(weeks: number = 4) {
+    const response = await this.request<{
+      success: boolean;
+      data: any[];
+      summary: any;
+    }>(`/reports/softdrinks-weekly?weeks=${weeks}`);
+    return response;
+  }
+
   // Analytics methods
   async getAnalyticsData() {
     const response = await this.request<{

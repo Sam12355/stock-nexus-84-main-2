@@ -171,23 +171,30 @@ const Reports = () => {
   const { profile } = useAuth();
   const [stockReport, setStockReport] = useState<StockReport[]>([]);
   const [movementReport, setMovementReport] = useState<MovementReport[]>([]);
+  const [softDrinksReport, setSoftDrinksReport] = useState<any[]>([]);
+  const [softDrinksSummary, setSoftDrinksSummary] = useState<any>(null);
   const [selectedReport, setSelectedReport] = useState('stock');
   const [loadingStock, setLoadingStock] = useState(false);
   const [loadingMovements, setLoadingMovements] = useState(false);
+  const [loadingSoftDrinks, setLoadingSoftDrinks] = useState(false);
   const [stockLoaded, setStockLoaded] = useState(false);
   const [movementsLoaded, setMovementsLoaded] = useState(false);
+  const [softDrinksLoaded, setSoftDrinksLoaded] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<Date>(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
+  const [selectedWeeks, setSelectedWeeks] = useState(4);
 
   const fetchReportData = useCallback(async () => {
     if (!profile) return;
     // Set loading only when first loading that report type
     if (selectedReport === 'stock') {
       if (!stockLoaded) setLoadingStock(true);
-    } else {
+    } else if (selectedReport === 'movements') {
       if (!movementsLoaded) setLoadingMovements(true);
+    } else if (selectedReport === 'softdrinks') {
+      if (!softDrinksLoaded) setLoadingSoftDrinks(true);
     }
 
     try {
@@ -201,14 +208,20 @@ const Reports = () => {
         const data = await apiClient.getMovementsReport();
         setMovementReport(data || []);
         setMovementsLoaded(true);
+      } else if (selectedReport === 'softdrinks') {
+        const response = await apiClient.getSoftDrinksWeeklyReport(selectedWeeks);
+        setSoftDrinksReport(response.data || []);
+        setSoftDrinksSummary(response.summary || null);
+        setSoftDrinksLoaded(true);
       }
     } catch (error) {
       console.error('Error fetching report data:', error);
     } finally {
       if (selectedReport === 'stock') setLoadingStock(false);
-      else setLoadingMovements(false);
+      else if (selectedReport === 'movements') setLoadingMovements(false);
+      else if (selectedReport === 'softdrinks') setLoadingSoftDrinks(false);
     }
-  }, [profile, selectedReport]);
+  }, [profile, selectedReport, selectedWeeks]);
 
   useEffect(() => {
     if (profile) {
@@ -475,6 +488,7 @@ const Reports = () => {
           <SelectContent>
             <SelectItem value="stock">Stock Levels Report</SelectItem>
             <SelectItem value="movements">Stock Movements Report</SelectItem>
+            <SelectItem value="softdrinks">Soft Drinks Weekly Comparison</SelectItem>
           </SelectContent>
         </Select>
         
@@ -488,6 +502,26 @@ const Reports = () => {
               selectedMonth={selectedMonth} 
               onMonthChange={setSelectedMonth} 
             />
+          </div>
+        )}
+        
+        {selectedReport === 'softdrinks' && (
+          <div className="flex items-center gap-2">
+            <Label className="text-sm font-medium">
+              <Filter className="h-4 w-4 mr-1 inline" />
+              Weeks to analyze:
+            </Label>
+            <Select value={selectedWeeks.toString()} onValueChange={(value) => setSelectedWeeks(parseInt(value))}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="2">2 weeks</SelectItem>
+                <SelectItem value="4">4 weeks</SelectItem>
+                <SelectItem value="8">8 weeks</SelectItem>
+                <SelectItem value="12">12 weeks</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         )}
       </div>
@@ -626,6 +660,134 @@ const Reports = () => {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {selectedReport === 'softdrinks' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Soft Drinks Weekly Comparison Report
+            </CardTitle>
+            <CardDescription>
+              Compare stock-in vs stock-out for soft drinks over the last {selectedWeeks} weeks
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingSoftDrinks ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <span className="ml-2">Loading soft drinks report...</span>
+              </div>
+            ) : softDrinksReport.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No soft drinks data found for the selected period.
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Summary Cards */}
+                {softDrinksSummary && (
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <Card className="p-4">
+                      <div className="text-sm text-muted-foreground">Total Weeks</div>
+                      <div className="text-2xl font-bold">{softDrinksSummary.total_weeks}</div>
+                    </Card>
+                    <Card className="p-4">
+                      <div className="text-sm text-muted-foreground">Total Stock In</div>
+                      <div className="text-2xl font-bold text-green-600">{softDrinksSummary.total_stock_in}</div>
+                    </Card>
+                    <Card className="p-4">
+                      <div className="text-sm text-muted-foreground">Total Stock Out</div>
+                      <div className="text-2xl font-bold text-red-600">{softDrinksSummary.total_stock_out}</div>
+                    </Card>
+                    <Card className="p-4">
+                      <div className="text-sm text-muted-foreground">Net Change</div>
+                      <div className={`text-2xl font-bold ${
+                        softDrinksSummary.total_net_change > 0 ? 'text-green-600' : 
+                        softDrinksSummary.total_net_change < 0 ? 'text-red-600' : 'text-gray-600'
+                      }`}>
+                        {softDrinksSummary.total_net_change > 0 ? '+' : ''}{softDrinksSummary.total_net_change}
+                      </div>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Weekly Breakdown */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Weekly Breakdown</h3>
+                  {softDrinksReport.map((week, index) => (
+                    <Card key={index} className="p-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h4 className="font-semibold">
+                            Week of {new Date(week.week_start).toLocaleDateString()} - {new Date(week.week_end).toLocaleDateString()}
+                          </h4>
+                          <div className="flex gap-4 mt-2">
+                            <Badge className={`${
+                              week.overall_trend === 'positive' ? 'bg-green-100 text-green-800' :
+                              week.overall_trend === 'negative' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {week.overall_trend === 'positive' ? '📈 Stock Growing' :
+                               week.overall_trend === 'negative' ? '📉 Stock Declining' :
+                               '➡️ Stock Stable'}
+                            </Badge>
+                            <Badge variant="outline">
+                              Net: {week.total_net_change > 0 ? '+' : ''}{week.total_net_change}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm text-muted-foreground">Weekly Totals</div>
+                          <div className="text-lg font-semibold">
+                            <span className="text-green-600">In: {week.total_stock_in}</span> | 
+                            <span className="text-red-600"> Out: {week.total_stock_out}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Items in this week */}
+                      {week.items.length > 0 && (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b">
+                                <th className="text-left p-2 font-medium">Item</th>
+                                <th className="text-right p-2 font-medium">Stock In</th>
+                                <th className="text-right p-2 font-medium">Stock Out</th>
+                                <th className="text-right p-2 font-medium">Net Change</th>
+                                <th className="text-center p-2 font-medium">Trend</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {week.items.map((item, itemIndex) => (
+                                <tr key={itemIndex} className="border-b hover:bg-muted/50">
+                                  <td className="p-2 font-medium">{item.item_name}</td>
+                                  <td className="p-2 text-right text-green-600">{item.stock_in}</td>
+                                  <td className="p-2 text-right text-red-600">{item.stock_out}</td>
+                                  <td className={`p-2 text-right font-semibold ${
+                                    item.net_change > 0 ? 'text-green-600' :
+                                    item.net_change < 0 ? 'text-red-600' : 'text-gray-600'
+                                  }`}>
+                                    {item.net_change > 0 ? '+' : ''}{item.net_change}
+                                  </td>
+                                  <td className="p-2 text-center">
+                                    {item.trend === 'positive' ? '📈' :
+                                     item.trend === 'negative' ? '📉' : '➡️'}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </Card>
+                  ))}
+                </div>
               </div>
             )}
           </CardContent>
