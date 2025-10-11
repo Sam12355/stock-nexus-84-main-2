@@ -776,6 +776,229 @@ class EmailService {
     return await this.sendEmail(userEmail, subject, htmlContent);
   }
 
+  async sendSoftdrinkTrendAlert(userEmail, userName, decliningItems, branchName = null, districtName = null) {
+    const subject = `📉 Softdrink Trend Alert: Declining Stock Trends Detected`;
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Softdrink Trend Alert</title>
+      </head>
+      <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f5f5f5; line-height: 1.6;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5;">
+          <tr>
+            <td align="center" style="padding: 20px 0;">
+              <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+
+                <!-- Header -->
+                <tr>
+                  <td style="background: #dc2626; color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td align="center">
+                          <div style="font-size: 40px; margin-bottom: 15px;">📉</div>
+                          <h1 style="margin: 0; font-size: 24px; font-weight: bold; color: white;">SOFTDRINK TREND ALERT</h1>
+                          <p style="margin: 8px 0 0 0; font-size: 14px; color: white; opacity: 0.9;">Inventory Management System</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <!-- Content -->
+                <tr>
+                  <td style="padding: 30px 20px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td>
+                          <h2 style="color: #333; margin: 0 0 15px 0; font-size: 20px;">Hello ${userName},</h2>
+                          <p style="color: #666; font-size: 16px; margin: 0 0 25px 0;">
+                            We've detected <strong style="color: #dc2626;">declining trends</strong> in your softdrink inventory that require attention.
+                          </p>
+                        </td>
+                      </tr>
+
+                      <!-- Alert Summary -->
+                      <tr>
+                        <td>
+                          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fef2f2; border: 2px solid #dc2626; border-radius: 6px;">
+                            <tr>
+                              <td style="padding: 20px;">
+                                <table width="100%" cellpadding="0" cellspacing="0">
+                                  <tr>
+                                    <td>
+                                      <div style="background: #dc2626; color: white; padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: bold; display: inline-block;">
+                                        DECLINING TRENDS
+                                      </div>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td style="padding-top: 15px;">
+                                      <h3 style="margin: 0 0 20px 0; color: #333; font-size: 18px;">📊 ${decliningItems.length} Items Showing Negative Trends</h3>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td>
+                                      ${decliningItems.map(item => `
+                                        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: white; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
+                                          <tr>
+                                            <td style="padding: 15px;">
+                                              <table width="100%" cellpadding="0" cellspacing="0">
+                                                <tr>
+                                                  <td width="40%">
+                                                    <div style="font-size: 16px; font-weight: bold; color: #333;">${item.item_name}</div>
+                                                  </td>
+                                                  <td width="20%" style="text-align: center;">
+                                                    <div style="font-size: 12px; color: #666; font-weight: bold; margin-bottom: 5px;">STOCK IN</div>
+                                                    <div style="font-size: 18px; font-weight: bold; color: #059669;">${item.stock_in}</div>
+                                                  </td>
+                                                  <td width="20%" style="text-align: center;">
+                                                    <div style="font-size: 12px; color: #666; font-weight: bold; margin-bottom: 5px;">STOCK OUT</div>
+                                                    <div style="font-size: 18px; font-weight: bold; color: #dc2626;">${item.stock_out}</div>
+                                                  </td>
+                                                  <td width="20%" style="text-align: center;">
+                                                    <div style="font-size: 12px; color: #666; font-weight: bold; margin-bottom: 5px;">NET CHANGE</div>
+                                                    <div style="font-size: 18px; font-weight: bold; color: #dc2626;">${item.net_change}</div>
+                                                  </td>
+                                                </tr>
+                                              </table>
+                                            </td>
+                                          </tr>
+                                        </table>
+                                      `).join('')}
+                                    </td>
+                                  </tr>
+                                </table>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+
+                      <!-- Action Required -->
+                      <tr>
+                        <td style="padding-top: 25px;">
+                          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px;">
+                            <tr>
+                              <td style="padding: 20px;">
+                                <table width="100%" cellpadding="0" cellspacing="0">
+                                  <tr>
+                                    <td>
+                                      <div style="font-size: 20px; margin-right: 10px; display: inline-block;">💡</div>
+                                      <h3 style="margin: 0; color: #92400e; font-size: 16px; font-weight: bold; display: inline-block;">RECOMMENDED ACTIONS</h3>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td style="padding-top: 10px;">
+                                      <ul style="margin: 0; color: #92400e; font-size: 14px; padding-left: 20px;">
+                                        <li>Review your ordering patterns for these items</li>
+                                        <li>Consider increasing stock-in quantities</li>
+                                        <li>Analyze customer demand patterns</li>
+                                        <li>Check for any supply chain issues</li>
+                                        <li>Monitor these trends closely in the coming weeks</li>
+                                      </ul>
+                                    </td>
+                                  </tr>
+                                </table>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+
+                      ${branchName ? `
+                      <tr>
+                        <td style="padding-top: 20px;">
+                          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: white; border: 1px solid #ddd; border-radius: 4px;">
+                            <tr>
+                              <td style="padding: 12px;">
+                                <span style="font-size: 14px; color: #666; font-weight: bold;">🏢 Branch:</span>
+                                <span style="font-size: 16px; color: #333; font-weight: bold; margin-left: 8px;">${branchName}</span>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      ` : ''}
+                      ${districtName ? `
+                      <tr>
+                        <td style="padding-top: 10px;">
+                          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: white; border: 1px solid #ddd; border-radius: 4px;">
+                            <tr>
+                              <td style="padding: 12px;">
+                                <span style="font-size: 14px; color: #666; font-weight: bold;">📍 District:</span>
+                                <span style="font-size: 16px; color: #333; font-weight: bold; margin-left: 8px;">${districtName}</span>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      ` : ''}
+
+                      <!-- Priority Badge -->
+                      <tr>
+                        <td style="padding-top: 25px; text-align: center;">
+                          <table cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+                            <tr>
+                              <td style="background: #dc2626; color: white; padding: 12px 24px; border-radius: 20px; font-weight: bold; font-size: 14px;">
+                                🔴 HIGH PRIORITY REVIEW
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+
+                      <!-- Timestamp -->
+                      <tr>
+                        <td style="padding-top: 25px; border-top: 1px solid #eee;">
+                          <p style="margin: 0; color: #999; font-size: 12px; text-align: center;">
+                            Alert generated on ${new Date().toLocaleString('en-US', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                  <td style="background-color: #f8f9fa; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; border-top: 1px solid #eee;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td align="center">
+                          <div style="font-size: 16px; font-weight: bold; color: #333; margin-bottom: 5px;">Inventory Management System</div>
+                          <div style="font-size: 12px; color: #666;">Professional Stock Management Solution</div>
+                          <div style="font-size: 10px; color: #999; margin-top: 10px;">
+                            <p style="margin: 0;">&copy; ${new Date().getFullYear()} Inventory Management System. All rights reserved.</p>
+                            <p style="margin: 2px 0 0 0;">This is an automated notification. Please do not reply to this email.</p>
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+
+    return await this.sendEmail(userEmail, subject, htmlContent);
+  }
+
   htmlToText(html) {
     return html
       .replace(/<[^>]*>/g, '')

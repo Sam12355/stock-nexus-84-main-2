@@ -3,16 +3,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Download, TrendingUp, Package, AlertTriangle, FileSpreadsheet, File, Filter, CalendarIcon, ChevronDown, Bell, Settings } from "lucide-react";
+import { FileText, Download, TrendingUp, Package, AlertTriangle, FileSpreadsheet, File, Filter, CalendarIcon, ChevronDown } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
-import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -189,13 +185,6 @@ const Reports = () => {
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
   const [selectedWeeks, setSelectedWeeks] = useState(4);
-  const [trendAlertsEnabled, setTrendAlertsEnabled] = useState(false);
-  const [trendAlertSettings, setTrendAlertSettings] = useState({
-    email: false,
-    whatsapp: false
-  });
-  const [isTrendSettingsOpen, setIsTrendSettingsOpen] = useState(false);
-  const { toast } = useToast();
 
   const fetchReportData = useCallback(async () => {
     if (!profile) return;
@@ -866,84 +855,6 @@ const Reports = () => {
                 </CardDescription>
               </div>
               <div className="flex gap-2">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="trend-alerts"
-                    checked={trendAlertsEnabled}
-                    onCheckedChange={setTrendAlertsEnabled}
-                  />
-                  <Label htmlFor="trend-alerts" className="text-sm font-medium">
-                    Trend Alerts
-                  </Label>
-                  {trendAlertsEnabled && (
-                    <Dialog open={isTrendSettingsOpen} onOpenChange={setIsTrendSettingsOpen}>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          <Settings className="h-4 w-4 mr-2" />
-                          Settings
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle className="flex items-center gap-2">
-                            <Bell className="h-5 w-5" />
-                            Softdrink Trend Alert Settings
-                          </DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                          <div className="space-y-3">
-                            <Label className="text-sm font-medium">Notification Methods</Label>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox
-                                id="email-alerts"
-                                checked={trendAlertSettings.email}
-                                onCheckedChange={(checked) => 
-                                  setTrendAlertSettings(prev => ({ ...prev, email: !!checked }))
-                                }
-                              />
-                              <Label htmlFor="email-alerts" className="text-sm">
-                                Email notifications for negative trends
-                              </Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox
-                                id="whatsapp-alerts"
-                                checked={trendAlertSettings.whatsapp}
-                                onCheckedChange={(checked) => 
-                                  setTrendAlertSettings(prev => ({ ...prev, whatsapp: !!checked }))
-                                }
-                              />
-                              <Label htmlFor="whatsapp-alerts" className="text-sm">
-                                WhatsApp notifications for negative trends
-                              </Label>
-                            </div>
-                          </div>
-                          <div className="bg-blue-50 p-3 rounded-md">
-                            <p className="text-sm text-blue-800">
-                              <strong>Note:</strong> You will receive alerts only when soft drink items show negative trends 
-                              (stock-out higher than stock-in) for consecutive weeks.
-                            </p>
-                          </div>
-                          <div className="flex justify-end gap-2">
-                            <Button variant="outline" onClick={() => setIsTrendSettingsOpen(false)}>
-                              Cancel
-                            </Button>
-                            <Button onClick={() => {
-                              // TODO: Save settings to backend
-                              toast({
-                                title: "Settings Saved",
-                                description: "Your trend alert preferences have been updated.",
-                              });
-                              setIsTrendSettingsOpen(false);
-                            }}>
-                              Save Settings
-                            </Button>
-                          </div>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  )}
-                </div>
                 <Button 
                   onClick={exportToPDF} 
                   disabled={loadingSoftDrinks && !softDrinksLoaded}

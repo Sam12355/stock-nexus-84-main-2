@@ -22,6 +22,7 @@ const branchAssignmentRoutes = require('./routes/branch-assignments');
 const setupRoutes = require('./routes/setup');
 const receiptRoutes = require('./routes/receipts');
 const moveoutListRoutes = require('./routes/moveout-lists');
+const softdrinkTrendsRoutes = require('./routes/softdrink-trends');
 const debugRoutes = require('./routes/debug');
 const schedulerService = require('./services/scheduler');
 const emailService = require('./services/email');
@@ -133,6 +134,7 @@ app.use('/api/branch-assignments', branchAssignmentRoutes);
 app.use('/api/setup', setupRoutes);
 app.use('/api/receipts', receiptRoutes);
 app.use('/api/moveout-lists', moveoutListRoutes);
+app.use('/api/softdrink-trends', softdrinkTrendsRoutes);
 app.use('/api/debug', debugRoutes);
 
 // Socket.IO connection handling

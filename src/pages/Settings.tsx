@@ -150,6 +150,7 @@ const Settings = () => {
           whatsapp: boolean;
           stockAlerts: boolean;
           eventReminders: boolean;
+          softdrinkTrends: boolean;
         };
       } catch (e) {
         console.error('Error parsing saved notifications:', e);
@@ -161,6 +162,7 @@ const Settings = () => {
       whatsapp: false,
       stockAlerts: true,
       eventReminders: true,
+      softdrinkTrends: false,
     };
   });
 
@@ -914,6 +916,22 @@ const Settings = () => {
                       if (checked) {
                         setShowEventReminderSchedulingModal(true);
                       }
+                    }}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Softdrink Stock Trends</Label>
+                    <p className="text-sm text-muted-foreground">Get notified when softdrink trends are declining</p>
+                  </div>
+                  <Switch
+                    checked={notifications.softdrinkTrends}
+                    onCheckedChange={async (checked) => {
+                      setHasTouchedNotifications(true);
+                      hasTouchedNotificationsRef.current = true;
+                      setNotifications((prev) => ({ ...prev, softdrinkTrends: checked }));
+                      await saveNotificationSetting('softdrinkTrends', checked);
                     }}
                   />
                 </div>
