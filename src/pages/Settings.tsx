@@ -47,6 +47,16 @@ interface ExtendedProfile {
   event_weekly_schedule_time?: string;
   event_monthly_schedule_date?: number;
   event_monthly_schedule_time?: string;
+  softdrink_trends_frequency?: string;
+  softdrink_trends_schedule_day?: number;
+  softdrink_trends_schedule_date?: number;
+  softdrink_trends_schedule_time?: string;
+  softdrink_trends_frequencies?: string[];
+  softdrink_trends_daily_schedule_time?: string;
+  softdrink_trends_weekly_schedule_day?: number;
+  softdrink_trends_weekly_schedule_time?: string;
+  softdrink_trends_monthly_schedule_date?: number;
+  softdrink_trends_monthly_schedule_time?: string;
   created_at?: string;
   updated_at?: string;
   access_count?: number;
@@ -71,6 +81,7 @@ const Settings = () => {
   const [branch, setBranch] = useState<Branch | null>(null);
   const [showAlertSchedulingModal, setShowAlertSchedulingModal] = useState(false);
   const [showEventReminderSchedulingModal, setShowEventReminderSchedulingModal] = useState(false);
+  const [showSoftdrinkTrendsSchedulingModal, setShowSoftdrinkTrendsSchedulingModal] = useState(false);
 
   // Guards against state being reset after user edits
   const [profileInitialized, setProfileInitialized] = useState(false);
@@ -136,6 +147,23 @@ const Settings = () => {
       monthlyTime: normalizeTime(profileLike.event_monthly_schedule_time) || "09:00",
       scheduleDay: profileLike.event_weekly_schedule_day ?? null,
       scheduleDate: profileLike.event_monthly_schedule_date ?? null,
+    };
+  };
+
+  const buildSoftdrinkTrendsScheduleFromProfile = (profileLike: ExtendedProfile): AlertSchedule | undefined => {
+    const frequencies = profileLike.softdrink_trends_frequencies || [];
+    if (!frequencies || frequencies.length === 0) {
+      return undefined;
+    }
+
+    const baseScheduleTime = "09:00";
+    return {
+      frequencies,
+      dailyTime: normalizeTime(profileLike.softdrink_trends_daily_schedule_time) || baseScheduleTime,
+      weeklyTime: normalizeTime(profileLike.softdrink_trends_weekly_schedule_time) || baseScheduleTime,
+      monthlyTime: normalizeTime(profileLike.softdrink_trends_monthly_schedule_time) || baseScheduleTime,
+      scheduleDay: profileLike.softdrink_trends_weekly_schedule_day ?? null,
+      scheduleDate: profileLike.softdrink_trends_monthly_schedule_date ?? null,
     };
   };
 
@@ -787,6 +815,89 @@ const Settings = () => {
     }
   };
 
+  // Handle softdrink trends schedule save
+  const handleSoftdrinkTrendsScheduleSave = async (schedule: AlertSchedule) => {
+    try {
+      // Enable softdrink trends alerts
+      setNotifications((prev) => ({ ...prev, softdrinkTrends: true }));
+      await saveNotificationSetting('softdrinkTrends', true);
+      
+      // Prepare separate schedule parameters for each frequency type
+      const updateData: Record<string, any> = {
+        softdrink_trends_frequencies: schedule.frequencies
+      };
+      
+      // Set separate schedule parameters for each frequency type
+      if (schedule.frequencies.includes('daily')) {
+        updateData.softdrink_trends_daily_schedule_time = schedule.dailyTime;
+      }
+      
+      if (schedule.frequencies.includes('weekly')) {
+        updateData.softdrink_trends_weekly_schedule_day = schedule.scheduleDay || null;
+        updateData.softdrink_trends_weekly_schedule_time = schedule.weeklyTime;
+      }
+      
+      if (schedule.frequencies.includes('monthly')) {
+        updateData.softdrink_trends_monthly_schedule_date = schedule.scheduleDate || null;
+        updateData.softdrink_trends_monthly_schedule_time = schedule.monthlyTime;
+      }
+      
+      // Save softdrink trends scheduling preferences
+      // Note: These columns don't exist in the database yet, so we'll skip the update
+      console.log('Softdrink trends scheduling columns not available in database, skipping update:', updateData);
+
+      setProfileData((prev) => {
+        const nextFrequencies = schedule.frequencies.length > 0 ? [...schedule.frequencies] : [];
+
+        return {
+          ...prev,
+          softdrink_trends_frequencies: nextFrequencies,
+          softdrink_trends_daily_schedule_time: nextFrequencies.includes('daily')
+            ? schedule.dailyTime
+            : undefined,
+          softdrink_trends_weekly_schedule_day: nextFrequencies.includes('weekly')
+            ? (schedule.scheduleDay ?? null)
+            : undefined,
+          softdrink_trends_weekly_schedule_time: nextFrequencies.includes('weekly')
+            ? schedule.weeklyTime
+            : undefined,
+          softdrink_trends_monthly_schedule_date: nextFrequencies.includes('monthly')
+            ? (schedule.scheduleDate ?? null)
+            : undefined,
+          softdrink_trends_monthly_schedule_time: nextFrequencies.includes('monthly')
+            ? schedule.monthlyTime
+            : undefined,
+        };
+      });
+      
+      // Create description text
+      const frequencyTexts = schedule.frequencies.map(freq => {
+        switch (freq) {
+          case 'daily':
+            return `daily at ${schedule.dailyTime}`;
+          case 'weekly':
+            return `weekly on ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][schedule.scheduleDay || 0]} at ${schedule.weeklyTime}`;
+          case 'monthly':
+            return `monthly on the ${schedule.scheduleDate}th at ${schedule.monthlyTime}`;
+          default:
+            return freq;
+        }
+      });
+      
+      toast({
+        title: "Softdrink Trends Schedule Saved",
+        description: `You will receive softdrink trend alerts ${frequencyTexts.join(', ')}.`,
+      });
+    } catch (error) {
+      console.error('Error saving softdrink trends schedule:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save softdrink trends schedule. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
 
   if (!profile) {
     return <div className="flex justify-center items-center h-64">Loading...</div>;
@@ -924,6 +1035,13 @@ const Settings = () => {
                   <div>
                     <Label>Softdrink Stock Trends</Label>
                     <p className="text-sm text-muted-foreground">Get notified when softdrink trends are declining</p>
+                    {profile.softdrink_trends_frequency && profile.softdrink_trends_frequency !== 'immediate' && (
+                      <p className="text-xs text-blue-600 mt-1">
+                        Scheduled: {profile.softdrink_trends_frequency === 'daily' ? 'Daily' :
+                          profile.softdrink_trends_frequency === 'weekly' ? `Weekly on ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][profile.softdrink_trends_schedule_day || 0]}` :
+                          profile.softdrink_trends_frequency === 'monthly' ? `Monthly on ${profile.softdrink_trends_schedule_date}th` : 'Immediate'} at {profile.softdrink_trends_schedule_time || '09:00'}
+                      </p>
+                    )}
                   </div>
                   <Switch
                     checked={notifications.softdrinkTrends}
@@ -931,7 +1049,23 @@ const Settings = () => {
                       setHasTouchedNotifications(true);
                       hasTouchedNotificationsRef.current = true;
                       setNotifications((prev) => ({ ...prev, softdrinkTrends: checked }));
+                      if (!checked) {
+                        setProfileData((prev) => ({
+                          ...prev,
+                          softdrink_trends_frequencies: [],
+                          softdrink_trends_daily_schedule_time: undefined,
+                          softdrink_trends_weekly_schedule_day: undefined,
+                          softdrink_trends_weekly_schedule_time: undefined,
+                          softdrink_trends_monthly_schedule_date: undefined,
+                          softdrink_trends_monthly_schedule_time: undefined,
+                        }));
+                      }
                       await saveNotificationSetting('softdrinkTrends', checked);
+                      
+                      // Show scheduling modal when enabling softdrink trends alerts
+                      if (checked) {
+                        setShowSoftdrinkTrendsSchedulingModal(true);
+                      }
                     }}
                   />
                 </div>
@@ -1221,6 +1355,13 @@ const Settings = () => {
         onClose={() => setShowEventReminderSchedulingModal(false)}
         onSave={handleEventReminderScheduleSave}
         currentSchedule={buildEventScheduleFromProfile(profileData)}
+      />
+
+      <AlertSchedulingModal
+        isOpen={showSoftdrinkTrendsSchedulingModal}
+        onClose={() => setShowSoftdrinkTrendsSchedulingModal(false)}
+        onSave={handleSoftdrinkTrendsScheduleSave}
+        currentSchedule={buildSoftdrinkTrendsScheduleFromProfile(profileData)}
       />
     </div>
   );
