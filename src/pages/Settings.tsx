@@ -1362,6 +1362,14 @@ const Settings = () => {
         onClose={() => setShowSoftdrinkTrendsSchedulingModal(false)}
         onSave={handleSoftdrinkTrendsScheduleSave}
         currentSchedule={buildSoftdrinkTrendsScheduleFromProfile(profileData)}
+        title="Softdrink Trends Alert Schedule"
+        description="Choose how often you want to receive softdrink trend alerts."
+        note="Note: You will receive alerts when softdrink trends are declining (stock-out exceeds stock-in)."
+        frequencyDescriptions={{
+          daily: "Get a daily summary of declining softdrink trends",
+          weekly: "Get a weekly summary of softdrink trends on your chosen day",
+          monthly: "Get a monthly summary of softdrink trends on your chosen date"
+        }}
       />
     </div>
   );

@@ -12,6 +12,14 @@ interface AlertSchedulingModalProps {
   onClose: () => void;
   onSave: (schedule: AlertSchedule) => void;
   currentSchedule?: AlertSchedule;
+  title?: string;
+  description?: string;
+  note?: string;
+  frequencyDescriptions?: {
+    daily?: string;
+    weekly?: string;
+    monthly?: string;
+  };
 }
 
 export interface AlertSchedule {
@@ -30,6 +38,14 @@ const AlertSchedulingModal: React.FC<AlertSchedulingModalProps> = ({
   onClose,
   onSave,
   currentSchedule,
+  title = "Stock Alert Schedule",
+  description = "Choose how often you want to receive stock level alerts.",
+  note = "Note: You will still receive immediate alerts when stock levels drop, regardless of your scheduled preferences.",
+  frequencyDescriptions = {
+    daily: "Get a daily summary of low stock items",
+    weekly: "Get a weekly summary on your chosen day",
+    monthly: "Get a monthly summary on your chosen date"
+  }
 }) => {
   const [frequencies, setFrequencies] = useState<('daily' | 'weekly' | 'monthly')[]>(['daily']);
   const [scheduleDay, setScheduleDay] = useState<number>(1); // Monday
@@ -125,11 +141,11 @@ const AlertSchedulingModal: React.FC<AlertSchedulingModalProps> = ({
   const getFrequencyDescription = (freq: string) => {
     switch (freq) {
       case 'daily':
-        return 'Get a daily summary of low stock items';
+        return frequencyDescriptions.daily || 'Get a daily summary of low stock items';
       case 'weekly':
-        return 'Get a weekly summary on your chosen day';
+        return frequencyDescriptions.weekly || 'Get a weekly summary on your chosen day';
       case 'monthly':
-        return 'Get a monthly summary on your chosen date';
+        return frequencyDescriptions.monthly || 'Get a monthly summary on your chosen date';
       default:
         return '';
     }
@@ -141,13 +157,13 @@ const AlertSchedulingModal: React.FC<AlertSchedulingModalProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Stock Alert Schedule
+            {title}
           </DialogTitle>
           <DialogDescription>
-            Choose how often you want to receive stock level alerts.
+            {description}
             <br />
             <span className="text-sm text-muted-foreground">
-              Note: You will still receive immediate alerts when stock levels drop, regardless of your scheduled preferences.
+              {note}
             </span>
           </DialogDescription>
         </DialogHeader>
