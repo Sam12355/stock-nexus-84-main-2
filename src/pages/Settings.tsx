@@ -1171,10 +1171,38 @@ const Settings = () => {
                      </div>
                    )}
 
+                   {/* Softdrink Trends Schedules */}
+                   {profileData.softdrink_trends_frequencies && profileData.softdrink_trends_frequencies.length > 0 && (
+                     <div>
+                       <h5 className="text-xs font-medium text-muted-foreground mb-2">Softdrink Trends Alerts</h5>
+                       <div className="space-y-2">
+                         {profileData.softdrink_trends_frequencies.includes('daily') && (
+                           <div className="flex justify-between text-xs">
+                             <span className="text-muted-foreground">Daily:</span>
+                             <span className="font-medium">{formatTime(profileData.softdrink_trends_daily_schedule_time)}</span>
+                           </div>
+                         )}
+                         {profileData.softdrink_trends_frequencies.includes('weekly') && (
+                           <div className="flex justify-between text-xs">
+                             <span className="text-muted-foreground">Weekly:</span>
+                             <span className="font-medium">{formatDayOfWeek(profileData.softdrink_trends_weekly_schedule_day)} at {formatTime(profileData.softdrink_trends_weekly_schedule_time)}</span>
+                           </div>
+                         )}
+                         {profileData.softdrink_trends_frequencies.includes('monthly') && (
+                           <div className="flex justify-between text-xs">
+                             <span className="text-muted-foreground">Monthly:</span>
+                             <span className="font-medium">{formatDayOfMonth(profileData.softdrink_trends_monthly_schedule_date)} at {formatTime(profileData.softdrink_trends_monthly_schedule_time)}</span>
+                           </div>
+                         )}
+                       </div>
+                     </div>
+                   )}
+
                    {(!profileData.stock_alert_frequencies || profileData.stock_alert_frequencies.length === 0) && 
-                    (!profileData.event_reminder_frequencies || profileData.event_reminder_frequencies.length === 0) && (
+                    (!profileData.event_reminder_frequencies || profileData.event_reminder_frequencies.length === 0) &&
+                    (!profileData.softdrink_trends_frequencies || profileData.softdrink_trends_frequencies.length === 0) && (
                      <p className="text-xs text-muted-foreground">
-                       No scheduled alerts configured. Enable stock alerts or event reminders to set up schedules.
+                       No scheduled alerts configured. Enable stock alerts, event reminders, or softdrink trends to set up schedules.
                      </p>
                    )}
                  </div>

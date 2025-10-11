@@ -41,11 +41,13 @@ class SchedulerService {
     this.intervalId = setInterval(() => {
       this.checkAndSendScheduledAlerts();
       this.checkAndSendEventReminders();
+      this.checkAndSendSoftdrinkTrendsAlerts();
     }, 60000); // 60 seconds
 
     // Run immediately on start
     this.checkAndSendScheduledAlerts();
     this.checkAndSendEventReminders();
+    this.checkAndSendSoftdrinkTrendsAlerts();
   }
 
   stop() {
@@ -474,6 +476,157 @@ class SchedulerService {
 
     } catch (error) {
       console.error('❌ Error in event reminders check:', error);
+    }
+  }
+
+  async checkAndSendSoftdrinkTrendsAlerts() {
+    try {
+      const now = new Date();
+      const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      const currentDate = now.getDate(); // 1-31
+      const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
+
+      // Only log every 10 minutes to avoid spam
+      const shouldLog = !this.lastCheckTime || 
+        (now.getTime() - this.lastCheckTime.getTime()) > 10 * 60 * 1000;
+
+      if (shouldLog) {
+        console.log(`📉 Checking softdrink trends alerts at ${currentTime} (Day: ${currentDay}, Date: ${currentDate})`);
+      }
+
+      // Get users with softdrink trends alerts enabled
+      const usersResult = await query(`
+        SELECT u.id, u.name, u.phone, u.email, u.branch_context,
+               b.name as branch_name, d.name as district_name, r.name as region_name,
+               u.notification_settings
+        FROM users u
+        LEFT JOIN branches b ON u.branch_context = b.id
+        LEFT JOIN districts d ON b.district_id = d.id
+        LEFT JOIN regions r ON d.region_id = r.id
+        WHERE (u.phone IS NOT NULL OR u.email IS NOT NULL)
+        AND u.is_active = true
+      `);
+
+      const eligibleUsers = [];
+
+      for (const user of usersResult.rows) {
+        let notificationSettings = {};
+        try {
+          notificationSettings = user.notification_settings ? JSON.parse(user.notification_settings) : {};
+        } catch (e) {
+          console.log('⚠️ Error parsing notification settings for user:', user.email);
+          continue;
+        }
+
+        // Check if softdrink trends alerts are enabled
+        if (notificationSettings.softdrinkTrends !== true) {
+          continue;
+        }
+
+        // For now, we'll send alerts to all users with softdrink trends enabled
+        // In the future, we can add scheduling logic here similar to stock alerts
+        eligibleUsers.push({
+          ...user,
+          notificationSettings
+        });
+      }
+
+      if (eligibleUsers.length === 0) {
+        if (shouldLog) {
+          console.log('📉 No users eligible for softdrink trends alerts');
+        }
+        return;
+      }
+
+      if (shouldLog) {
+        console.log(`📉 Found ${eligibleUsers.length} users eligible for softdrink trends alerts`);
+      }
+
+      // Get softdrink trends data for the last week
+      const trendsResult = await query(`
+        WITH weekly_data AS (
+          SELECT 
+            i.name as item_name,
+            DATE_TRUNC('week', sm.created_at) as week_start,
+            SUM(CASE WHEN sm.movement_type = 'in' THEN sm.quantity ELSE 0 END) as stock_in,
+            SUM(CASE WHEN sm.movement_type = 'out' THEN sm.quantity ELSE 0 END) as stock_out,
+            SUM(CASE WHEN sm.movement_type = 'in' THEN sm.quantity ELSE -sm.quantity END) as net_change
+          FROM stock_movements sm
+          JOIN items i ON sm.item_id = i.id
+          WHERE i.category = 'softdrinks'
+            AND sm.created_at >= DATE_TRUNC('week', NOW()) - INTERVAL '1 week'
+            AND sm.created_at < DATE_TRUNC('week', NOW()) + INTERVAL '1 week'
+          GROUP BY i.name, DATE_TRUNC('week', sm.created_at)
+        )
+        SELECT 
+          item_name,
+          stock_in,
+          stock_out,
+          net_change,
+          CASE 
+            WHEN net_change < 0 THEN 'declining'
+            WHEN net_change = 0 THEN 'stable'
+            ELSE 'growing'
+          END as trend
+        FROM weekly_data
+        WHERE net_change < 0
+        ORDER BY net_change ASC
+      `);
+
+      const decliningItems = trendsResult.rows;
+
+      if (decliningItems.length === 0) {
+        if (shouldLog) {
+          console.log('📉 No declining softdrink trends found');
+        }
+        return;
+      }
+
+      // Send alerts to eligible users
+      const alertsSent = [];
+
+      for (const user of eligibleUsers) {
+        try {
+          // Send email alert if enabled
+          if (user.notificationSettings.email === true) {
+            await emailService.sendSoftdrinkTrendAlert(
+              user.email,
+              user.name,
+              decliningItems,
+              user.branch_name,
+              user.district_name
+            );
+            console.log(`📧 Softdrink trend alert sent via email to ${user.email}`);
+          }
+
+          // Send WhatsApp alert if enabled and phone number exists
+          if (user.notificationSettings.whatsapp === true && user.phone) {
+            const message = `📉 Softdrink Trend Alert\n\nHello ${user.name},\n\nWe've detected declining trends in the following softdrink items:\n\n${decliningItems.map(item => `• ${item.item_name}: Net change ${item.net_change} (${item.trend})`).join('\n')}\n\nPlease review your inventory and consider adjusting your ordering strategy.\n\nBest regards,\nInventory Management System`;
+            
+            await whatsappService.sendMessage(user.phone, message);
+            console.log(`📱 Softdrink trend alert sent via WhatsApp to ${user.phone}`);
+          }
+
+          alertsSent.push({
+            userId: user.id,
+            email: user.email,
+            phone: user.phone,
+            itemsCount: decliningItems.length
+          });
+        } catch (error) {
+          console.error(`❌ Error sending softdrink trend alert to ${user.email}:`, error);
+        }
+      }
+
+      if (alertsSent.length > 0) {
+        console.log(`📉 Softdrink trends alerts sent successfully to ${alertsSent.length} users`);
+        
+        // Trigger frontend notification update
+        triggerSchedulerNotificationUpdate();
+      }
+
+    } catch (error) {
+      console.error('❌ Error in softdrink trends alerts check:', error);
     }
   }
 
