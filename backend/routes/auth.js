@@ -280,23 +280,38 @@ router.get('/profile', async (req, res) => {
         error: 'Invalid token'
       });
     }
-    // Use basic profile query that works with current database schema
+    // Try to get profile with scheduling columns first, fallback to basic if needed
     console.log('🔍 Executing profile query for user:', decoded.userId);
     let result;
     try {
       result = await query(
         `SELECT id, email, name, role, branch_id, branch_context, phone, position, photo_url, access_count, last_access, created_at, 
-                CASE WHEN branch_context IS NOT NULL THEN true ELSE false END as has_completed_selection
+                CASE WHEN branch_context IS NOT NULL THEN true ELSE false END as has_completed_selection,
+                stock_alert_frequencies, daily_schedule_time, weekly_schedule_day, weekly_schedule_time, monthly_schedule_date, monthly_schedule_time,
+                event_reminder_frequencies, event_daily_schedule_time, event_weekly_schedule_day, event_weekly_schedule_time, event_monthly_schedule_date, event_monthly_schedule_time,
+                softdrink_trends_frequencies, softdrink_trends_daily_schedule_time, softdrink_trends_weekly_schedule_day, softdrink_trends_weekly_schedule_time, softdrink_trends_monthly_schedule_date, softdrink_trends_monthly_schedule_time,
+                notification_settings
          FROM users WHERE id = $1 AND is_active = true`,
         [decoded.userId]
       );
-      console.log('✅ Profile query successful, rows:', result.rows.length);
+      console.log('✅ Profile query with scheduling columns successful, rows:', result.rows.length);
     } catch (dbError) {
-      console.log('❌ Database query failed:', dbError.message);
-      return res.status(500).json({
-        success: false,
-        error: 'Database error'
-      });
+      console.log('⚠️ Scheduling columns query failed, trying basic query:', dbError.message);
+      try {
+        result = await query(
+          `SELECT id, email, name, role, branch_id, branch_context, phone, position, photo_url, access_count, last_access, created_at, 
+                  CASE WHEN branch_context IS NOT NULL THEN true ELSE false END as has_completed_selection
+           FROM users WHERE id = $1 AND is_active = true`,
+          [decoded.userId]
+        );
+        console.log('✅ Basic profile query successful, rows:', result.rows.length);
+      } catch (basicError) {
+        console.log('❌ Basic database query also failed:', basicError.message);
+        return res.status(500).json({
+          success: false,
+          error: 'Database error'
+        });
+      }
     }
 
     if (result.rows.length === 0) {
