@@ -81,6 +81,8 @@ const Staff = () => {
   const [currentDistrictId, setCurrentDistrictId] = useState<string | null>(null);
   const [hasDistrictManager, setHasDistrictManager] = useState(false);
   const [hasAssistantManager, setHasAssistantManager] = useState(false);
+  const [hasManager, setHasManager] = useState(false);
+  const [branchManagers, setBranchManagers] = useState<{manager?: string, assistant_manager?: string}>({});
 
   const roleOptions = [
     { value: 'regional_manager', label: 'Regional Manager' },
@@ -91,7 +93,7 @@ const Staff = () => {
   ];
 
   const allowedRolesByCreator: Record<string, Array<StaffMember['role']>> = {
-    admin: ['regional_manager','district_manager','manager','assistant_manager','staff'],
+    admin: ['manager','assistant_manager','staff'],
     regional_manager: ['district_manager','manager','assistant_manager','staff'],
     district_manager: ['manager','assistant_manager','staff'],
     manager: ['assistant_manager','staff'],
@@ -203,6 +205,13 @@ const Staff = () => {
     checkAssistantManager();
   }, [profile, staffMembers]);
 
+  // Check branch managers when branch selection changes
+  useEffect(() => {
+    if (selectedBranchId && staffMembers.length > 0) {
+      checkBranchManagers(selectedBranchId);
+    }
+  }, [selectedBranchId, staffMembers]);
+
   const selectStyles: any = {
     container: (base: any) => ({ ...base, zIndex: 999999 }),
     menuPortal: (base: any) => ({ ...base, zIndex: 999999, pointerEvents: 'auto' }),
@@ -235,6 +244,35 @@ const Staff = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkBranchManagers = async (branchId: string) => {
+    if (!branchId) {
+      setBranchManagers({});
+      setHasManager(false);
+      setHasAssistantManager(false);
+      return;
+    }
+
+    try {
+      // Check existing managers and assistant managers in this branch
+      const existingManagers = staffMembers.filter(staff => 
+        staff.branch_id === branchId && 
+        (staff.role === 'manager' || staff.role === 'assistant_manager')
+      );
+
+      const manager = existingManagers.find(staff => staff.role === 'manager');
+      const assistantManager = existingManagers.find(staff => staff.role === 'assistant_manager');
+
+      setBranchManagers({
+        manager: manager?.id,
+        assistant_manager: assistantManager?.id
+      });
+      setHasManager(!!manager);
+      setHasAssistantManager(!!assistantManager);
+    } catch (error) {
+      console.error('Error checking branch managers:', error);
     }
   };
 
@@ -590,6 +628,14 @@ const Staff = () => {
                           option.value === 'staff' || 
                           (option.value === 'assistant_manager' && !hasAssistantManager)
                         ) : 
+                        profile?.role === 'admin' ?
+                        // For admin, filter based on branch assignments
+                        allowedRoleOptions.filter(option => {
+                          if (option.value === 'staff') return true;
+                          if (option.value === 'manager') return !hasManager || (selectedStaff && branchManagers.manager === selectedStaff.id);
+                          if (option.value === 'assistant_manager') return !hasAssistantManager || (selectedStaff && branchManagers.assistant_manager === selectedStaff.id);
+                          return false;
+                        }) :
                         allowedRoleOptions
                       }
                       value={formData.role ? roleOptions.find(o => o.value === formData.role) : null}
@@ -608,6 +654,25 @@ const Staff = () => {
                       <p className="text-sm text-blue-600 mt-1">
                         An Assistant Manager is already assigned to your branch. Only Staff role is available.
                       </p>
+                    )}
+                    {profile?.role === 'admin' && selectedBranchId && (
+                      <>
+                        {hasManager && (
+                          <p className="text-sm text-orange-600 mt-1">
+                            ⚠️ A Manager is already assigned to this branch. You can only edit the existing manager or assign Staff/Assistant Manager roles.
+                          </p>
+                        )}
+                        {hasAssistantManager && (
+                          <p className="text-sm text-orange-600 mt-1">
+                            ⚠️ An Assistant Manager is already assigned to this branch. You can only edit the existing assistant manager or assign Staff/Manager roles.
+                          </p>
+                        )}
+                        {!hasManager && !hasAssistantManager && (
+                          <p className="text-sm text-green-600 mt-1">
+                            ✅ All roles are available for this branch.
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
 
@@ -994,6 +1059,17 @@ const Staff = () => {
                           <SelectItem value="assistant_manager">Assistant Manager</SelectItem>
                         )}
                       </>
+                    ) : profile?.role === 'admin' ? (
+                      // For admin, show Manager, Assistant Manager, Staff with branch restrictions
+                      <>
+                        <SelectItem value="staff">Staff</SelectItem>
+                        {(!hasManager || (selectedStaff && branchManagers.manager === selectedStaff.id)) && (
+                          <SelectItem value="manager">Manager</SelectItem>
+                        )}
+                        {(!hasAssistantManager || (selectedStaff && branchManagers.assistant_manager === selectedStaff.id)) && (
+                          <SelectItem value="assistant_manager">Assistant Manager</SelectItem>
+                        )}
+                      </>
                     ) : (
                       // For other roles, show all allowed roles
                       <>
@@ -1011,6 +1087,25 @@ const Staff = () => {
                   <p className="text-sm text-blue-600 mt-1">
                     An Assistant Manager is already assigned to your branch. Only Staff role is available.
                   </p>
+                )}
+                {profile?.role === 'admin' && selectedBranchId && (
+                  <>
+                    {hasManager && (
+                      <p className="text-sm text-orange-600 mt-1">
+                        ⚠️ A Manager is already assigned to this branch. You can only edit the existing manager or assign Staff/Assistant Manager roles.
+                      </p>
+                    )}
+                    {hasAssistantManager && (
+                      <p className="text-sm text-orange-600 mt-1">
+                        ⚠️ An Assistant Manager is already assigned to this branch. You can only edit the existing assistant manager or assign Staff/Manager roles.
+                      </p>
+                    )}
+                    {!hasManager && !hasAssistantManager && (
+                      <p className="text-sm text-green-600 mt-1">
+                        ✅ All roles are available for this branch.
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
 
