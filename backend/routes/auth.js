@@ -114,7 +114,18 @@ router.post('/login',
         [email]
       );
 
+      console.log('🔍 DATABASE QUERY DEBUG:');
+      console.log('Query result rows:', result.rows.length);
+      console.log('User found:', result.rows.length > 0);
+      if (result.rows.length > 0) {
+        console.log('User email:', result.rows[0].email);
+        console.log('User is_active:', result.rows[0].is_active);
+        console.log('User password_hash exists:', !!result.rows[0].password_hash);
+        console.log('Password hash length:', result.rows[0].password_hash ? result.rows[0].password_hash.length : 'N/A');
+      }
+
       if (result.rows.length === 0) {
+        console.log('❌ USER NOT FOUND IN DATABASE');
         return res.status(401).json({
           success: false,
           error: 'Invalid email or password'
@@ -131,13 +142,22 @@ router.post('/login',
       }
 
       // Verify password
+      console.log('🔍 PASSWORD VERIFICATION DEBUG:');
+      console.log('Comparing password:', password);
+      console.log('Against hash:', user.password_hash);
+      
       const isValidPassword = await bcrypt.compare(password, user.password_hash);
+      console.log('Password verification result:', isValidPassword);
+      
       if (!isValidPassword) {
+        console.log('❌ PASSWORD VERIFICATION FAILED');
         return res.status(401).json({
           success: false,
           error: 'Invalid email or password'
         });
       }
+      
+      console.log('✅ PASSWORD VERIFICATION SUCCESS');
 
       // Update last access and access count
       await query(
