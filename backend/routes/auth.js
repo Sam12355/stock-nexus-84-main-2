@@ -101,6 +101,13 @@ router.post('/login',
 
       const { email, password } = req.body;
 
+      // Debug logging - check what's being received
+      console.log('🔍 BACKEND LOGIN DEBUG:');
+      console.log('Email received:', email);
+      console.log('Password received:', password);
+      console.log('Email length:', email ? email.length : 'undefined');
+      console.log('Password length:', password ? password.length : 'undefined');
+
       // Get user from database
       const result = await query(
         'SELECT id, email, password_hash, name, role, branch_id, branch_context, phone, position, photo_url, is_active, access_count FROM users WHERE email = $1',

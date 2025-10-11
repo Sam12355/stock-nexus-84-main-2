@@ -33,6 +33,13 @@ const AuthPage = () => {
     e.preventDefault();
     setIsLoading(true);
     
+    // Debug logging - check what's being sent
+    console.log('🔍 LOGIN DEBUG:');
+    console.log('Email being sent:', formData.email);
+    console.log('Password being sent:', formData.password);
+    console.log('Email length:', formData.email.length);
+    console.log('Password length:', formData.password.length);
+    
     const { error } = await signIn(formData.email, formData.password);
     
     if (!error) {

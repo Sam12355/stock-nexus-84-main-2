@@ -55,6 +55,12 @@ class ApiClient {
 
   // Authentication methods
   async login(email: string, password: string) {
+    // Debug logging - check what's being sent to backend
+    console.log('🌐 API LOGIN DEBUG:');
+    console.log('Email to backend:', email);
+    console.log('Password to backend:', password);
+    console.log('Request body:', JSON.stringify({ email, password }));
+    
     const response = await this.request<{
       success: boolean;
       data: {
