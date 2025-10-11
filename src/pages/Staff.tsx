@@ -664,13 +664,13 @@ const Staff = () => {
                   </div>
 
                   {/* Role Selection - Only show after branch is selected */}
-                  <div>
-                    <Label htmlFor="role">Role *</Label>
-                    <ReactSelect
-                      inputId="role"
-                      classNamePrefix="rs"
-                      options={selectedBranchId ? (
-                        profile?.role === 'manager' ? 
+                  {selectedBranchId && (
+                    <div>
+                      <Label htmlFor="role">Role *</Label>
+                      <ReactSelect
+                        inputId="role"
+                        classNamePrefix="rs"
+                        options={profile?.role === 'manager' ? 
                           // For managers, filter to only show Assistant Manager and Staff
                           allowedRoleOptions.filter(option => 
                             option.value === 'staff' || 
@@ -685,45 +685,21 @@ const Staff = () => {
                             return false;
                           }) :
                           allowedRoleOptions
-                      ) : []}
-                      value={formData.role ? roleOptions.find(o => o.value === formData.role) : null}
-                      onChange={(opt) => {
-                        const val = (opt as any)?.value;
-                        setFormData({ ...formData, role: val });
-                      }}
-                      styles={selectStyles}
-                      menuPortalTarget={document.body}
-                      menuPosition="fixed"
-                      menuShouldBlockScroll
-                      placeholder={selectedBranchId ? "Select role" : "Select branch first"}
-                      isDisabled={!selectedBranchId}
-                    />
-                    {formErrors.role && <p className="text-sm text-red-500 mt-1">{formErrors.role}</p>}
-                    {profile?.role === 'manager' && hasAssistantManager && (
-                      <p className="text-sm text-blue-600 mt-1">
-                        An Assistant Manager is already assigned to your branch. Only Staff role is available.
-                      </p>
-                    )}
-                    {profile?.role === 'admin' && selectedBranchId && (
-                      <>
-                        {hasManager && (
-                          <p className="text-sm text-orange-600 mt-1">
-                            ⚠️ A Manager is already assigned to this branch. You can only edit the existing manager or assign Staff/Assistant Manager roles.
-                          </p>
-                        )}
-                        {hasAssistantManager && (
-                          <p className="text-sm text-orange-600 mt-1">
-                            ⚠️ An Assistant Manager is already assigned to this branch. You can only edit the existing assistant manager or assign Staff/Manager roles.
-                          </p>
-                        )}
-                        {!hasManager && !hasAssistantManager && (
-                          <p className="text-sm text-green-600 mt-1">
-                            ✅ All roles are available for this branch.
-                          </p>
-                        )}
-                      </>
-                    )}
-                  </div>
+                        }
+                        value={formData.role ? roleOptions.find(o => o.value === formData.role) : null}
+                        onChange={(opt) => {
+                          const val = (opt as any)?.value;
+                          setFormData({ ...formData, role: val });
+                        }}
+                        styles={selectStyles}
+                        menuPortalTarget={document.body}
+                        menuPosition="fixed"
+                        menuShouldBlockScroll
+                        placeholder="Select role"
+                      />
+                      {formErrors.role && <p className="text-sm text-red-500 mt-1">{formErrors.role}</p>}
+                    </div>
+                  )}
 
                   {/* Regional Manager role selection */}
                   {formData.role === 'regional_manager' && (
@@ -1096,30 +1072,6 @@ const Staff = () => {
                   </SelectContent>
                 </Select>
                 {formErrors.role && <p className="text-sm text-red-500 mt-1">{formErrors.role}</p>}
-                {profile?.role === 'manager' && hasAssistantManager && (
-                  <p className="text-sm text-blue-600 mt-1">
-                    An Assistant Manager is already assigned to your branch. Only Staff role is available.
-                  </p>
-                )}
-                {profile?.role === 'admin' && selectedBranchId && (
-                  <>
-                    {hasManager && (
-                      <p className="text-sm text-orange-600 mt-1">
-                        ⚠️ A Manager is already assigned to this branch. You can only edit the existing manager or assign Staff/Assistant Manager roles.
-                      </p>
-                    )}
-                    {hasAssistantManager && (
-                      <p className="text-sm text-orange-600 mt-1">
-                        ⚠️ An Assistant Manager is already assigned to this branch. You can only edit the existing assistant manager or assign Staff/Manager roles.
-                      </p>
-                    )}
-                    {!hasManager && !hasAssistantManager && (
-                      <p className="text-sm text-green-600 mt-1">
-                        ✅ All roles are available for this branch.
-                      </p>
-                    )}
-                  </>
-                )}
               </div>
 
 
