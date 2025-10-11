@@ -443,7 +443,28 @@ router.put('/profile', authenticateToken, async (req, res) => {
     const { 
       name, 
       phone, 
-      position
+      position,
+      // Stock alert scheduling fields
+      stock_alert_frequencies,
+      daily_schedule_time,
+      weekly_schedule_day,
+      weekly_schedule_time,
+      monthly_schedule_date,
+      monthly_schedule_time,
+      // Event reminder scheduling fields
+      event_reminder_frequencies,
+      event_daily_schedule_time,
+      event_weekly_schedule_day,
+      event_weekly_schedule_time,
+      event_monthly_schedule_date,
+      event_monthly_schedule_time,
+      // Softdrink trends scheduling fields
+      softdrink_trends_frequencies,
+      softdrink_trends_daily_schedule_time,
+      softdrink_trends_weekly_schedule_day,
+      softdrink_trends_weekly_schedule_time,
+      softdrink_trends_monthly_schedule_date,
+      softdrink_trends_monthly_schedule_time
     } = req.body;
     const userId = req.user.id;
 
@@ -462,6 +483,84 @@ router.put('/profile', authenticateToken, async (req, res) => {
     if (position !== undefined) {
       updates.push(`position = $${paramCount++}`);
       values.push(position);
+    }
+    
+    // Handle scheduling fields
+    if (stock_alert_frequencies !== undefined) {
+      updates.push(`stock_alert_frequencies = $${paramCount++}`);
+      values.push(JSON.stringify(stock_alert_frequencies));
+    }
+    if (daily_schedule_time !== undefined) {
+      updates.push(`daily_schedule_time = $${paramCount++}`);
+      values.push(daily_schedule_time);
+    }
+    if (weekly_schedule_day !== undefined) {
+      updates.push(`weekly_schedule_day = $${paramCount++}`);
+      values.push(weekly_schedule_day);
+    }
+    if (weekly_schedule_time !== undefined) {
+      updates.push(`weekly_schedule_time = $${paramCount++}`);
+      values.push(weekly_schedule_time);
+    }
+    if (monthly_schedule_date !== undefined) {
+      updates.push(`monthly_schedule_date = $${paramCount++}`);
+      values.push(monthly_schedule_date);
+    }
+    if (monthly_schedule_time !== undefined) {
+      updates.push(`monthly_schedule_time = $${paramCount++}`);
+      values.push(monthly_schedule_time);
+    }
+    
+    // Event reminder scheduling fields
+    if (event_reminder_frequencies !== undefined) {
+      updates.push(`event_reminder_frequencies = $${paramCount++}`);
+      values.push(JSON.stringify(event_reminder_frequencies));
+    }
+    if (event_daily_schedule_time !== undefined) {
+      updates.push(`event_daily_schedule_time = $${paramCount++}`);
+      values.push(event_daily_schedule_time);
+    }
+    if (event_weekly_schedule_day !== undefined) {
+      updates.push(`event_weekly_schedule_day = $${paramCount++}`);
+      values.push(event_weekly_schedule_day);
+    }
+    if (event_weekly_schedule_time !== undefined) {
+      updates.push(`event_weekly_schedule_time = $${paramCount++}`);
+      values.push(event_weekly_schedule_time);
+    }
+    if (event_monthly_schedule_date !== undefined) {
+      updates.push(`event_monthly_schedule_date = $${paramCount++}`);
+      values.push(event_monthly_schedule_date);
+    }
+    if (event_monthly_schedule_time !== undefined) {
+      updates.push(`event_monthly_schedule_time = $${paramCount++}`);
+      values.push(event_monthly_schedule_time);
+    }
+    
+    // Softdrink trends scheduling fields
+    if (softdrink_trends_frequencies !== undefined) {
+      updates.push(`softdrink_trends_frequencies = $${paramCount++}`);
+      values.push(JSON.stringify(softdrink_trends_frequencies));
+    }
+    if (softdrink_trends_daily_schedule_time !== undefined) {
+      updates.push(`softdrink_trends_daily_schedule_time = $${paramCount++}`);
+      values.push(softdrink_trends_daily_schedule_time);
+    }
+    if (softdrink_trends_weekly_schedule_day !== undefined) {
+      updates.push(`softdrink_trends_weekly_schedule_day = $${paramCount++}`);
+      values.push(softdrink_trends_weekly_schedule_day);
+    }
+    if (softdrink_trends_weekly_schedule_time !== undefined) {
+      updates.push(`softdrink_trends_weekly_schedule_time = $${paramCount++}`);
+      values.push(softdrink_trends_weekly_schedule_time);
+    }
+    if (softdrink_trends_monthly_schedule_date !== undefined) {
+      updates.push(`softdrink_trends_monthly_schedule_date = $${paramCount++}`);
+      values.push(softdrink_trends_monthly_schedule_date);
+    }
+    if (softdrink_trends_monthly_schedule_time !== undefined) {
+      updates.push(`softdrink_trends_monthly_schedule_time = $${paramCount++}`);
+      values.push(softdrink_trends_monthly_schedule_time);
     }
 
     if (updates.length === 0) {

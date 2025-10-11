@@ -691,9 +691,15 @@ const Settings = () => {
         updateData.monthly_schedule_time = schedule.monthlyTime || schedule.scheduleTime;
       }
       
-      // Save alert scheduling preferences
-      // Note: These columns don't exist in the database yet, so we'll skip the update
-      console.log('Alert scheduling columns not available in database, skipping update:', updateData);
+      // Save alert scheduling preferences to database
+      console.log('Saving stock alert schedule to database:', updateData);
+      try {
+        await apiClient.updateProfile(updateData);
+        console.log('✅ Stock alert schedule saved to database');
+      } catch (error) {
+        console.error('❌ Failed to save stock alert schedule to database:', error);
+        // Continue with local state update even if database save fails
+      }
 
       setProfileData((prev) => {
         const nextFrequencies = schedule.frequencies.length > 0 ? [...schedule.frequencies] : [];
@@ -780,9 +786,15 @@ const Settings = () => {
         updateData.event_monthly_schedule_time = schedule.monthlyTime;
       }
       
-      // Save event reminder scheduling preferences
-      // Note: These columns don't exist in the database yet, so we'll skip the update
-      console.log('Event reminder scheduling columns not available in database, skipping update:', updateData);
+      // Save event reminder scheduling preferences to database
+      console.log('Saving event reminder schedule to database:', updateData);
+      try {
+        await apiClient.updateProfile(updateData);
+        console.log('✅ Event reminder schedule saved to database');
+      } catch (error) {
+        console.error('❌ Failed to save event reminder schedule to database:', error);
+        // Continue with local state update even if database save fails
+      }
 
       setProfileData((prev) => {
         const nextFrequencies = schedule.frequencies.length > 0 ? [...schedule.frequencies] : [];
@@ -863,9 +875,15 @@ const Settings = () => {
         updateData.softdrink_trends_monthly_schedule_time = schedule.monthlyTime;
       }
       
-      // Save softdrink trends scheduling preferences
-      // Note: These columns don't exist in the database yet, so we'll skip the update
-      console.log('Softdrink trends scheduling columns not available in database, skipping update:', updateData);
+      // Save softdrink trends scheduling preferences to database
+      console.log('Saving softdrink trends schedule to database:', updateData);
+      try {
+        await apiClient.updateProfile(updateData);
+        console.log('✅ Softdrink trends schedule saved to database');
+      } catch (error) {
+        console.error('❌ Failed to save softdrink trends schedule to database:', error);
+        // Continue with local state update even if database save fails
+      }
 
       setProfileData((prev) => {
         const nextFrequencies = schedule.frequencies.length > 0 ? [...schedule.frequencies] : [];
