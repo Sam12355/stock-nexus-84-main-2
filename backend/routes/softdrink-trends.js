@@ -6,6 +6,81 @@ const WhatsAppService = require('../services/whatsapp');
 
 const router = express.Router();
 
+// Test endpoint to manually trigger softdrink trends alert
+router.post('/test-alert', authenticateToken, async (req, res) => {
+  try {
+    console.log('🧪 Testing softdrink trends alert...');
+    
+    // Get current user
+    const userId = req.user.id;
+    const userResult = await query(`
+      SELECT u.id, u.name, u.email, u.phone, u.branch_context,
+             b.name as branch_name, d.name as district_name, r.name as region_name
+      FROM users u
+      LEFT JOIN branches b ON u.branch_context = b.id
+      LEFT JOIN districts d ON b.district_id = d.id
+      LEFT JOIN regions r ON d.region_id = r.id
+      WHERE u.id = $1
+    `, [userId]);
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    const user = userResult.rows[0];
+
+    // Create some test declining items
+    const decliningItems = [
+      {
+        item_name: 'Coca Cola',
+        stock_in: 50,
+        stock_out: 80,
+        net_change: -30,
+        trend: 'declining'
+      },
+      {
+        item_name: 'Pepsi',
+        stock_in: 30,
+        stock_out: 60,
+        net_change: -30,
+        trend: 'declining'
+      }
+    ];
+
+    // Send email alert
+    const emailService = new EmailService();
+    await emailService.sendSoftdrinkTrendAlert(
+      user.email,
+      user.name,
+      decliningItems,
+      user.branch_name,
+      user.district_name
+    );
+
+    // Send WhatsApp alert if phone exists
+    if (user.phone) {
+      const whatsappService = new WhatsAppService();
+      const message = `📉 Softdrink Trend Alert\n\nHello ${user.name},\n\nWe've detected declining trends in the following softdrink items:\n\n${decliningItems.map(item => `• ${item.item_name}: Net change ${item.net_change} (${item.trend})`).join('\n')}\n\nPlease review your inventory and consider adjusting your ordering strategy.\n\nBest regards,\nInventory Management System`;
+      
+      await whatsappService.sendMessage(user.phone, message);
+    }
+
+    res.json({
+      success: true,
+      message: 'Test softdrink trends alert sent successfully',
+      details: {
+        user: user.email,
+        phone: user.phone,
+        itemsCount: decliningItems.length
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error sending test softdrink trends alert:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Check for softdrink trends and send alerts
 router.post('/check-trends', authenticateToken, async (req, res) => {
   try {
