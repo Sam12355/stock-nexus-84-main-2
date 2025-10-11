@@ -106,6 +106,24 @@ const Settings = () => {
     phone: profile?.phone || "",
     position: profile?.position || "",
     role: profile?.role || "",
+    stock_alert_frequencies: profile?.stock_alert_frequencies || [],
+    daily_schedule_time: profile?.daily_schedule_time,
+    weekly_schedule_day: profile?.weekly_schedule_day,
+    weekly_schedule_time: profile?.weekly_schedule_time,
+    monthly_schedule_date: profile?.monthly_schedule_date,
+    monthly_schedule_time: profile?.monthly_schedule_time,
+    event_reminder_frequencies: profile?.event_reminder_frequencies || [],
+    event_daily_schedule_time: profile?.event_daily_schedule_time,
+    event_weekly_schedule_day: profile?.event_weekly_schedule_day,
+    event_weekly_schedule_time: profile?.event_weekly_schedule_time,
+    event_monthly_schedule_date: profile?.event_monthly_schedule_date,
+    event_monthly_schedule_time: profile?.event_monthly_schedule_time,
+    softdrink_trends_frequencies: profile?.softdrink_trends_frequencies || [],
+    softdrink_trends_daily_schedule_time: profile?.softdrink_trends_daily_schedule_time,
+    softdrink_trends_weekly_schedule_day: profile?.softdrink_trends_weekly_schedule_day,
+    softdrink_trends_weekly_schedule_time: profile?.softdrink_trends_weekly_schedule_time,
+    softdrink_trends_monthly_schedule_date: profile?.softdrink_trends_monthly_schedule_date,
+    softdrink_trends_monthly_schedule_time: profile?.softdrink_trends_monthly_schedule_time,
   });
 
   const normalizeTime = (time?: string | null) => (time ? time.slice(0, 5) : undefined);
@@ -463,14 +481,14 @@ const Settings = () => {
   };
 
   // Save individual notification setting immediately
-  const saveNotificationSetting = async (settingType: 'email' | 'sms' | 'whatsapp' | 'stockAlerts' | 'eventReminders', value: boolean) => {
+  const saveNotificationSetting = async (settingType: 'email' | 'sms' | 'whatsapp' | 'stockAlerts' | 'eventReminders' | 'softdrinkTrends', value: boolean) => {
     try {
       // Save to localStorage for all notification preferences
       const updatedNotifications = { ...notifications, [settingType]: value };
       localStorage.setItem(`notifications_${profile?.id}`, JSON.stringify(updatedNotifications));
 
       // Save to database for notification delivery methods - update USER settings, not branch settings
-      if (['email', 'sms', 'whatsapp', 'stockAlerts', 'eventReminders'].includes(settingType)) {
+      if (['email', 'sms', 'whatsapp', 'stockAlerts', 'eventReminders', 'softdrinkTrends'].includes(settingType)) {
         // Get current notification settings safely and ensure all fields are preserved
         const currentSettings = profile?.notification_settings || {};
         
@@ -480,6 +498,7 @@ const Settings = () => {
         let defaultWhatsapp = false;
         let defaultStockAlerts = false;
         let defaultEventReminders = false;
+        let defaultSoftdrinkTrends = false;
         
         // For managers and assistant managers, turn off all notifications by default
         if (['manager', 'assistant_manager'].includes(profile?.role || '')) {
@@ -497,6 +516,7 @@ const Settings = () => {
           sms: settingType === 'sms' ? value : (currentSettings.sms !== undefined ? currentSettings.sms : defaultSms),
           stockLevelAlerts: settingType === 'stockAlerts' ? value : (currentSettings.stockLevelAlerts !== undefined ? currentSettings.stockLevelAlerts : defaultStockAlerts),
           eventReminders: settingType === 'eventReminders' ? value : (currentSettings.eventReminders !== undefined ? currentSettings.eventReminders : defaultEventReminders),
+          softdrinkTrends: settingType === 'softdrinkTrends' ? value : (currentSettings.softdrinkTrends !== undefined ? currentSettings.softdrinkTrends : defaultSoftdrinkTrends),
         };
 
         // CRITICAL: Ensure email field is ALWAYS present and never removed
@@ -897,6 +917,39 @@ const Settings = () => {
       });
     }
   };
+
+  // Update profileData when profile changes
+  useEffect(() => {
+    if (profile) {
+      setProfileData({
+        id: profile.id,
+        user_id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        phone: profile.phone,
+        position: profile.position,
+        role: profile.role,
+        stock_alert_frequencies: profile.stock_alert_frequencies || [],
+        daily_schedule_time: profile.daily_schedule_time,
+        weekly_schedule_day: profile.weekly_schedule_day,
+        weekly_schedule_time: profile.weekly_schedule_time,
+        monthly_schedule_date: profile.monthly_schedule_date,
+        monthly_schedule_time: profile.monthly_schedule_time,
+        event_reminder_frequencies: profile.event_reminder_frequencies || [],
+        event_daily_schedule_time: profile.event_daily_schedule_time,
+        event_weekly_schedule_day: profile.event_weekly_schedule_day,
+        event_weekly_schedule_time: profile.event_weekly_schedule_time,
+        event_monthly_schedule_date: profile.event_monthly_schedule_date,
+        event_monthly_schedule_time: profile.event_monthly_schedule_time,
+        softdrink_trends_frequencies: profile.softdrink_trends_frequencies || [],
+        softdrink_trends_daily_schedule_time: profile.softdrink_trends_daily_schedule_time,
+        softdrink_trends_weekly_schedule_day: profile.softdrink_trends_weekly_schedule_day,
+        softdrink_trends_weekly_schedule_time: profile.softdrink_trends_weekly_schedule_time,
+        softdrink_trends_monthly_schedule_date: profile.softdrink_trends_monthly_schedule_date,
+        softdrink_trends_monthly_schedule_time: profile.softdrink_trends_monthly_schedule_time,
+      });
+    }
+  }, [profile]);
 
 
   if (!profile) {

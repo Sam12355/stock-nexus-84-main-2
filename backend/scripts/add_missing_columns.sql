@@ -18,6 +18,16 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS event_weekly_schedule_day INTEGER;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS event_weekly_schedule_time TIME;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS event_monthly_schedule_date INTEGER;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS event_monthly_schedule_time TIME;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS softdrink_trends_frequency VARCHAR(20);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS softdrink_trends_schedule_day INTEGER;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS softdrink_trends_schedule_date INTEGER;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS softdrink_trends_schedule_time TIME;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS softdrink_trends_frequencies JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS softdrink_trends_daily_schedule_time TIME;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS softdrink_trends_weekly_schedule_day INTEGER;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS softdrink_trends_weekly_schedule_time TIME;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS softdrink_trends_monthly_schedule_date INTEGER;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS softdrink_trends_monthly_schedule_time TIME;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_settings JSONB DEFAULT '{}'::jsonb;
 
 -- Add missing columns to items table

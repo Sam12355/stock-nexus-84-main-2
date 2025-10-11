@@ -273,7 +273,11 @@ router.get('/profile', async (req, res) => {
     console.log('✅ Token verified for user:', decoded.userId);
     const result = await query(
       `SELECT id, email, name, role, branch_id, branch_context, phone, position, photo_url, access_count, last_access, created_at, 
-              CASE WHEN branch_context IS NOT NULL THEN true ELSE false END as has_completed_selection
+              CASE WHEN branch_context IS NOT NULL THEN true ELSE false END as has_completed_selection,
+              stock_alert_frequencies, daily_schedule_time, weekly_schedule_day, weekly_schedule_time, monthly_schedule_date, monthly_schedule_time,
+              event_reminder_frequencies, event_daily_schedule_time, event_weekly_schedule_day, event_weekly_schedule_time, event_monthly_schedule_date, event_monthly_schedule_time,
+              softdrink_trends_frequencies, softdrink_trends_daily_schedule_time, softdrink_trends_weekly_schedule_day, softdrink_trends_weekly_schedule_time, softdrink_trends_monthly_schedule_date, softdrink_trends_monthly_schedule_time,
+              notification_settings
        FROM users WHERE id = $1 AND is_active = true`,
       [decoded.userId]
     );

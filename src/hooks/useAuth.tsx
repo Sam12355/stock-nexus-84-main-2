@@ -18,6 +18,24 @@ interface Profile {
   access_count: number;
   created_at: string;
   notification_settings?: any;
+  stock_alert_frequencies?: string[];
+  daily_schedule_time?: string;
+  weekly_schedule_day?: number;
+  weekly_schedule_time?: string;
+  monthly_schedule_date?: number;
+  monthly_schedule_time?: string;
+  event_reminder_frequencies?: string[];
+  event_daily_schedule_time?: string;
+  event_weekly_schedule_day?: number;
+  event_weekly_schedule_time?: string;
+  event_monthly_schedule_date?: number;
+  event_monthly_schedule_time?: string;
+  softdrink_trends_frequencies?: string[];
+  softdrink_trends_daily_schedule_time?: string;
+  softdrink_trends_weekly_schedule_day?: number;
+  softdrink_trends_weekly_schedule_time?: string;
+  softdrink_trends_monthly_schedule_date?: number;
+  softdrink_trends_monthly_schedule_time?: string;
 }
 
 interface AuthContextType {
