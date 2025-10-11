@@ -578,6 +578,12 @@ const Staff = () => {
             </DialogHeader>
             <div className="max-h-[calc(90vh-120px)] overflow-y-auto">
               <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Hidden fields to prevent autofill */}
+                <div style={{ display: 'none' }}>
+                  <input type="text" name="fake-username" autoComplete="username" />
+                  <input type="password" name="fake-password" autoComplete="current-password" />
+                </div>
+                
                 {/* Basic Info Section */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -647,6 +653,8 @@ const Staff = () => {
                       menuPosition="fixed"
                       menuShouldBlockScroll
                       placeholder="Select branch first"
+                      autoComplete="off"
+                      isSearchable={false}
                     />
                     {!selectedBranchId && (
                       <p className="text-sm text-gray-600 mt-1">
@@ -815,6 +823,10 @@ const Staff = () => {
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                         placeholder="Enter password for new user"
+                        autoComplete="new-password"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck="false"
                       />
                       {formErrors.password && <p className="text-sm text-red-500 mt-1">{formErrors.password}</p>}
                     </div>
@@ -989,6 +1001,12 @@ const Staff = () => {
           </DialogHeader>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-h-[70vh] overflow-y-auto">
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Hidden fields to prevent autofill */}
+              <div style={{ display: 'none' }}>
+                <input type="text" name="fake-username" autoComplete="username" />
+                <input type="password" name="fake-password" autoComplete="current-password" />
+              </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="edit-name">Full Name *</Label>
@@ -1211,6 +1229,10 @@ const Staff = () => {
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     placeholder="Enter new password (optional)"
+                    autoComplete="new-password"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck="false"
                   />
                   {formErrors.password && <p className="text-sm text-red-500 mt-1">{formErrors.password}</p>}
                 </div>
