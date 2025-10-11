@@ -325,6 +325,18 @@ const Staff = () => {
           return false;
         }
       }
+
+      // For admin users, require branch selection for staff, manager, and assistant_manager roles
+      if (profile?.role === 'admin' && ['staff', 'manager', 'assistant_manager'].includes(formData.role)) {
+        if (!selectedBranchId) {
+          toast({
+            title: "Validation Error",
+            description: "Please select a branch first",
+            variant: "destructive",
+          });
+          return false;
+        }
+      }
       
       return true;
     } catch (error) {
@@ -615,29 +627,57 @@ const Staff = () => {
                   </div>
                 </div>
 
-                {/* Role and Location Section */}
+                {/* Branch Selection First */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="branch">Branch *</Label>
+                    <ReactSelect
+                      inputId="branch"
+                      classNamePrefix="rs"
+                      options={branchOptions}
+                      value={branchOptions.find(o => o.value === selectedBranchId) || null}
+                      onChange={(opt) => {
+                        const val = (opt as any)?.value;
+                        setSelectedBranchId(val);
+                        // Clear role selection when branch changes
+                        setFormData({ ...formData, role: '' });
+                      }}
+                      styles={selectStyles}
+                      menuPortalTarget={document.body}
+                      menuPosition="fixed"
+                      menuShouldBlockScroll
+                      placeholder="Select branch first"
+                    />
+                    {!selectedBranchId && (
+                      <p className="text-sm text-gray-600 mt-1">
+                        Please select a branch first to see available roles.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Role Selection - Only show after branch is selected */}
                   <div>
                     <Label htmlFor="role">Role *</Label>
                     <ReactSelect
                       inputId="role"
                       classNamePrefix="rs"
-                      options={profile?.role === 'manager' ? 
-                        // For managers, filter to only show Assistant Manager and Staff
-                        allowedRoleOptions.filter(option => 
-                          option.value === 'staff' || 
-                          (option.value === 'assistant_manager' && !hasAssistantManager)
-                        ) : 
-                        profile?.role === 'admin' ?
-                        // For admin, filter based on branch assignments
-                        allowedRoleOptions.filter(option => {
-                          if (option.value === 'staff') return true;
-                          if (option.value === 'manager') return !hasManager || (selectedStaff && branchManagers.manager === selectedStaff.id);
-                          if (option.value === 'assistant_manager') return !hasAssistantManager || (selectedStaff && branchManagers.assistant_manager === selectedStaff.id);
-                          return false;
-                        }) :
-                        allowedRoleOptions
-                      }
+                      options={selectedBranchId ? (
+                        profile?.role === 'manager' ? 
+                          // For managers, filter to only show Assistant Manager and Staff
+                          allowedRoleOptions.filter(option => 
+                            option.value === 'staff' || 
+                            (option.value === 'assistant_manager' && !hasAssistantManager)
+                          ) : 
+                          profile?.role === 'admin' ?
+                          // For admin, filter based on branch assignments
+                          allowedRoleOptions.filter(option => {
+                            if (option.value === 'staff') return true;
+                            if (option.value === 'manager') return !hasManager || (selectedStaff && branchManagers.manager === selectedStaff.id);
+                            if (option.value === 'assistant_manager') return !hasAssistantManager || (selectedStaff && branchManagers.assistant_manager === selectedStaff.id);
+                            return false;
+                          }) :
+                          allowedRoleOptions
+                      ) : []}
                       value={formData.role ? roleOptions.find(o => o.value === formData.role) : null}
                       onChange={(opt) => {
                         const val = (opt as any)?.value;
@@ -647,7 +687,8 @@ const Staff = () => {
                       menuPortalTarget={document.body}
                       menuPosition="fixed"
                       menuShouldBlockScroll
-                      placeholder="Select role"
+                      placeholder={selectedBranchId ? "Select role" : "Select branch first"}
+                      isDisabled={!selectedBranchId}
                     />
                     {formErrors.role && <p className="text-sm text-red-500 mt-1">{formErrors.role}</p>}
                     {profile?.role === 'manager' && hasAssistantManager && (
@@ -758,52 +799,6 @@ const Staff = () => {
                     </div>
                   )}
 
-                  {/* Branch selection for manager and assistant_manager roles */}
-                  {(formData.role === 'manager' || formData.role === 'assistant_manager' || formData.role === 'staff') && (
-                    <div>
-                      {profile?.role === 'regional_manager' ? (
-                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                          <Label className="text-sm font-medium text-blue-800">Branch Assignment</Label>
-                          <p className="text-sm text-blue-700 mt-1">
-                            Staff member will be automatically assigned to your selected branch: <strong>
-                              {profile?.branch_context && branches.length > 0 
-                                ? branches.find(b => b.id === profile.branch_context)?.name || 'Your Selected Branch'
-                                : 'Your Selected Branch'
-                              }
-                            </strong>
-                          </p>
-                        </div>
-                      ) : profile?.role === 'manager' ? (
-                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                          <Label className="text-sm font-medium text-blue-800">Branch Assignment</Label>
-                          <p className="text-sm text-blue-700 mt-1">
-                            Staff member will be automatically assigned to your branch: <strong>
-                              {profile?.branch_id && branches.length > 0 
-                                ? branches.find(b => b.id === profile.branch_id)?.name || 'Your Branch'
-                                : 'Your Branch'
-                              }
-                            </strong>
-                          </p>
-                        </div>
-                      ) : (
-                        <>
-                          <Label htmlFor="branch">Branch *</Label>
-                          <ReactSelect
-                            inputId="branch"
-                            classNamePrefix="rs"
-                            options={branchOptions}
-                            value={branchOptions.find(o => o.value === selectedBranchId) || null}
-                            onChange={(opt) => setSelectedBranchId((opt as any)?.value || '')}
-                            styles={selectStyles}
-                            menuPortalTarget={document.body}
-                            menuPosition="fixed"
-                            menuShouldBlockScroll
-                            placeholder="Select branch"
-                          />
-                        </>
-                      )}
-                    </div>
-                  )}
 
                 </div>
 
