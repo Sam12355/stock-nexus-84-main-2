@@ -269,16 +269,35 @@ router.get('/profile', async (req, res) => {
     }
 
     console.log('🔑 Token found, verifying...');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('✅ Token verified for user:', decoded.userId);
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+      console.log('✅ Token verified for user:', decoded.userId);
+    } catch (jwtError) {
+      console.log('❌ JWT verification failed:', jwtError.message);
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid token'
+      });
+    }
     // Use basic profile query that works with current database schema
-    const result = await query(
-      `SELECT id, email, name, role, branch_id, branch_context, phone, position, photo_url, access_count, last_access, created_at, 
-              CASE WHEN branch_context IS NOT NULL THEN true ELSE false END as has_completed_selection,
-              notification_settings
-       FROM users WHERE id = $1 AND is_active = true`,
-      [decoded.userId]
-    );
+    console.log('🔍 Executing profile query for user:', decoded.userId);
+    let result;
+    try {
+      result = await query(
+        `SELECT id, email, name, role, branch_id, branch_context, phone, position, photo_url, access_count, last_access, created_at, 
+                CASE WHEN branch_context IS NOT NULL THEN true ELSE false END as has_completed_selection
+         FROM users WHERE id = $1 AND is_active = true`,
+        [decoded.userId]
+      );
+      console.log('✅ Profile query successful, rows:', result.rows.length);
+    } catch (dbError) {
+      console.log('❌ Database query failed:', dbError.message);
+      return res.status(500).json({
+        success: false,
+        error: 'Database error'
+      });
+    }
 
     if (result.rows.length === 0) {
       console.log('❌ User not found in database:', decoded.userId);
