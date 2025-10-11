@@ -65,14 +65,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     hasFetchedProfile.current = true;
     try {
+      console.log('🔍 Fetching profile...');
       const profileData = await apiClient.getProfile();
+      console.log('✅ Profile fetched successfully:', profileData.email);
       setUser(profileData);
       setProfile(profileData);
     } catch (error: any) {
-      console.error('Error fetching profile:', error);
-      setUser(null);
-      setProfile(null);
-      apiClient.setToken(null);
+      console.error('❌ Error fetching profile:', error);
+      console.error('❌ Error details:', error.message, error.status);
+      
+      // Only logout if it's a real authentication error, not a temporary server error
+      if (error.status === 401 || error.message?.includes('token') || error.message?.includes('unauthorized')) {
+        console.log('🔓 Authentication error detected, logging out');
+        setUser(null);
+        setProfile(null);
+        apiClient.setToken(null);
+      } else {
+        console.log('⚠️ Non-auth error, keeping user logged in');
+        // Don't logout for server errors, just show error
+      }
     } finally {
       setLoading(false);
     }
