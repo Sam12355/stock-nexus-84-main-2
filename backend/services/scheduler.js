@@ -166,8 +166,10 @@ class SchedulerService {
           switch (frequency) {
             case 'daily':
               const dailyTime = user.daily_schedule_time || '09:00';
-              console.log(`🔍 DEBUG: Daily check - User time: ${dailyTime}, Current: ${currentTime}, Match: ${currentTime === dailyTime}`);
-              if (currentTime === dailyTime) {
+              // Normalize time format - remove seconds if present
+              const normalizedDailyTime = dailyTime.includes(':') ? dailyTime.split(':').slice(0, 2).join(':') : dailyTime;
+              console.log(`🔍 DEBUG: Daily check - User time: ${dailyTime} -> ${normalizedDailyTime}, Current: ${currentTime}, Match: ${currentTime === normalizedDailyTime}`);
+              if (currentTime === normalizedDailyTime) {
                 shouldSend = true;
               }
               break;
@@ -175,8 +177,9 @@ class SchedulerService {
             case 'weekly':
               const weeklyDay = user.weekly_schedule_day || 0;
               const weeklyTime = user.weekly_schedule_time || '09:00';
-              console.log(`🔍 DEBUG: Weekly check - User day: ${weeklyDay}, time: ${weeklyTime}, Current day: ${currentDay}, time: ${currentTime}`);
-              if (currentDay === weeklyDay && currentTime === weeklyTime) {
+              const normalizedWeeklyTime = weeklyTime.includes(':') ? weeklyTime.split(':').slice(0, 2).join(':') : weeklyTime;
+              console.log(`🔍 DEBUG: Weekly check - User day: ${weeklyDay}, time: ${weeklyTime} -> ${normalizedWeeklyTime}, Current day: ${currentDay}, time: ${currentTime}`);
+              if (currentDay === weeklyDay && currentTime === normalizedWeeklyTime) {
                 shouldSend = true;
               }
               break;
@@ -184,8 +187,9 @@ class SchedulerService {
             case 'monthly':
               const monthlyDate = user.monthly_schedule_date || 1;
               const monthlyTime = user.monthly_schedule_time || '09:00';
-              console.log(`🔍 DEBUG: Monthly check - User date: ${monthlyDate}, time: ${monthlyTime}, Current date: ${currentDate}, time: ${currentTime}`);
-              if (currentDate === monthlyDate && currentTime === monthlyTime) {
+              const normalizedMonthlyTime = monthlyTime.includes(':') ? monthlyTime.split(':').slice(0, 2).join(':') : monthlyTime;
+              console.log(`🔍 DEBUG: Monthly check - User date: ${monthlyDate}, time: ${monthlyTime} -> ${normalizedMonthlyTime}, Current date: ${currentDate}, time: ${currentTime}`);
+              if (currentDate === monthlyDate && currentTime === normalizedMonthlyTime) {
                 shouldSend = true;
               }
               break;
