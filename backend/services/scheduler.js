@@ -101,9 +101,14 @@ class SchedulerService {
         // Parse notification settings
         let notificationSettings = {};
         try {
+          console.log(`🔍 DEBUG: User ${user.email} notification_settings:`, user.notification_settings);
+          console.log(`🔍 DEBUG: Type of notification_settings:`, typeof user.notification_settings);
           notificationSettings = user.notification_settings ? JSON.parse(user.notification_settings) : {};
+          console.log(`✅ DEBUG: Parsed successfully:`, notificationSettings);
         } catch (e) {
           console.log('⚠️ Error parsing notification settings for user:', user.email);
+          console.log('⚠️ Raw notification_settings value:', user.notification_settings);
+          console.log('⚠️ Error details:', e.message);
           continue;
         }
 
@@ -115,9 +120,14 @@ class SchedulerService {
         // Parse alert frequencies
         let alertFrequencies = [];
         try {
+          console.log(`🔍 DEBUG: User ${user.email} stock_alert_frequencies:`, user.stock_alert_frequencies);
+          console.log(`🔍 DEBUG: Type of stock_alert_frequencies:`, typeof user.stock_alert_frequencies);
           alertFrequencies = user.stock_alert_frequencies || [];
+          console.log(`✅ DEBUG: Parsed frequencies successfully:`, alertFrequencies);
         } catch (e) {
           console.log('⚠️ Error parsing alert frequencies for user:', user.email);
+          console.log('⚠️ Raw stock_alert_frequencies value:', user.stock_alert_frequencies);
+          console.log('⚠️ Error details:', e.message);
           continue;
         }
 
@@ -128,12 +138,17 @@ class SchedulerService {
         // Check if current time matches any scheduled frequency
         const matchedFrequencies = [];
         
+        console.log(`🔍 DEBUG: Checking time match for ${user.email}`);
+        console.log(`🔍 DEBUG: Current time: ${currentTime}, Day: ${currentDay}, Date: ${currentDate}`);
+        console.log(`🔍 DEBUG: User daily_schedule_time: ${user.daily_schedule_time}`);
+        
         for (const frequency of alertFrequencies) {
           let shouldSend = false;
           
           switch (frequency) {
             case 'daily':
               const dailyTime = user.daily_schedule_time || '09:00';
+              console.log(`🔍 DEBUG: Daily check - User time: ${dailyTime}, Current: ${currentTime}, Match: ${currentTime === dailyTime}`);
               if (currentTime === dailyTime) {
                 shouldSend = true;
               }
@@ -142,6 +157,7 @@ class SchedulerService {
             case 'weekly':
               const weeklyDay = user.weekly_schedule_day || 0;
               const weeklyTime = user.weekly_schedule_time || '09:00';
+              console.log(`🔍 DEBUG: Weekly check - User day: ${weeklyDay}, time: ${weeklyTime}, Current day: ${currentDay}, time: ${currentTime}`);
               if (currentDay === weeklyDay && currentTime === weeklyTime) {
                 shouldSend = true;
               }
@@ -150,6 +166,7 @@ class SchedulerService {
             case 'monthly':
               const monthlyDate = user.monthly_schedule_date || 1;
               const monthlyTime = user.monthly_schedule_time || '09:00';
+              console.log(`🔍 DEBUG: Monthly check - User date: ${monthlyDate}, time: ${monthlyTime}, Current date: ${currentDate}, time: ${currentTime}`);
               if (currentDate === monthlyDate && currentTime === monthlyTime) {
                 shouldSend = true;
               }
@@ -157,6 +174,7 @@ class SchedulerService {
           }
           
           if (shouldSend) {
+            console.log(`✅ DEBUG: Frequency ${frequency} matched for ${user.email}`);
             matchedFrequencies.push(frequency);
           }
         }
