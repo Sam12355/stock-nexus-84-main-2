@@ -103,7 +103,15 @@ class SchedulerService {
         try {
           console.log(`🔍 DEBUG: User ${user.email} notification_settings:`, user.notification_settings);
           console.log(`🔍 DEBUG: Type of notification_settings:`, typeof user.notification_settings);
-          notificationSettings = user.notification_settings ? JSON.parse(user.notification_settings) : {};
+          
+          if (typeof user.notification_settings === 'string') {
+            notificationSettings = user.notification_settings ? JSON.parse(user.notification_settings) : {};
+          } else if (typeof user.notification_settings === 'object' && user.notification_settings !== null) {
+            notificationSettings = user.notification_settings;
+          } else {
+            notificationSettings = {};
+          }
+          
           console.log(`✅ DEBUG: Parsed successfully:`, notificationSettings);
         } catch (e) {
           console.log('⚠️ Error parsing notification settings for user:', user.email);
@@ -122,7 +130,17 @@ class SchedulerService {
         try {
           console.log(`🔍 DEBUG: User ${user.email} stock_alert_frequencies:`, user.stock_alert_frequencies);
           console.log(`🔍 DEBUG: Type of stock_alert_frequencies:`, typeof user.stock_alert_frequencies);
-          alertFrequencies = user.stock_alert_frequencies || [];
+          
+          if (Array.isArray(user.stock_alert_frequencies)) {
+            alertFrequencies = user.stock_alert_frequencies;
+          } else if (typeof user.stock_alert_frequencies === 'string') {
+            // Handle PostgreSQL array format like {"daily"} or '["daily"]'
+            const cleaned = user.stock_alert_frequencies.replace(/[{}"]/g, '');
+            alertFrequencies = cleaned ? cleaned.split(',') : [];
+          } else {
+            alertFrequencies = [];
+          }
+          
           console.log(`✅ DEBUG: Parsed frequencies successfully:`, alertFrequencies);
         } catch (e) {
           console.log('⚠️ Error parsing alert frequencies for user:', user.email);
@@ -235,8 +253,12 @@ class SchedulerService {
             
             if (user.notification_settings) {
               try {
-                const settings = typeof user.notification_settings === 'string' ? 
-                  JSON.parse(user.notification_settings) : user.notification_settings;
+                let settings = {};
+                if (typeof user.notification_settings === 'string') {
+                  settings = user.notification_settings ? JSON.parse(user.notification_settings) : {};
+                } else if (typeof user.notification_settings === 'object' && user.notification_settings !== null) {
+                  settings = user.notification_settings;
+                }
                 whatsappEnabled = settings.whatsapp !== false;
                 emailEnabled = settings.email !== false;
               } catch (error) {
@@ -361,9 +383,16 @@ class SchedulerService {
       // Check each user's event reminder schedule
       for (const user of usersResult.rows) {
         try {
-          const frequencies = Array.isArray(user.event_reminder_frequencies) 
-            ? user.event_reminder_frequencies 
-            : JSON.parse(user.event_reminder_frequencies);
+          let frequencies = [];
+          if (Array.isArray(user.event_reminder_frequencies)) {
+            frequencies = user.event_reminder_frequencies;
+          } else if (typeof user.event_reminder_frequencies === 'string') {
+            // Handle PostgreSQL array format like {"daily"} or '["daily"]'
+            const cleaned = user.event_reminder_frequencies.replace(/[{}"]/g, '');
+            frequencies = cleaned ? cleaned.split(',') : [];
+          } else {
+            frequencies = [];
+          }
           const matchedFrequencies = [];
 
           for (const frequency of frequencies) {
@@ -490,8 +519,12 @@ class SchedulerService {
             let emailEnabled = false;
             if (user.notification_settings) {
               try {
-                const settings = typeof user.notification_settings === 'string' ? 
-                  JSON.parse(user.notification_settings) : user.notification_settings;
+                let settings = {};
+                if (typeof user.notification_settings === 'string') {
+                  settings = user.notification_settings ? JSON.parse(user.notification_settings) : {};
+                } else if (typeof user.notification_settings === 'object' && user.notification_settings !== null) {
+                  settings = user.notification_settings;
+                }
                 whatsappEnabled = settings.whatsapp === true;
                 emailEnabled = settings.email === true;
               } catch (error) {
@@ -599,7 +632,13 @@ class SchedulerService {
       for (const user of usersResult.rows) {
         let notificationSettings = {};
         try {
-          notificationSettings = user.notification_settings ? JSON.parse(user.notification_settings) : {};
+          if (typeof user.notification_settings === 'string') {
+            notificationSettings = user.notification_settings ? JSON.parse(user.notification_settings) : {};
+          } else if (typeof user.notification_settings === 'object' && user.notification_settings !== null) {
+            notificationSettings = user.notification_settings;
+          } else {
+            notificationSettings = {};
+          }
         } catch (e) {
           console.log('⚠️ Error parsing notification settings for user:', user.email);
           continue;
