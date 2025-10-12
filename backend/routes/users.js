@@ -488,7 +488,8 @@ router.put('/profile', authenticateToken, async (req, res) => {
     // Handle scheduling fields
     if (stock_alert_frequencies !== undefined) {
       updates.push(`stock_alert_frequencies = $${paramCount++}`);
-      values.push(JSON.stringify(stock_alert_frequencies));
+      // Convert array to PostgreSQL array format: {"daily"} instead of '["daily"]'
+      values.push(`{${stock_alert_frequencies.map(f => `"${f}"`).join(',')}}`);
     }
     if (daily_schedule_time !== undefined) {
       updates.push(`daily_schedule_time = $${paramCount++}`);
@@ -514,7 +515,8 @@ router.put('/profile', authenticateToken, async (req, res) => {
     // Event reminder scheduling fields
     if (event_reminder_frequencies !== undefined) {
       updates.push(`event_reminder_frequencies = $${paramCount++}`);
-      values.push(JSON.stringify(event_reminder_frequencies));
+      // Convert array to PostgreSQL array format: {"daily"} instead of '["daily"]'
+      values.push(`{${event_reminder_frequencies.map(f => `"${f}"`).join(',')}}`);
     }
     if (event_daily_schedule_time !== undefined) {
       updates.push(`event_daily_schedule_time = $${paramCount++}`);
@@ -540,7 +542,8 @@ router.put('/profile', authenticateToken, async (req, res) => {
     // Softdrink trends scheduling fields
     if (softdrink_trends_frequencies !== undefined) {
       updates.push(`softdrink_trends_frequencies = $${paramCount++}`);
-      values.push(JSON.stringify(softdrink_trends_frequencies));
+      // Convert array to PostgreSQL array format: {"daily"} instead of '["daily"]'
+      values.push(`{${softdrink_trends_frequencies.map(f => `"${f}"`).join(',')}}`);
     }
     if (softdrink_trends_daily_schedule_time !== undefined) {
       updates.push(`softdrink_trends_daily_schedule_time = $${paramCount++}`);
