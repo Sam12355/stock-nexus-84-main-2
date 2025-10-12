@@ -80,27 +80,94 @@ class SchedulerService {
         this.lastCheckTime = now;
       }
 
-      // Get users with scheduled stock alerts (managers and assistant managers only)
+      // Get users with scheduled stock alerts
       const usersResult = await query(`
         SELECT u.id, u.name, u.phone, u.email, u.branch_context,
-               b.name as branch_name
+               b.name as branch_name, u.notification_settings,
+               u.stock_alert_frequency, u.stock_alert_schedule_day,
+               u.stock_alert_schedule_date, u.stock_alert_schedule_time,
+               u.stock_alert_frequencies, u.daily_schedule_time,
+               u.weekly_schedule_day, u.weekly_schedule_time,
+               u.monthly_schedule_date, u.monthly_schedule_time
         FROM users u
         LEFT JOIN branches b ON u.branch_context = b.id
         WHERE (u.phone IS NOT NULL OR u.email IS NOT NULL)
         AND u.is_active = true
-        AND u.role IN ('manager', 'assistant_manager')
       `);
 
       const eligibleUsers = [];
 
       for (const user of usersResult.rows) {
-        // TEMPORARY FIX: Include all active users with phone/email
-        // This bypasses the missing notification_settings column
-        eligibleUsers.push({
-          ...user,
-          notification_settings: { whatsapp: true, email: true }, // Default to enabled
-          matchedFrequencies: ['daily'] // Default to daily
-        });
+        // Parse notification settings
+        let notificationSettings = {};
+        try {
+          notificationSettings = user.notification_settings ? JSON.parse(user.notification_settings) : {};
+        } catch (e) {
+          console.log('⚠️ Error parsing notification settings for user:', user.email);
+          continue;
+        }
+
+        // Check if stock alerts are enabled
+        if (notificationSettings.stockLevelAlerts !== true) {
+          continue;
+        }
+
+        // Parse alert frequencies
+        let alertFrequencies = [];
+        try {
+          alertFrequencies = user.stock_alert_frequencies || [];
+        } catch (e) {
+          console.log('⚠️ Error parsing alert frequencies for user:', user.email);
+          continue;
+        }
+
+        if (alertFrequencies.length === 0) {
+          continue;
+        }
+
+        // Check if current time matches any scheduled frequency
+        const matchedFrequencies = [];
+        
+        for (const frequency of alertFrequencies) {
+          let shouldSend = false;
+          
+          switch (frequency) {
+            case 'daily':
+              const dailyTime = user.daily_schedule_time || '09:00';
+              if (currentTime === dailyTime) {
+                shouldSend = true;
+              }
+              break;
+              
+            case 'weekly':
+              const weeklyDay = user.weekly_schedule_day || 0;
+              const weeklyTime = user.weekly_schedule_time || '09:00';
+              if (currentDay === weeklyDay && currentTime === weeklyTime) {
+                shouldSend = true;
+              }
+              break;
+              
+            case 'monthly':
+              const monthlyDate = user.monthly_schedule_date || 1;
+              const monthlyTime = user.monthly_schedule_time || '09:00';
+              if (currentDate === monthlyDate && currentTime === monthlyTime) {
+                shouldSend = true;
+              }
+              break;
+          }
+          
+          if (shouldSend) {
+            matchedFrequencies.push(frequency);
+          }
+        }
+
+        if (matchedFrequencies.length > 0) {
+          eligibleUsers.push({
+            ...user,
+            notification_settings: notificationSettings,
+            matchedFrequencies
+          });
+        }
       }
 
       if (eligibleUsers.length === 0) {
@@ -496,31 +563,40 @@ class SchedulerService {
         console.log(`📉 Checking softdrink trends alerts at ${currentTime} (Day: ${currentDay}, Date: ${currentDate})`);
       }
 
-      // Get users with softdrink trends alerts enabled (managers and assistant managers only)
+      // Get users with softdrink trends alerts enabled
       const usersResult = await query(`
         SELECT u.id, u.name, u.phone, u.email, u.branch_context,
-               b.name as branch_name, d.name as district_name, r.name as region_name
+               b.name as branch_name, d.name as district_name, r.name as region_name,
+               u.notification_settings
         FROM users u
         LEFT JOIN branches b ON u.branch_context = b.id
         LEFT JOIN districts d ON b.district_id = d.id
         LEFT JOIN regions r ON d.region_id = r.id
         WHERE (u.phone IS NOT NULL OR u.email IS NOT NULL)
         AND u.is_active = true
-        AND u.role IN ('manager', 'assistant_manager')
       `);
 
       const eligibleUsers = [];
 
       for (const user of usersResult.rows) {
-        // TEMPORARY FIX: Include all active users for softdrink trends
-        // This bypasses the missing notification_settings column
+        let notificationSettings = {};
+        try {
+          notificationSettings = user.notification_settings ? JSON.parse(user.notification_settings) : {};
+        } catch (e) {
+          console.log('⚠️ Error parsing notification settings for user:', user.email);
+          continue;
+        }
+
+        // Check if softdrink trends alerts are enabled
+        if (notificationSettings.softdrinkTrends !== true) {
+          continue;
+        }
+
+        // For now, we'll send alerts to all users with softdrink trends enabled
+        // In the future, we can add scheduling logic here similar to stock alerts
         eligibleUsers.push({
           ...user,
-          notificationSettings: { 
-            whatsapp: true, 
-            email: true, 
-            softdrinkTrends: true // Enable softdrink trends for all users temporarily
-          }
+          notificationSettings
         });
       }
 
