@@ -103,7 +103,7 @@ class SchedulerService {
 
       const eligibleUsers = [];
 
-             for (const user of usersResult.rows) {
+      for (const user of usersResult.rows) {
         // Parse notification settings
         let notificationSettings = {};
         try {
@@ -160,8 +160,8 @@ class SchedulerService {
         }
 
         // Check if current time matches any scheduled frequency
-               const matchedFrequencies = [];
-               
+        const matchedFrequencies = [];
+        
         console.log(`🔍 DEBUG: Checking time match for ${user.email}`);
         console.log(`🔍 DEBUG: Current time: ${currentTime}, Day: ${currentDay}, Date: ${currentDate}`);
         console.log(`🔍 DEBUG: User daily_schedule_time: ${user.daily_schedule_time}`);
@@ -170,42 +170,42 @@ class SchedulerService {
           let shouldSend = false;
           
           switch (frequency) {
-                   case 'daily':
+            case 'daily':
               const dailyTime = user.daily_schedule_time || '09:00';
               // Normalize time format - remove seconds if present
               const normalizedDailyTime = dailyTime.includes(':') ? dailyTime.split(':').slice(0, 2).join(':') : dailyTime;
               console.log(`🔍 DEBUG: Daily check - User time: ${dailyTime} -> ${normalizedDailyTime}, Current: ${currentTime}, Match: ${currentTime === normalizedDailyTime}`);
               if (currentTime === normalizedDailyTime) {
                 shouldSend = true;
-                     }
-                     break;
+              }
+              break;
               
-                   case 'weekly':
+            case 'weekly':
               const weeklyDay = user.weekly_schedule_day || 0;
               const weeklyTime = user.weekly_schedule_time || '09:00';
               const normalizedWeeklyTime = weeklyTime.includes(':') ? weeklyTime.split(':').slice(0, 2).join(':') : weeklyTime;
               console.log(`🔍 DEBUG: Weekly check - User day: ${weeklyDay}, time: ${weeklyTime} -> ${normalizedWeeklyTime}, Current day: ${currentDay}, time: ${currentTime}`);
               if (currentDay === weeklyDay && currentTime === normalizedWeeklyTime) {
                 shouldSend = true;
-                     }
-                     break;
+              }
+              break;
               
-                   case 'monthly':
+            case 'monthly':
               const monthlyDate = user.monthly_schedule_date || 1;
               const monthlyTime = user.monthly_schedule_time || '09:00';
               const normalizedMonthlyTime = monthlyTime.includes(':') ? monthlyTime.split(':').slice(0, 2).join(':') : monthlyTime;
               console.log(`🔍 DEBUG: Monthly check - User date: ${monthlyDate}, time: ${monthlyTime} -> ${normalizedMonthlyTime}, Current date: ${currentDate}, time: ${currentTime}`);
               if (currentDate === monthlyDate && currentTime === normalizedMonthlyTime) {
                 shouldSend = true;
-                     }
-                     break;
-                 }
+              }
+              break;
+          }
           
           if (shouldSend) {
             console.log(`✅ DEBUG: Frequency ${frequency} matched for ${user.email}`);
             matchedFrequencies.push(frequency);
           }
-               }
+        }
 
         if (matchedFrequencies.length > 0) {
           eligibleUsers.push({
@@ -269,8 +269,8 @@ class SchedulerService {
                 } else if (typeof user.notification_settings === 'object' && user.notification_settings !== null) {
                   settings = user.notification_settings;
                 }
-                whatsappEnabled = settings.whatsapp === true;
-                emailEnabled = settings.email === true;
+                whatsappEnabled = settings.whatsapp !== false;
+                emailEnabled = settings.email !== false;
               } catch (error) {
                 console.error('Error parsing notification settings for user', user.name, error);
               }
@@ -408,23 +408,30 @@ class SchedulerService {
           }
           const matchedFrequencies = [];
 
+          console.log(`🔍 DEBUG: Checking event reminders for ${user.email}`);
+          console.log(`🔍 DEBUG: Event frequencies:`, frequencies);
+          console.log(`🔍 DEBUG: Current time: ${currentTime}, Day: ${currentDay}, Date: ${currentDate}`);
+          
           for (const frequency of frequencies) {
             switch (frequency) {
               case 'daily':
                 // Compare only hours and minutes, ignore seconds
                 const userDailyTime = user.event_daily_schedule_time ? user.event_daily_schedule_time.slice(0, 5) : null;
+                console.log(`🔍 DEBUG: Event daily check - User time: ${user.event_daily_schedule_time} -> ${userDailyTime}, Current: ${currentTime}, Match: ${userDailyTime === currentTime}`);
                 if (userDailyTime === currentTime) {
                   matchedFrequencies.push('daily');
                 }
                 break;
               case 'weekly':
                 const userWeeklyTime = user.event_weekly_schedule_time ? user.event_weekly_schedule_time.slice(0, 5) : null;
+                console.log(`🔍 DEBUG: Event weekly check - User day: ${user.event_weekly_schedule_day}, time: ${user.event_weekly_schedule_time} -> ${userWeeklyTime}, Current day: ${currentDay}, time: ${currentTime}`);
                 if (user.event_weekly_schedule_day === currentDay && userWeeklyTime === currentTime) {
                   matchedFrequencies.push('weekly');
                 }
                 break;
               case 'monthly':
                 const userMonthlyTime = user.event_monthly_schedule_time ? user.event_monthly_schedule_time.slice(0, 5) : null;
+                console.log(`🔍 DEBUG: Event monthly check - User date: ${user.event_monthly_schedule_date}, time: ${user.event_monthly_schedule_time} -> ${userMonthlyTime}, Current date: ${currentDate}, time: ${currentTime}`);
                 if (user.event_monthly_schedule_date === currentDate && userMonthlyTime === currentTime) {
                   matchedFrequencies.push('monthly');
                 }
@@ -634,7 +641,10 @@ class SchedulerService {
       const usersResult = await query(`
         SELECT u.id, u.name, u.phone, u.email, u.branch_context,
                b.name as branch_name, d.name as district_name, r.name as region_name,
-               u.notification_settings
+               u.notification_settings, u.softdrink_trends_frequencies,
+               u.softdrink_trends_daily_schedule_time, u.softdrink_trends_weekly_schedule_day,
+               u.softdrink_trends_weekly_schedule_time, u.softdrink_trends_monthly_schedule_date,
+               u.softdrink_trends_monthly_schedule_time
         FROM users u
         LEFT JOIN branches b ON u.branch_context = b.id
         LEFT JOIN districts d ON b.district_id = d.id
@@ -665,12 +675,88 @@ class SchedulerService {
           continue;
         }
 
-        // For now, we'll send alerts to all users with softdrink trends enabled
-        // In the future, we can add scheduling logic here similar to stock alerts
-        eligibleUsers.push({
-          ...user,
-          notificationSettings
-        });
+        // Parse softdrink trends frequencies
+        let alertFrequencies = [];
+        try {
+          console.log(`🔍 DEBUG: User ${user.email} softdrink_trends_frequencies:`, user.softdrink_trends_frequencies);
+          console.log(`🔍 DEBUG: Type of softdrink_trends_frequencies:`, typeof user.softdrink_trends_frequencies);
+          
+          if (Array.isArray(user.softdrink_trends_frequencies)) {
+            alertFrequencies = user.softdrink_trends_frequencies;
+          } else if (typeof user.softdrink_trends_frequencies === 'string') {
+            // Handle PostgreSQL array format like {"daily"} or '["daily"]'
+            const cleaned = user.softdrink_trends_frequencies.replace(/[{}"]/g, '');
+            alertFrequencies = cleaned ? cleaned.split(',') : [];
+          } else {
+            alertFrequencies = [];
+          }
+          
+          console.log(`✅ DEBUG: Parsed softdrink frequencies successfully:`, alertFrequencies);
+        } catch (e) {
+          console.log('⚠️ Error parsing softdrink trends frequencies for user:', user.email);
+          console.log('⚠️ Raw softdrink_trends_frequencies value:', user.softdrink_trends_frequencies);
+          console.log('⚠️ Error details:', e.message);
+          continue;
+        }
+
+        if (alertFrequencies.length === 0) {
+          continue;
+        }
+
+        // Check if current time matches any scheduled frequency
+        const matchedFrequencies = [];
+        
+        console.log(`🔍 DEBUG: Checking softdrink trends time match for ${user.email}`);
+        console.log(`🔍 DEBUG: Current time: ${currentTime}, Day: ${currentDay}, Date: ${currentDate}`);
+        
+        for (const frequency of alertFrequencies) {
+          let shouldSend = false;
+          
+          switch (frequency) {
+            case 'daily':
+              const dailyTime = user.softdrink_trends_daily_schedule_time || '09:00';
+              // Normalize time format - remove seconds if present
+              const normalizedDailyTime = dailyTime.includes(':') ? dailyTime.split(':').slice(0, 2).join(':') : dailyTime;
+              console.log(`🔍 DEBUG: Softdrink daily check - User time: ${dailyTime} -> ${normalizedDailyTime}, Current: ${currentTime}, Match: ${currentTime === normalizedDailyTime}`);
+              if (currentTime === normalizedDailyTime) {
+                shouldSend = true;
+              }
+              break;
+              
+            case 'weekly':
+              const weeklyDay = user.softdrink_trends_weekly_schedule_day || 0;
+              const weeklyTime = user.softdrink_trends_weekly_schedule_time || '09:00';
+              const normalizedWeeklyTime = weeklyTime.includes(':') ? weeklyTime.split(':').slice(0, 2).join(':') : weeklyTime;
+              console.log(`🔍 DEBUG: Softdrink weekly check - User day: ${weeklyDay}, time: ${weeklyTime} -> ${normalizedWeeklyTime}, Current day: ${currentDay}, time: ${currentTime}`);
+              if (currentDay === weeklyDay && currentTime === normalizedWeeklyTime) {
+                shouldSend = true;
+              }
+              break;
+              
+            case 'monthly':
+              const monthlyDate = user.softdrink_trends_monthly_schedule_date || 1;
+              const monthlyTime = user.softdrink_trends_monthly_schedule_time || '09:00';
+              const normalizedMonthlyTime = monthlyTime.includes(':') ? monthlyTime.split(':').slice(0, 2).join(':') : monthlyTime;
+              console.log(`🔍 DEBUG: Softdrink monthly check - User date: ${monthlyDate}, time: ${monthlyTime} -> ${normalizedMonthlyTime}, Current date: ${currentDate}, time: ${currentTime}`);
+              if (currentDate === monthlyDate && currentTime === normalizedMonthlyTime) {
+                shouldSend = true;
+              }
+              break;
+          }
+          
+          if (shouldSend) {
+            console.log(`✅ DEBUG: Softdrink frequency ${frequency} matched for ${user.email}`);
+            matchedFrequencies.push(frequency);
+          }
+        }
+
+        if (matchedFrequencies.length > 0) {
+          eligibleUsers.push({
+            ...user,
+            notification_settings: notificationSettings,
+            matchedFrequencies
+          });
+        }
       }
 
       if (eligibleUsers.length === 0) {
