@@ -67,9 +67,15 @@ class SchedulerService {
   async checkAndSendScheduledAlerts() {
     try {
       const now = new Date();
-      const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
-      const currentDate = now.getDate(); // 1-31
-      const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
+      
+      // Convert to Sweden timezone (UTC+1 or UTC+2)
+      const swedenTime = new Date(now.toLocaleString("en-US", {timeZone: "Europe/Stockholm"}));
+      const currentDay = swedenTime.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      const currentDate = swedenTime.getDate(); // 1-31
+      const currentTime = swedenTime.toTimeString().slice(0, 5); // HH:MM format
+      
+      console.log(`🕐 Server UTC time: ${now.toTimeString().slice(0, 5)}`);
+      console.log(`🕐 Sweden time: ${currentTime}`);
 
       // Only log every 10 minutes to avoid spam
       const shouldLog = !this.lastCheckTime || 
@@ -355,10 +361,13 @@ class SchedulerService {
   async checkAndSendEventReminders() {
     try {
       const now = new Date();
-      const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
-      const currentDate = now.getDate(); // 1-31
-      const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
-      const currentTimeWithSeconds = now.toTimeString().slice(0, 8); // HH:MM:SS format
+      
+      // Convert to Sweden timezone (UTC+1 or UTC+2)
+      const swedenTime = new Date(now.toLocaleString("en-US", {timeZone: "Europe/Stockholm"}));
+      const currentDay = swedenTime.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      const currentDate = swedenTime.getDate(); // 1-31
+      const currentTime = swedenTime.toTimeString().slice(0, 5); // HH:MM format
+      const currentTimeWithSeconds = swedenTime.toTimeString().slice(0, 8); // HH:MM:SS format
 
       // Only log every 10 minutes to avoid spam
       const shouldLog = !this.lastCheckTime || (now.getTime() - this.lastCheckTime.getTime()) >= 10 * 60 * 1000;
@@ -606,9 +615,12 @@ class SchedulerService {
   async checkAndSendSoftdrinkTrendsAlerts() {
     try {
       const now = new Date();
-      const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
-      const currentDate = now.getDate(); // 1-31
-      const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
+      
+      // Convert to Sweden timezone (UTC+1 or UTC+2)
+      const swedenTime = new Date(now.toLocaleString("en-US", {timeZone: "Europe/Stockholm"}));
+      const currentDay = swedenTime.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      const currentDate = swedenTime.getDate(); // 1-31
+      const currentTime = swedenTime.toTimeString().slice(0, 5); // HH:MM format
 
       // Only log every 10 minutes to avoid spam
       const shouldLog = !this.lastCheckTime || 
