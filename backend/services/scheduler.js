@@ -80,7 +80,7 @@ class SchedulerService {
         this.lastCheckTime = now;
       }
 
-      // Get users with scheduled stock alerts
+      // Get users with scheduled stock alerts (managers and assistant managers only)
       const usersResult = await query(`
         SELECT u.id, u.name, u.phone, u.email, u.branch_context,
                b.name as branch_name
@@ -88,6 +88,7 @@ class SchedulerService {
         LEFT JOIN branches b ON u.branch_context = b.id
         WHERE (u.phone IS NOT NULL OR u.email IS NOT NULL)
         AND u.is_active = true
+        AND u.role IN ('manager', 'assistant_manager')
       `);
 
       const eligibleUsers = [];
@@ -495,7 +496,7 @@ class SchedulerService {
         console.log(`📉 Checking softdrink trends alerts at ${currentTime} (Day: ${currentDay}, Date: ${currentDate})`);
       }
 
-      // Get users with softdrink trends alerts enabled
+      // Get users with softdrink trends alerts enabled (managers and assistant managers only)
       const usersResult = await query(`
         SELECT u.id, u.name, u.phone, u.email, u.branch_context,
                b.name as branch_name, d.name as district_name, r.name as region_name
@@ -505,6 +506,7 @@ class SchedulerService {
         LEFT JOIN regions r ON d.region_id = r.id
         WHERE (u.phone IS NOT NULL OR u.email IS NOT NULL)
         AND u.is_active = true
+        AND u.role IN ('manager', 'assistant_manager')
       `);
 
       const eligibleUsers = [];
