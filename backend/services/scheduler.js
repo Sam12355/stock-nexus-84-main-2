@@ -92,13 +92,14 @@ class SchedulerService {
 
       const eligibleUsers = [];
 
-             for (const user of usersResult.rows) {
-               // Simplified logic - include all active users for now
-               // This ensures notifications work while we fix the database schema
-               
-               // Simplified logic - include all users for now
-               // This ensures notifications work while we fix the database schema
-               eligibleUsers.push(user);
+      for (const user of usersResult.rows) {
+        // TEMPORARY FIX: Include all active users with phone/email
+        // This bypasses the missing notification_settings column
+        eligibleUsers.push({
+          ...user,
+          notification_settings: { whatsapp: true, email: true }, // Default to enabled
+          matchedFrequencies: ['daily'] // Default to daily
+        });
       }
 
       if (eligibleUsers.length === 0) {
@@ -497,8 +498,7 @@ class SchedulerService {
       // Get users with softdrink trends alerts enabled
       const usersResult = await query(`
         SELECT u.id, u.name, u.phone, u.email, u.branch_context,
-               b.name as branch_name, d.name as district_name, r.name as region_name,
-               u.notification_settings
+               b.name as branch_name, d.name as district_name, r.name as region_name
         FROM users u
         LEFT JOIN branches b ON u.branch_context = b.id
         LEFT JOIN districts d ON b.district_id = d.id
@@ -510,24 +510,15 @@ class SchedulerService {
       const eligibleUsers = [];
 
       for (const user of usersResult.rows) {
-        let notificationSettings = {};
-        try {
-          notificationSettings = user.notification_settings ? JSON.parse(user.notification_settings) : {};
-        } catch (e) {
-          console.log('⚠️ Error parsing notification settings for user:', user.email);
-          continue;
-        }
-
-        // Check if softdrink trends alerts are enabled
-        if (notificationSettings.softdrinkTrends !== true) {
-          continue;
-        }
-
-        // For now, we'll send alerts to all users with softdrink trends enabled
-        // In the future, we can add scheduling logic here similar to stock alerts
+        // TEMPORARY FIX: Include all active users for softdrink trends
+        // This bypasses the missing notification_settings column
         eligibleUsers.push({
           ...user,
-          notificationSettings
+          notificationSettings: { 
+            whatsapp: true, 
+            email: true, 
+            softdrinkTrends: true // Enable softdrink trends for all users temporarily
+          }
         });
       }
 
