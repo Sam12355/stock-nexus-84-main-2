@@ -279,22 +279,53 @@ class SchedulerService {
             const frequencyText = frequency === 'daily' ? 'Daily' :
                                 frequency === 'weekly' ? 'Weekly' : 'Monthly';
             
-            let message = `📊 ${frequencyText} Stock Alert Summary\n\n`;
-            message += `Branch: ${user.branch_name || 'All Branches'}\n`;
-            message += `Date: ${now.toLocaleDateString()}\n\n`;
-            message += `Low Stock Items (${lowStockItems.length}):\n\n`;
+            const urgencyIcon = '📊';
+            const urgencyText = `${frequencyText.toUpperCase()} STOCK REPORT`;
+            
+            let message = `${urgencyIcon} *${urgencyText}*\n`;
+            message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+            message += `Hello *${user.name}*,\n\n`;
+            message += `Here's your ${frequencyText.toLowerCase()} stock level report for *${user.branch_name || 'All Branches'}*.\n\n`;
+            message += `📊 *SUMMARY STATISTICS*\n`;
+            message += `• Items Needing Attention: *${lowStockItems.length}*\n`;
+            message += `• Critical Level: *${lowStockItems.filter(item => item.current_quantity <= (item.critical_level || Math.floor(item.threshold_level * 0.2))).length}*\n`;
+            message += `• Low Level: *${lowStockItems.filter(item => item.current_quantity > (item.critical_level || Math.floor(item.threshold_level * 0.2)) && item.current_quantity <= (item.low_level || Math.floor(item.threshold_level * 0.5))).length}*\n\n`;
+            message += `📦 *ITEMS REQUIRING ATTENTION*\n\n`;
 
             lowStockItems.forEach((item, index) => {
-              const status = item.current_quantity <= (item.critical_level || Math.floor(item.threshold_level * 0.2)) ? '🚨 CRITICAL' :
-                            item.current_quantity <= (item.low_level || Math.floor(item.threshold_level * 0.5)) ? '⚠️ LOW' : '📉 BELOW THRESHOLD';
+              const isCritical = item.current_quantity <= (item.critical_level || Math.floor(item.threshold_level * 0.2));
+              const isLow = item.current_quantity <= (item.low_level || Math.floor(item.threshold_level * 0.5));
+              const statusColor = isCritical ? '🔴' : isLow ? '🟠' : '🟡';
+              const statusText = isCritical ? 'CRITICAL' : isLow ? 'LOW' : 'BELOW THRESHOLD';
               
-              message += `${index + 1}. ${item.name}\n`;
-              message += `   Current: ${item.current_quantity} | Threshold: ${item.threshold_level}\n`;
-              message += `   Status: ${status}\n\n`;
+              message += `*${index + 1}. ${item.name}*\n`;
+              message += `   📊 Current Stock: *${item.current_quantity}*\n`;
+              message += `   🎯 Threshold Level: *${item.threshold_level}*\n`;
+              message += `   ${statusColor} Status: *${statusText}*\n`;
+              if (item.category) {
+                message += `   📂 Category: ${item.category}\n`;
+              }
+              message += `\n`;
             });
 
-            message += `Please restock these items to maintain adequate inventory levels.\n\n`;
-            message += `Time: ${now.toLocaleString()}`;
+            message += `💡 *RECOMMENDED ACTIONS:*\n`;
+            message += `• Review critical items and place urgent orders\n`;
+            message += `• Update reorder points for frequently low items\n`;
+            message += `• Consider increasing order quantities for high-demand items\n`;
+            message += `• Schedule regular inventory reviews to prevent future shortages\n\n`;
+            
+            message += `🔴 *IMMEDIATE ACTION REQUIRED*\n\n`;
+            message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+            message += `📱 *Inventory Management System*\n`;
+            message += `Professional Stock Management Solution\n\n`;
+            message += `Report generated: ${now.toLocaleString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}`;
 
             // Send notifications based on user preferences
             const remindersSent = { whatsapp: false, email: false };
@@ -514,25 +545,68 @@ class SchedulerService {
             const frequencyText = frequency === 'daily' ? 'Daily' :
                                 frequency === 'weekly' ? 'Weekly' : 'Monthly';
             
-            let message = `📅 ${frequencyText} Event Reminder\n\n`;
-            message += `Branch: ${user.branch_name || 'All Branches'}\n`;
-            message += `Date: ${now.toLocaleDateString()}\n\n`;
-            message += `Upcoming Events (${upcomingEvents.length}):\n\n`;
+            const urgencyIcon = '📅';
+            const urgencyText = `${frequencyText.toUpperCase()} EVENT REMINDER`;
+            
+            let message = `${urgencyIcon} *${urgencyText}*\n`;
+            message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+            message += `Hello *${user.name}*,\n\n`;
+            message += `Here are your upcoming events that require attention and preparation.\n\n`;
+            message += `📊 *SUMMARY STATISTICS*\n`;
+            message += `• Upcoming Events: *${upcomingEvents.length}*\n`;
+            message += `• Urgent (≤3 days): *${upcomingEvents.filter(event => {
+              const eventDate = new Date(event.event_date);
+              const daysUntil = Math.ceil((eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+              return daysUntil <= 3;
+            }).length}*\n`;
+            message += `• This Week: *${upcomingEvents.filter(event => {
+              const eventDate = new Date(event.event_date);
+              const daysUntil = Math.ceil((eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+              return daysUntil > 3 && daysUntil <= 7;
+            }).length}*\n\n`;
+            message += `📅 *UPCOMING EVENTS*\n\n`;
 
             upcomingEvents.forEach((event, index) => {
               const eventDate = new Date(event.event_date);
               const daysUntil = Math.ceil((eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+              const isUrgent = daysUntil <= 3;
+              const isThisWeek = daysUntil <= 7;
+              const urgencyIcon = isUrgent ? '🚨' : isThisWeek ? '⚠️' : '📅';
+              const urgencyText = isUrgent ? 'URGENT' : isThisWeek ? 'THIS WEEK' : 'UPCOMING';
               
-              message += `${index + 1}. ${event.title}\n`;
-              message += `   📅 Date: ${eventDate.toLocaleDateString()}\n`;
-              message += `   ⏰ Days until: ${daysUntil} day${daysUntil !== 1 ? 's' : ''}\n`;
+              message += `*${index + 1}. ${event.title}*\n`;
+              message += `   📅 Event Date: *${eventDate.toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric',
+                year: 'numeric'
+              })}*\n`;
+              message += `   ⏰ Days Until: *${daysUntil} day${daysUntil !== 1 ? 's' : ''}*\n`;
+              message += `   ${urgencyIcon} Status: *${urgencyText}*\n`;
               if (event.description) {
-                message += `   📝 ${event.description}\n`;
+                message += `   📝 Description: ${event.description}\n`;
               }
               message += `   🏢 Branch: ${event.branch_name || 'All Branches'}\n\n`;
             });
 
-            message += `\nDon't forget to prepare for these upcoming events!`;
+            message += `💡 *PREPARATION CHECKLIST:*\n`;
+            message += `• Review event requirements and prepare necessary materials\n`;
+            message += `• Ensure adequate stock levels for event-related items\n`;
+            message += `• Coordinate with team members and stakeholders\n`;
+            message += `• Set reminders for final preparations closer to event dates\n\n`;
+            
+            message += `🔴 *DON'T FORGET TO PREPARE!*\n\n`;
+            message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+            message += `📱 *Inventory Management System*\n`;
+            message += `Professional Event Management Solution\n\n`;
+            message += `Reminder generated: ${now.toLocaleString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}`;
 
             // Check notification settings
             let whatsappEnabled = false;
@@ -851,7 +925,52 @@ class SchedulerService {
 
           // Send WhatsApp alert if enabled and phone number exists
           if (user.notification_settings.whatsapp === true && user.phone) {
-            const message = `📉 Softdrink Trend Alert\n\nHello ${user.name},\n\nWe've detected declining trends in the following softdrink items:\n\n${decliningItems.map(item => `• ${item.item_name}: Net change ${item.net_change} (${item.trend})`).join('\n')}\n\nPlease review your inventory and consider adjusting your ordering strategy.\n\nBest regards,\nInventory Management System`;
+            const urgencyIcon = '📉';
+            const urgencyText = 'DECLINING TRENDS DETECTED';
+            
+            let message = `${urgencyIcon} *SOFTDRINK TREND ALERT*\n`;
+            message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+            message += `Hello *${user.name}*,\n\n`;
+            message += `We've detected *declining trends* in your softdrink inventory that require immediate attention.\n\n`;
+            message += `🔴 *${urgencyText}*\n`;
+            message += `📊 *${decliningItems.length} Items Showing Negative Trends*\n\n`;
+            
+            // Add declining items details
+            decliningItems.forEach((item, index) => {
+              message += `*${index + 1}. ${item.item_name}*\n`;
+              message += `   📈 Stock In: ${item.stock_in}\n`;
+              message += `   📉 Stock Out: ${item.stock_out}\n`;
+              message += `   📊 Net Change: ${item.net_change} (${item.trend})\n\n`;
+            });
+            
+            // Add branch/district info if available
+            if (user.branch_name) {
+              message += `🏢 *Branch:* ${user.branch_name}\n`;
+            }
+            if (user.district_name) {
+              message += `📍 *District:* ${user.district_name}\n\n`;
+            }
+            
+            // Add action recommendations
+            message += `💡 *RECOMMENDED ACTIONS:*\n`;
+            message += `• Review your ordering patterns for these items\n`;
+            message += `• Consider increasing stock-in quantities\n`;
+            message += `• Analyze customer demand patterns\n`;
+            message += `• Check for any supply chain issues\n`;
+            message += `• Monitor these trends closely in coming weeks\n\n`;
+            
+            message += `🔴 *HIGH PRIORITY REVIEW REQUIRED*\n\n`;
+            message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+            message += `📱 *Inventory Management System*\n`;
+            message += `Professional Stock Management Solution\n\n`;
+            message += `Alert generated: ${new Date().toLocaleString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}`;
             
             await whatsappService.sendMessage(user.phone, message);
             console.log(`📱 Softdrink trend alert sent via WhatsApp to ${user.phone}`);
