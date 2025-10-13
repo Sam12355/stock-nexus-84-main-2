@@ -762,6 +762,21 @@ class SchedulerService {
       if (eligibleUsers.length === 0) {
         if (shouldLog) {
           console.log('📉 No users eligible for softdrink trends alerts');
+          console.log('📉 Debug: Checking why no users are eligible...');
+          console.log('📉 Total users checked:', usersResult.rows.length);
+          for (const user of usersResult.rows) {
+            let notificationSettings = {};
+            try {
+              if (typeof user.notification_settings === 'string') {
+                notificationSettings = user.notification_settings ? JSON.parse(user.notification_settings) : {};
+              } else if (typeof user.notification_settings === 'object' && user.notification_settings !== null) {
+                notificationSettings = user.notification_settings;
+              }
+            } catch (e) {
+              console.log('📉 Error parsing notification settings for user:', user.email);
+            }
+            console.log(`📉 User ${user.email}: softdrinkTrends=${notificationSettings.softdrinkTrends}, frequencies=${user.softdrink_trends_frequencies}`);
+          }
         }
         return;
       }
@@ -803,9 +818,16 @@ class SchedulerService {
 
       const decliningItems = trendsResult.rows;
 
+      if (shouldLog) {
+        console.log(`📉 Softdrink trends query returned ${decliningItems.length} declining items`);
+        if (decliningItems.length > 0) {
+          console.log('📉 Declining items:', decliningItems.map(item => `${item.item_name}: ${item.net_change} (${item.trend})`));
+        }
+      }
+
       if (decliningItems.length === 0) {
         if (shouldLog) {
-          console.log('📉 No declining softdrink trends found');
+          console.log('📉 No declining softdrink trends found - no alerts will be sent');
         }
         return;
       }
