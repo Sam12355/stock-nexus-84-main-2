@@ -484,6 +484,8 @@ const Settings = () => {
   // Save individual notification setting immediately
   const saveNotificationSetting = async (settingType: 'email' | 'sms' | 'whatsapp' | 'stockAlerts' | 'eventReminders' | 'softdrinkTrends', value: boolean) => {
     try {
+      console.log(`🔧 DEBUG: saveNotificationSetting called with settingType=${settingType}, value=${value}`);
+      
       // Save to localStorage for all notification preferences
       const updatedNotifications = { ...notifications, [settingType]: value };
       localStorage.setItem(`notifications_${profile?.id}`, JSON.stringify(updatedNotifications));
