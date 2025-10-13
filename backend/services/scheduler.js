@@ -838,7 +838,7 @@ class SchedulerService {
       for (const user of eligibleUsers) {
         try {
           // Send email alert if enabled
-          if (user.notificationSettings.email === true) {
+          if (user.notification_settings.email === true) {
             await emailService.sendSoftdrinkTrendAlert(
               user.email,
               user.name,
@@ -850,7 +850,7 @@ class SchedulerService {
           }
 
           // Send WhatsApp alert if enabled and phone number exists
-          if (user.notificationSettings.whatsapp === true && user.phone) {
+          if (user.notification_settings.whatsapp === true && user.phone) {
             const message = `📉 Softdrink Trend Alert\n\nHello ${user.name},\n\nWe've detected declining trends in the following softdrink items:\n\n${decliningItems.map(item => `• ${item.item_name}: Net change ${item.net_change} (${item.trend})`).join('\n')}\n\nPlease review your inventory and consider adjusting your ordering strategy.\n\nBest regards,\nInventory Management System`;
             
             await whatsappService.sendMessage(user.phone, message);

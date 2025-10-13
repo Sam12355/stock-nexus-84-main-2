@@ -7,14 +7,21 @@ class WhatsAppService {
     this.authToken = process.env.TWILIO_AUTH_TOKEN;
     this.whatsappNumber = process.env.TWILIO_WHATSAPP_NUMBER || process.env.TWILIO_PHONE_NUMBER; // Support both naming conventions
     
-    if (this.accountSid && this.authToken && this.whatsappNumber) {
-      this.client = twilio(this.accountSid, this.authToken);
-      this.isConfigured = true;
-      console.log('✅ WhatsApp service configured with Twilio');
-      console.log(`📱 WhatsApp Number: ${this.whatsappNumber}`);
+    // Check if credentials are valid (accountSid should start with 'AC')
+    if (this.accountSid && this.authToken && this.whatsappNumber && this.accountSid.startsWith('AC')) {
+      try {
+        this.client = twilio(this.accountSid, this.authToken);
+        this.isConfigured = true;
+        console.log('✅ WhatsApp service configured with Twilio');
+        console.log(`📱 WhatsApp Number: ${this.whatsappNumber}`);
+      } catch (error) {
+        this.isConfigured = false;
+        console.log('⚠️ WhatsApp service failed to initialize:', error.message);
+      }
     } else {
       this.isConfigured = false;
-      console.log('⚠️ WhatsApp not configured. Missing credentials in .env');
+      console.log('⚠️ WhatsApp not configured. Missing or invalid credentials in .env');
+      console.log('⚠️ Required: TWILIO_ACCOUNT_SID (starts with AC), TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_NUMBER');
     }
   }
 
