@@ -223,7 +223,8 @@ const Settings = () => {
         sms: notificationSettings.sms,
         whatsapp: notificationSettings.whatsapp,
         stockLevelAlerts: notificationSettings.stockAlerts,
-        eventReminders: notificationSettings.eventReminders
+        eventReminders: notificationSettings.eventReminders,
+        softdrinkTrends: notificationSettings.softdrinkTrends
       });
     } catch (error) {
       console.error('Error saving notifications to database:', error);
@@ -299,6 +300,7 @@ const Settings = () => {
             whatsapp: dbSettings.whatsapp !== undefined ? dbSettings.whatsapp : defaultWhatsapp,
             stockAlerts: dbSettings.stockLevelAlerts !== undefined ? dbSettings.stockLevelAlerts : defaultStockAlerts,
             eventReminders: dbSettings.eventReminders !== undefined ? dbSettings.eventReminders : defaultEventReminders,
+            softdrinkTrends: dbSettings.softdrinkTrends !== undefined ? dbSettings.softdrinkTrends : false,
           };
           setNotifications(mappedSettings);
           // Also save to localStorage for faster access
