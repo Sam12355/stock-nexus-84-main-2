@@ -99,6 +99,7 @@ interface ActivityLog {
 
 const Index = () => {
   console.log('🌤️ Index: Component rendered - VERSION 3.0 - CACHE BUSTER -', new Date().toISOString());
+  alert('🚀 NEW CODE LOADED! VERSION 3.0 - ' + new Date().toISOString());
   const { profile, signOut } = useAuth();
   const { toast } = useToast();
   
