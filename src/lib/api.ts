@@ -884,7 +884,7 @@ class ApiClient {
           sunset: string;
         };
         fallback?: boolean;
-      }>(`/weather?location=${encodeURIComponent(location)}`);
+      }>(`/weather/current?location=${encodeURIComponent(location)}`);
       
       console.log('🌤️ API Client: Weather response received:', response);
       console.log('🌤️ API Client: Weather data:', response.data);
