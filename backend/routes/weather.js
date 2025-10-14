@@ -2,6 +2,15 @@ const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
 
+// Test endpoint to verify weather routes are working
+router.get('/test', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Weather routes are working!',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Weather API endpoint
 router.get('/weather', authenticateToken, async (req, res) => {
   try {
