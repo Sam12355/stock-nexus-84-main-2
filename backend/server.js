@@ -140,6 +140,7 @@ app.use('/api/debug', debugRoutes);
 app.use('/api/weather', weatherRoutes);
 console.log('🌤️ Weather routes registered at /api/weather');
 console.log('🌤️ Weather routes object:', weatherRoutes);
+console.log('🌤️ Render deployment test -', new Date().toISOString());
 
 // Health check endpoint for Render
 app.get('/api/health', (req, res) => {
