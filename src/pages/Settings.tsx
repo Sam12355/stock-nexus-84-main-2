@@ -1250,7 +1250,7 @@ const Settings = () => {
 
                    {/* Softdrink Trends Schedules */}
                    {profileData.softdrink_trends_frequencies && profileData.softdrink_trends_frequencies.length > 0 && (
-                     <div>
+                     <div className="mb-4">
                        <h5 className="text-xs font-medium text-muted-foreground mb-2">Softdrink Trends Alerts</h5>
                        <div className="space-y-2">
                          {profileData.softdrink_trends_frequencies.includes('daily') && (
