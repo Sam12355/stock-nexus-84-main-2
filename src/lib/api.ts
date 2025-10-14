@@ -129,17 +129,6 @@ class ApiClient {
     return response.data;
   }
 
-  async updateMoveoutListStatus(id: string, status: string) {
-    const response = await this.request<{
-      success: boolean;
-      data: any;
-    }>(`/moveout/${id}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status }),
-    });
-    return response.data;
-  }
-
   async deleteMoveoutList(id: string) {
     const response = await this.request<{
       success: boolean;
@@ -863,15 +852,6 @@ class ApiClient {
     return response.data;
   }
 
-  async deleteMoveoutList(id: string): Promise<any> {
-    const response = await this.request<{
-      success: boolean;
-      message: string;
-    }>(`/moveout-lists/${id}`, {
-      method: 'DELETE'
-    });
-    return response;
-  }
 
   async processMoveoutItem(listId: string, itemId: string, quantity: number, userName?: string): Promise<any> {
     const response = await this.request<{
@@ -932,4 +912,7 @@ class ApiClient {
     return response.debug;
   }
 }
+
+export const apiClient = new ApiClient();
+export default ApiClient;
 
