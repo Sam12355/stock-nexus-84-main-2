@@ -1223,7 +1223,7 @@ const Settings = () => {
 
                    {/* Event Reminder Schedules */}
                    {profileData.event_reminder_frequencies && profileData.event_reminder_frequencies.length > 0 && (
-                     <div>
+                     <div className="mb-4">
                        <h5 className="text-xs font-medium text-muted-foreground mb-2">Event Reminders</h5>
                        <div className="space-y-2">
                          {profileData.event_reminder_frequencies.includes('daily') && (
