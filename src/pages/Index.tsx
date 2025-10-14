@@ -100,25 +100,56 @@ interface ActivityLog {
 const Index = () => {
   const { profile, signOut } = useAuth();
   
-  // Function to get weather condition photo
-  const getWeatherPhoto = (condition: string) => {
+  // Function to get weather condition photo based on temperature and conditions
+  const getWeatherPhoto = (condition: string, temperature: number) => {
     const conditionLower = condition.toLowerCase();
     
-    if (conditionLower.includes('clear') || conditionLower.includes('sunny')) {
-      return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center';
-    } else if (conditionLower.includes('cloud') || conditionLower.includes('overcast')) {
-      return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center';
-    } else if (conditionLower.includes('rain') || conditionLower.includes('drizzle')) {
-      return 'https://images.unsplash.com/photo-1433863448220-78aaa064ff47?w=400&h=300&fit=crop&crop=center';
-    } else if (conditionLower.includes('snow') || conditionLower.includes('blizzard')) {
-      return 'https://images.unsplash.com/photo-1551524164-6cf2ac531d54?w=400&h=300&fit=crop&crop=center';
-    } else if (conditionLower.includes('storm') || conditionLower.includes('thunder')) {
-      return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center';
-    } else if (conditionLower.includes('fog') || conditionLower.includes('mist')) {
-      return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center';
-    } else {
-      return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center';
+    // Cold weather photos (below 5°C) - Winter scenes
+    if (temperature < 5) {
+      if (conditionLower.includes('snow') || conditionLower.includes('blizzard')) {
+        return 'https://images.unsplash.com/photo-1551524164-6cf2ac531d54?w=400&h=300&fit=crop&crop=center'; // Snowy street
+      } else if (conditionLower.includes('fog') || conditionLower.includes('mist')) {
+        return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center'; // Foggy winter street
+      } else {
+        return 'https://images.unsplash.com/photo-1551524164-6cf2ac531d54?w=400&h=300&fit=crop&crop=center'; // Cold winter street
+      }
     }
+    
+    // Cool weather photos (5-15°C) - Autumn/Spring scenes
+    if (temperature >= 5 && temperature < 15) {
+      if (conditionLower.includes('rain') || conditionLower.includes('drizzle')) {
+        return 'https://images.unsplash.com/photo-1433863448220-78aaa064ff47?w=400&h=300&fit=crop&crop=center'; // Rainy street
+      } else if (conditionLower.includes('cloud') || conditionLower.includes('overcast')) {
+        return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center'; // Cloudy street
+      } else {
+        return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center'; // Cool street scene
+      }
+    }
+    
+    // Mild weather photos (15-25°C) - Pleasant scenes
+    if (temperature >= 15 && temperature < 25) {
+      if (conditionLower.includes('clear') || conditionLower.includes('sunny')) {
+        return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center'; // Sunny street
+      } else if (conditionLower.includes('cloud') || conditionLower.includes('overcast')) {
+        return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center'; // Partly cloudy street
+      } else {
+        return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center'; // Pleasant street scene
+      }
+    }
+    
+    // Warm weather photos (25°C+) - Summer scenes
+    if (temperature >= 25) {
+      if (conditionLower.includes('clear') || conditionLower.includes('sunny')) {
+        return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center'; // Hot sunny street
+      } else if (conditionLower.includes('storm') || conditionLower.includes('thunder')) {
+        return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center'; // Stormy street
+      } else {
+        return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center'; // Warm street scene
+      }
+    }
+    
+    // Default fallback
+    return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center';
   };
   const { toast } = useToast();
   
@@ -1146,8 +1177,8 @@ const Index = () => {
                 {/* Weather Condition Photo */}
                 <div className="mt-4">
                   <img 
-                    src={getWeatherPhoto(weather.condition)} 
-                    alt={`${weather.condition} weather`}
+                    src={getWeatherPhoto(weather.condition, weather.temperature)} 
+                    alt={`${weather.condition} weather at ${weather.temperature}°C`}
                     className="w-full h-32 object-cover rounded-lg"
                     onError={(e) => {
                       e.currentTarget.src = 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center';
