@@ -282,8 +282,7 @@ class SchedulerService {
             const urgencyIcon = '📊';
             const urgencyText = `${frequencyText.toUpperCase()} STOCK REPORT`;
             
-            let message = `${urgencyIcon} *${urgencyText}*\n`;
-            message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+            let message = `${urgencyIcon} *${urgencyText}*\n\n`;
             message += `Hello *${user.name}*,\n\n`;
             message += `Here's your ${frequencyText.toLowerCase()} stock level report for *${user.branch_name || 'All Branches'}*.\n\n`;
             message += `📊 *SUMMARY STATISTICS*\n`;
@@ -314,10 +313,7 @@ class SchedulerService {
             message += `• Consider increasing order quantities for high-demand items\n`;
             message += `• Schedule regular inventory reviews to prevent future shortages\n\n`;
             
-            message += `🔴 *IMMEDIATE ACTION REQUIRED*\n\n`;
-            message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-            message += `📱 *Inventory Management System*\n`;
-            message += `Professional Stock Management Solution\n\n`;
+            message += `*IMMEDIATE ACTION REQUIRED*\n\n`;
             message += `Report generated: ${now.toLocaleString('en-US', {
               weekday: 'long',
               year: 'numeric',
@@ -548,8 +544,7 @@ class SchedulerService {
             const urgencyIcon = '📅';
             const urgencyText = `${frequencyText.toUpperCase()} EVENT REMINDER`;
             
-            let message = `${urgencyIcon} *${urgencyText}*\n`;
-            message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+            let message = `${urgencyIcon} *${urgencyText}*\n\n`;
             message += `Hello *${user.name}*,\n\n`;
             message += `Here are your upcoming events that require attention and preparation.\n\n`;
             message += `📊 *SUMMARY STATISTICS*\n`;
@@ -595,10 +590,7 @@ class SchedulerService {
             message += `• Coordinate with team members and stakeholders\n`;
             message += `• Set reminders for final preparations closer to event dates\n\n`;
             
-            message += `🔴 *DON'T FORGET TO PREPARE!*\n\n`;
-            message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-            message += `📱 *Inventory Management System*\n`;
-            message += `Professional Event Management Solution\n\n`;
+            message += `*DON'T FORGET TO PREPARE!*\n\n`;
             message += `Reminder generated: ${now.toLocaleString('en-US', {
               weekday: 'long',
               year: 'numeric',
@@ -928,11 +920,9 @@ class SchedulerService {
             const urgencyIcon = '📉';
             const urgencyText = 'DECLINING TRENDS DETECTED';
             
-            let message = `${urgencyIcon} *SOFTDRINK TREND ALERT*\n`;
-            message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+            let message = `${urgencyIcon} *SOFTDRINK TREND ALERT*\n\n`;
             message += `Hello *${user.name}*,\n\n`;
             message += `We've detected *declining trends* in your softdrink inventory that require immediate attention.\n\n`;
-            message += `🔴 *${urgencyText}*\n`;
             message += `📊 *${decliningItems.length} Items Showing Negative Trends*\n\n`;
             
             // Add declining items details
@@ -959,10 +949,7 @@ class SchedulerService {
             message += `• Check for any supply chain issues\n`;
             message += `• Monitor these trends closely in coming weeks\n\n`;
             
-            message += `🔴 *HIGH PRIORITY REVIEW REQUIRED*\n\n`;
-            message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-            message += `📱 *Inventory Management System*\n`;
-            message += `Professional Stock Management Solution\n\n`;
+            message += `*HIGH PRIORITY REVIEW REQUIRED*\n\n`;
             message += `Alert generated: ${new Date().toLocaleString('en-US', {
               weekday: 'long',
               year: 'numeric',

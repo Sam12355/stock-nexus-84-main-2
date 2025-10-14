@@ -366,7 +366,6 @@ class EmailService {
                       <tr>
                         <td align="center">
                           <div style="font-size: 16px; font-weight: bold; color: #333; margin-bottom: 5px;">Inventory Management System</div>
-                          <div style="font-size: 12px; color: #666;">Professional Stock Management Solution</div>
                           <div style="font-size: 10px; color: #999; margin-top: 10px;">
                             <p style="margin: 0;">&copy; ${new Date().getFullYear()} Inventory Management System. All rights reserved.</p>
                             <p style="margin: 2px 0 0 0;">This is an automated notification. Please do not reply to this email.</p>
@@ -594,7 +593,6 @@ class EmailService {
                       <tr>
                         <td align="center">
                           <div style="font-size: 16px; font-weight: bold; color: #333; margin-bottom: 5px;">Inventory Management System</div>
-                          <div style="font-size: 12px; color: #666;">Professional Stock Management Solution</div>
                           <div style="font-size: 10px; color: #999; margin-top: 10px;">
                             <p style="margin: 0;">&copy; ${new Date().getFullYear()} Inventory Management System. All rights reserved.</p>
                             <p style="margin: 2px 0 0 0;">This is an automated notification. Please do not reply to this email.</p>
@@ -977,7 +975,6 @@ class EmailService {
                       <tr>
                         <td align="center">
                           <div style="font-size: 16px; font-weight: bold; color: #333; margin-bottom: 5px;">Inventory Management System</div>
-                          <div style="font-size: 12px; color: #666;">Professional Stock Management Solution</div>
                           <div style="font-size: 10px; color: #999; margin-top: 10px;">
                             <p style="margin: 0;">&copy; ${new Date().getFullYear()} Inventory Management System. All rights reserved.</p>
                             <p style="margin: 2px 0 0 0;">This is an automated notification. Please do not reply to this email.</p>
