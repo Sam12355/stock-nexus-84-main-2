@@ -86,9 +86,7 @@ const Settings = () => {
   // Guards against state being reset after user edits
   const [profileInitialized, setProfileInitialized] = useState(false);
   const [hasTouchedNotifications, setHasTouchedNotifications] = useState(false);
-  const [hasTouchedBranch, setHasTouchedBranch] = useState(false);
   const hasTouchedNotificationsRef = useRef(false);
-  const hasTouchedBranchRef = useRef(false);
 
   // Phone collection dialog state
   const [showPhoneDialog, setShowPhoneDialog] = useState(false);
@@ -421,34 +419,6 @@ const Settings = () => {
     }
   };
 
-  const updateBranchSettings = async () => {
-    if (!branch) return;
-
-    setLoading(true);
-    try {
-      await apiClient.updateBranchSettings(branch.id, {
-        name: branch.name.trim().slice(0, 120),
-        location: (branch.location || "").trim().slice(0, 120),
-        notification_settings: {
-          email: notifications.email,
-          sms: notifications.sms,
-          whatsapp: notifications.whatsapp,
-        },
-      });
-
-      toast({
-        title: "Success",
-        description: "Branch settings updated successfully",
-      });
-    } catch (error) {
-      console.error("Error updating branch settings:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update branch settings",
-        variant: "destructive",
-      });
-    }
-  };
 
   const updatePermissions = async () => {
     if (profile?.role !== "manager") return;
@@ -1302,41 +1272,17 @@ const Settings = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               {branch && (
-                <>
+                <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label>Branch Name</Label>
-                    <Input
-                      value={branch.name}
-                      maxLength={120}
-                      disabled={true}
-                      onChange={(e) => {
-                        setHasTouchedBranch(true);
-                        hasTouchedBranchRef.current = true;
-                        setBranch((prev) => (prev ? { ...prev, name: e.target.value } : prev));
-                      }}
-                    />
+                    <Label className="text-sm font-medium text-muted-foreground">Branch Name</Label>
+                    <div className="text-sm font-medium">{branch.name}</div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Branch Location</Label>
-                    <Input
-                      value={branch.location || ""}
-                      maxLength={120}
-                      disabled={true}
-                      onChange={(e) => {
-                        setHasTouchedBranch(true);
-                        hasTouchedBranchRef.current = true;
-                        setBranch((prev) => (prev ? { ...prev, location: e.target.value } : prev));
-                      }}
-                    />
+                    <Label className="text-sm font-medium text-muted-foreground">Branch Location</Label>
+                    <div className="text-sm font-medium">{branch.location || "Not specified"}</div>
                   </div>
-
-
-                  <Button onClick={updateBranchSettings} disabled={loading} className="w-full">
-                    <Save className="h-4 w-4 mr-2" />
-                    Save Branch Settings
-                  </Button>
-                </>
+                </div>
               )}
             </CardContent>
           </Card>
