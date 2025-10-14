@@ -69,7 +69,28 @@ export function SlideshowHeader() {
         const branch = branches.find(b => b.id === branchId);
         
         if (branch?.address) {
-          setBranchLocation(branch.address);
+          // Extract city from address - prioritize Swedish city names
+          const addressParts = branch.address.split(',');
+          // Look for Swedish city names (Växjö, Stockholm, Gothenburg, etc.)
+          let city = '';
+          for (const part of addressParts) {
+            const trimmed = part.trim();
+            if (trimmed.includes('Växjö') || trimmed.includes('Stockholm') || trimmed.includes('Gothenburg') || trimmed.includes('Malmö')) {
+              city = trimmed.replace(/[.,]/g, '').trim(); // Remove punctuation
+              break;
+            }
+          }
+          // If no Swedish city found, use the last part (usually the city)
+          if (!city && addressParts.length > 1) {
+            city = addressParts[addressParts.length - 2].trim().replace(/[.,]/g, '');
+          }
+          // Fallback to first part if still no city
+          if (!city) {
+            city = addressParts[0].trim().replace(/[.,]/g, '');
+          }
+          
+          console.log('📍 SlideshowHeader: Using branch address:', branch.address, '-> extracted city:', city);
+          setBranchLocation(city);
         }
 
         // Fetch calendar events
