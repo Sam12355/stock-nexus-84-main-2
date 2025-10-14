@@ -106,40 +106,58 @@ export function SlideshowHeader() {
   // Fetch weather based on branch location
   useEffect(() => {
     const fetchWeather = async () => {
+      console.log('🌤️ SlideshowHeader: Starting weather fetch');
+      console.log('🌤️ SlideshowHeader: Branch location:', branchLocation);
+      console.log('🌤️ SlideshowHeader: Current weather state:', weather);
+      
       if (!branchLocation) {
+        console.log('🌤️ SlideshowHeader: No branch location, using default weather');
         // Set default weather for Vaxjo when no branch location
-        setWeather({
+        const defaultWeather = {
           temperature: 24,
           condition: 'Clear Sky',
           location: 'Vaxjo',
           humidity: 65,
           windSpeed: 12
-        });
+        };
+        console.log('🌤️ SlideshowHeader: Setting default weather:', defaultWeather);
+        setWeather(defaultWeather);
         return;
       }
       
       try {
+        console.log('🌤️ SlideshowHeader: Fetching weather for location:', branchLocation);
         const weatherData = await apiClient.getWeather(branchLocation);
-        setWeather({
+        console.log('🌤️ SlideshowHeader: Received weather data:', weatherData);
+        console.log('🌤️ SlideshowHeader: Setting temperature to:', weatherData.temperature);
+        
+        const newWeatherState = {
           temperature: weatherData.temperature,
           condition: weatherData.condition,
           location: weatherData.location,
           humidity: weatherData.humidity,
           windSpeed: weatherData.windSpeed
-        });
+        };
+        
+        console.log('🌤️ SlideshowHeader: New weather state:', newWeatherState);
+        setWeather(newWeatherState);
+        console.log('🌤️ SlideshowHeader: Weather state updated');
       } catch (error) {
-        console.error('Error fetching weather:', error);
+        console.error('🌤️ SlideshowHeader: Error fetching weather:', error);
         // Fallback weather data
-        setWeather({
+        const fallbackWeather = {
           temperature: 24,
           condition: 'Partly Cloudy',
           location: branchLocation || 'Vaxjo',
           humidity: 65,
           windSpeed: 12
-        });
+        };
+        console.log('🌤️ SlideshowHeader: Using fallback weather:', fallbackWeather);
+        setWeather(fallbackWeather);
       }
     };
     
+    console.log('🌤️ SlideshowHeader: useEffect triggered, branchLocation:', branchLocation);
     if (branchLocation) {
       fetchWeather();
     }

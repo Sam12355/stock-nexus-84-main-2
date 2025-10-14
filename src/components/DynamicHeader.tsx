@@ -18,23 +18,35 @@ export function DynamicHeader() {
   useEffect(() => {
     const fetchWeather = async () => {
       try {
-        console.log('🌤️ DynamicHeader: Fetching weather for Vaxjo');
+        console.log('🌤️ DynamicHeader: Starting weather fetch for Vaxjo');
+        console.log('🌤️ DynamicHeader: Current weather state:', weather);
+        
         const weatherData = await apiClient.getWeather('Vaxjo');
         console.log('🌤️ DynamicHeader: Received weather data:', weatherData);
-        setWeather({
+        console.log('🌤️ DynamicHeader: Setting temperature to:', weatherData.temperature);
+        
+        const newWeatherState = {
           temp: weatherData.temperature,
           condition: weatherData.condition
-        });
+        };
+        
+        console.log('🌤️ DynamicHeader: New weather state:', newWeatherState);
+        setWeather(newWeatherState);
+        
+        console.log('🌤️ DynamicHeader: Weather state updated');
       } catch (error) {
-        console.error('Error fetching weather:', error);
+        console.error('🌤️ DynamicHeader: Error fetching weather:', error);
         // Fallback weather
-        setWeather({
+        const fallbackWeather = {
           temp: 15,
           condition: 'Clear sky'
-        });
+        };
+        console.log('🌤️ DynamicHeader: Using fallback weather:', fallbackWeather);
+        setWeather(fallbackWeather);
       }
     };
 
+    console.log('🌤️ DynamicHeader: useEffect triggered, fetching weather');
     fetchWeather();
   }, []);
 
@@ -72,6 +84,7 @@ export function DynamicHeader() {
       <div className="hidden md:flex items-center gap-1 text-muted-foreground">
         <CloudSun className="h-4 w-4" />
         <span>{weather ? `${weather.temp}°C` : '--°C'}</span>
+        {console.log('🌤️ DynamicHeader: Rendering temperature:', weather ? weather.temp : 'null')}
       </div>
     </div>
   );

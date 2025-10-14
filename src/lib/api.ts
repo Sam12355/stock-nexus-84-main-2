@@ -886,24 +886,35 @@ class ApiClient {
 
   // Weather methods
   async getWeather(location: string) {
-    const response = await this.request<{
-      success: boolean;
-      data: {
-        temperature: number;
-        condition: string;
-        location: string;
-        humidity: number;
-        windSpeed: number;
-        feelsLike: number;
-        pressure: number;
-        visibility: number;
-        uvIndex: number;
-        sunrise: string;
-        sunset: string;
-      };
-      fallback?: boolean;
-    }>(`/weather?location=${encodeURIComponent(location)}`);
-    return response.data;
+    console.log('🌤️ API Client: Starting weather request for location:', location);
+    try {
+      const response = await this.request<{
+        success: boolean;
+        data: {
+          temperature: number;
+          condition: string;
+          location: string;
+          humidity: number;
+          windSpeed: number;
+          feelsLike: number;
+          pressure: number;
+          visibility: number;
+          uvIndex: number;
+          sunrise: string;
+          sunset: string;
+        };
+        fallback?: boolean;
+      }>(`/weather?location=${encodeURIComponent(location)}`);
+      
+      console.log('🌤️ API Client: Weather response received:', response);
+      console.log('🌤️ API Client: Weather data:', response.data);
+      console.log('🌤️ API Client: Temperature from API:', response.data.temperature);
+      
+      return response.data;
+    } catch (error) {
+      console.error('🌤️ API Client: Weather request failed:', error);
+      throw error;
+    }
   }
 
   // Weather test method for debugging

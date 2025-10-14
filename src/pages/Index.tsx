@@ -561,21 +561,26 @@ const Index = () => {
         city = 'Vaxjo';
       }
       
-      console.log('🌤️ Fetching weather for city:', city);
+      console.log('🌤️ Dashboard: Starting weather fetch for city:', city);
+      console.log('🌤️ Dashboard: Current weather state:', weather);
       
       // Use backend weather API
       const weatherData = await apiClient.getWeather(city);
       console.log('🌤️ Dashboard: Received weather data:', weatherData);
+      console.log('🌤️ Dashboard: Setting temperature to:', weatherData.temperature);
       
-      setWeather({
+      const newWeatherState = {
         temperature: weatherData.temperature,
         condition: weatherData.condition,
         location: weatherData.location,
         humidity: weatherData.humidity,
         windSpeed: weatherData.windSpeed
-      });
+      };
       
-      console.log('✅ Weather data set for:', city);
+      console.log('🌤️ Dashboard: New weather state:', newWeatherState);
+      setWeather(newWeatherState);
+      
+      console.log('✅ Dashboard: Weather data set for:', city);
     } catch (error) {
       console.error('Error fetching weather:', error);
       // Set default weather data on error
@@ -1077,6 +1082,7 @@ const Index = () => {
               <div className="space-y-3">
                 <div className="text-center">
                   <div className="text-3xl font-bold">{weather.temperature}°C</div>
+                  {console.log('🌤️ Dashboard: Rendering temperature:', weather.temperature)}
                   <p className="text-sm text-muted-foreground capitalize">{weather.condition}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-4 pt-2">
