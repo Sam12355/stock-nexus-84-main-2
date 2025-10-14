@@ -581,9 +581,13 @@ const Index = () => {
       }
 
       if (!city) {
-        console.log('⚠️ No branch location available, defaulting to Vaxjo');
-        city = 'Vaxjo';
+        console.log('⚠️ No branch location available, defaulting to Stockholm');
+        city = 'Stockholm';
       }
+      
+      // Hardcode Stockholm for testing
+      city = 'Stockholm';
+      console.log('🧪 HARDCODED: Using Stockholm for testing');
       
       console.log('🌤️ Dashboard: Starting weather fetch for city:', city);
       console.log('🌤️ Dashboard: Current weather state:', weather);
