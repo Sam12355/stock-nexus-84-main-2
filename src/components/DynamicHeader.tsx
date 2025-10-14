@@ -3,6 +3,7 @@ import { Calendar, Clock, Thermometer, CloudSun } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 
 export function DynamicHeader() {
+  console.log('🌤️ DynamicHeader: Component rendered');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [weather, setWeather] = useState<{ temp: number; condition: string } | null>(null);
 
