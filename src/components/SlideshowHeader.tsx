@@ -119,21 +119,13 @@ export function SlideshowHeader() {
       }
       
       try {
-        const OPENWEATHER_API_KEY = 'cce3be258bc74ac704ddac710486be0c';
-        const response = await fetch(
-          `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(branchLocation)}&appid=${OPENWEATHER_API_KEY}&units=metric`
-        );
-        
-        if (!response.ok) throw new Error('Weather API error');
-        
-        const data = await response.json();
-        
+        const weatherData = await apiClient.getWeather(branchLocation);
         setWeather({
-          temperature: Math.round(data.main.temp),
-          condition: data.weather[0].description,
-          location: branchLocation,
-          humidity: data.main.humidity,
-          windSpeed: Math.round(data.wind.speed * 3.6) // Convert m/s to km/h
+          temperature: weatherData.temperature,
+          condition: weatherData.condition,
+          location: weatherData.location,
+          humidity: weatherData.humidity,
+          windSpeed: weatherData.windSpeed
         });
       } catch (error) {
         console.error('Error fetching weather:', error);

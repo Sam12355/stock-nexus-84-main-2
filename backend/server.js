@@ -24,6 +24,7 @@ const receiptRoutes = require('./routes/receipts');
 const moveoutListRoutes = require('./routes/moveout-lists');
 const softdrinkTrendsRoutes = require('./routes/softdrink-trends');
 const debugRoutes = require('./routes/debug');
+const weatherRoutes = require('./routes/weather');
 const schedulerService = require('./services/scheduler');
 const emailService = require('./services/email');
 
@@ -136,6 +137,7 @@ app.use('/api/receipts', receiptRoutes);
 app.use('/api/moveout-lists', moveoutListRoutes);
 app.use('/api/softdrink-trends', softdrinkTrendsRoutes);
 app.use('/api/debug', debugRoutes);
+app.use('/api/weather', weatherRoutes);
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {

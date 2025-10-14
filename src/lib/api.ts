@@ -883,7 +883,28 @@ class ApiClient {
     });
     return response.data;
   }
-}
+
+  // Weather methods
+  async getWeather(location: string) {
+    const response = await this.request<{
+      success: boolean;
+      data: {
+        temperature: number;
+        condition: string;
+        location: string;
+        humidity: number;
+        windSpeed: number;
+        feelsLike: number;
+        pressure: number;
+        visibility: number;
+        uvIndex: number;
+        sunrise: string;
+        sunset: string;
+      };
+      fallback?: boolean;
+    }>(`/weather?location=${encodeURIComponent(location)}`);
+    return response.data;
+  }
 
 export const apiClient = new ApiClient();
 

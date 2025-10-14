@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Thermometer, CloudSun } from 'lucide-react';
+import { apiClient } from '@/lib/api';
 
 export function DynamicHeader() {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -11,6 +12,28 @@ export function DynamicHeader() {
     }, 1000);
 
     return () => clearInterval(timer);
+  }, []);
+
+  // Fetch weather data
+  useEffect(() => {
+    const fetchWeather = async () => {
+      try {
+        const weatherData = await apiClient.getWeather('Vaxjo');
+        setWeather({
+          temp: weatherData.temperature,
+          condition: weatherData.condition
+        });
+      } catch (error) {
+        console.error('Error fetching weather:', error);
+        // Fallback weather
+        setWeather({
+          temp: 15,
+          condition: 'Clear sky'
+        });
+      }
+    };
+
+    fetchWeather();
   }, []);
 
   const formatDate = (date: Date) => {
@@ -46,7 +69,7 @@ export function DynamicHeader() {
       {/* Weather */}
       <div className="hidden md:flex items-center gap-1 text-muted-foreground">
         <CloudSun className="h-4 w-4" />
-        <span>24°C</span>
+        <span>{weather ? `${weather.temp}°C` : '--°C'}</span>
       </div>
     </div>
   );
