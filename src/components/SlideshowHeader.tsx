@@ -24,6 +24,7 @@ interface Slide {
 }
 
 export function SlideshowHeader() {
+  console.log('🌤️ SlideshowHeader: Component rendered');
   const { profile } = useAuth();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [events, setEvents] = useState<Event[]>([]);
