@@ -98,6 +98,7 @@ interface ActivityLog {
 
 
 const Index = () => {
+  console.log('🌤️ Index: Component rendered - VERSION 2.0 - CACHE BUSTER');
   const { profile, signOut } = useAuth();
   const { toast } = useToast();
   
