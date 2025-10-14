@@ -4,6 +4,16 @@ const { authenticateToken } = require('../middleware/auth');
 
 console.log('🌤️ Weather routes file loaded successfully');
 
+// Debug endpoint to check if routes are loaded
+router.get('/debug', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Weather routes debug endpoint',
+    timestamp: new Date().toISOString(),
+    routes: ['/test', '/test-weather', '/weather', '/debug']
+  });
+});
+
 // Test endpoint to verify weather routes are working
 router.get('/test', (req, res) => {
   res.json({
