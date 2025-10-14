@@ -98,8 +98,28 @@ interface ActivityLog {
 
 
 const Index = () => {
-  console.log('🌤️ Index: Component rendered - VERSION 4.0 - CACHE BUSTER -', new Date().toISOString());
   const { profile, signOut } = useAuth();
+  
+  // Function to get weather condition photo
+  const getWeatherPhoto = (condition: string) => {
+    const conditionLower = condition.toLowerCase();
+    
+    if (conditionLower.includes('clear') || conditionLower.includes('sunny')) {
+      return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center';
+    } else if (conditionLower.includes('cloud') || conditionLower.includes('overcast')) {
+      return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center';
+    } else if (conditionLower.includes('rain') || conditionLower.includes('drizzle')) {
+      return 'https://images.unsplash.com/photo-1433863448220-78aaa064ff47?w=400&h=300&fit=crop&crop=center';
+    } else if (conditionLower.includes('snow') || conditionLower.includes('blizzard')) {
+      return 'https://images.unsplash.com/photo-1551524164-6cf2ac531d54?w=400&h=300&fit=crop&crop=center';
+    } else if (conditionLower.includes('storm') || conditionLower.includes('thunder')) {
+      return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center';
+    } else if (conditionLower.includes('fog') || conditionLower.includes('mist')) {
+      return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center';
+    } else {
+      return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center';
+    }
+  };
   const { toast } = useToast();
   
   // Cast profile to extended type
@@ -1122,6 +1142,18 @@ const Index = () => {
                 <p className="text-xs text-muted-foreground text-center mt-2">
                   Good conditions for deliveries
                 </p>
+                
+                {/* Weather Condition Photo */}
+                <div className="mt-4">
+                  <img 
+                    src={getWeatherPhoto(weather.condition)} 
+                    alt={`${weather.condition} weather`}
+                    className="w-full h-32 object-cover rounded-lg"
+                    onError={(e) => {
+                      e.currentTarget.src = 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center';
+                    }}
+                  />
+                </div>
               </div>
             ) : (
               <div className="text-center py-4">

@@ -2,18 +2,6 @@ const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
 
-console.log('🌤️ Weather routes file loaded successfully');
-
-// Debug endpoint to check if routes are loaded
-router.get('/debug', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Weather routes debug endpoint',
-    timestamp: new Date().toISOString(),
-    routes: ['/test', '/test-weather', '/weather', '/debug']
-  });
-});
-
 // Test endpoint to verify weather routes are working
 router.get('/test', (req, res) => {
   res.json({
@@ -21,76 +9,6 @@ router.get('/test', (req, res) => {
     message: 'Weather routes are working!',
     timestamp: new Date().toISOString()
   });
-});
-
-// Test weather endpoint without authentication
-router.get('/test-weather', async (req, res) => {
-  try {
-    const { location } = req.query;
-    
-    if (!location) {
-      return res.status(400).json({
-        success: false,
-        error: 'Location parameter is required'
-      });
-    }
-
-    const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY;
-    
-    console.log('🌤️ Test Weather API Key configured:', !!OPENWEATHER_API_KEY);
-    console.log('🌤️ Test fetching weather for location:', location);
-    
-    if (!OPENWEATHER_API_KEY) {
-      console.error('OpenWeather API key not configured');
-      return res.status(500).json({
-        success: false,
-        error: 'Weather service not configured'
-      });
-    }
-
-    const response = await fetch(
-      `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(location)}&appid=${OPENWEATHER_API_KEY}&units=metric`
-    );
-    
-    if (!response.ok) {
-      console.error('OpenWeather API error:', response.status, response.statusText);
-      return res.status(500).json({
-        success: false,
-        error: 'Weather API error'
-      });
-    }
-
-    const data = await response.json();
-    console.log('🌤️ Test Raw weather data:', data);
-
-    const weatherData = {
-      temperature: Math.round(data.main.temp),
-      condition: data.weather[0].description,
-      location: data.name,
-      humidity: data.main.humidity,
-      windSpeed: data.wind.speed,
-      feelsLike: Math.round(data.main.feels_like),
-      pressure: data.main.pressure,
-      visibility: data.visibility / 1000, // Convert to km
-      uvIndex: 0, // Not available in basic API
-      sunrise: new Date(data.sys.sunrise * 1000).toLocaleTimeString(),
-      sunset: new Date(data.sys.sunset * 1000).toLocaleTimeString()
-    };
-
-    console.log('🌤️ Test Processed weather data:', weatherData);
-
-    res.json({
-      success: true,
-      data: weatherData
-    });
-
-  } catch (error) {
-    console.error('🌤️ Test Weather error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
 });
 
 // Weather API endpoint (temporarily without auth for testing)
@@ -107,11 +25,8 @@ router.get('/current', async (req, res) => {
 
     const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY;
     
-    console.log('🌤️ Weather API Key configured:', !!OPENWEATHER_API_KEY);
-    console.log('🌤️ Fetching weather for location:', location);
     
     if (!OPENWEATHER_API_KEY) {
-      console.error('OpenWeather API key not configured');
       return res.status(500).json({
         success: false,
         error: 'Weather service not configured'
@@ -123,12 +38,13 @@ router.get('/current', async (req, res) => {
     );
     
     if (!response.ok) {
-      console.error('Weather API error:', response.status, response.statusText);
-      throw new Error(`Weather API error: ${response.status}`);
+      return res.status(500).json({
+        success: false,
+        error: 'Weather API error'
+      });
     }
     
     const data = await response.json();
-    console.log('🌤️ Raw weather data:', JSON.stringify(data, null, 2));
     
     const weatherData = {
       temperature: Math.round(data.main.temp),

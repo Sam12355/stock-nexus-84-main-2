@@ -866,7 +866,6 @@ class ApiClient {
 
   // Weather methods
   async getWeather(location: string) {
-    console.log('🌤️ API Client: Starting weather request for location:', location);
     try {
       const response = await this.request<{
         success: boolean;
@@ -886,13 +885,8 @@ class ApiClient {
         fallback?: boolean;
       }>(`/weather/current?location=${encodeURIComponent(location)}`);
       
-      console.log('🌤️ API Client: Weather response received:', response);
-      console.log('🌤️ API Client: Weather data:', response.data);
-      console.log('🌤️ API Client: Temperature from API:', response.data.temperature);
-      
       return response.data;
     } catch (error) {
-      console.error('🌤️ API Client: Weather request failed:', error);
       throw error;
     }
   }
