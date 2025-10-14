@@ -24,7 +24,7 @@ const receiptRoutes = require('./routes/receipts');
 const moveoutListRoutes = require('./routes/moveout-lists');
 const softdrinkTrendsRoutes = require('./routes/softdrink-trends');
 const debugRoutes = require('./routes/debug');
-const weatherRoutes = require('./routes/weather');
+const weatherRoutes = require('./routes/weather'); // Weather API routes
 const schedulerService = require('./services/scheduler');
 const emailService = require('./services/email');
 
