@@ -588,14 +588,14 @@ const Reports = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
+    <div className="space-y-6 p-4 md:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Reports</h1>
       </div>
       
-      <div className="flex gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <Select value={selectedReport} onValueChange={setSelectedReport}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="Select report type" />
           </SelectTrigger>
           <SelectContent>
@@ -606,7 +606,7 @@ const Reports = () => {
         </Select>
         
         {selectedReport === 'movements' && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
             <Label className="text-sm font-medium">
               <Filter className="h-4 w-4 mr-1 inline" />
               Filter by Month:
@@ -619,13 +619,13 @@ const Reports = () => {
         )}
         
         {selectedReport === 'softdrinks' && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
             <Label className="text-sm font-medium">
               <Filter className="h-4 w-4 mr-1 inline" />
               Weeks to analyze:
             </Label>
             <Select value={selectedWeeks.toString()} onValueChange={(value) => setSelectedWeeks(parseInt(value))}>
-              <SelectTrigger className="w-32">
+              <SelectTrigger className="w-full sm:w-32">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

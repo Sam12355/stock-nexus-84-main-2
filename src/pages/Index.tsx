@@ -109,9 +109,9 @@ const Index = () => {
       if (conditionLower.includes('snow') || conditionLower.includes('blizzard')) {
         return 'https://images.unsplash.com/photo-1551524164-6cf2ac531d54?w=400&h=300&fit=crop&crop=center'; // Snowy street
       } else if (conditionLower.includes('fog') || conditionLower.includes('mist')) {
-        return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center'; // Foggy winter street
+        return 'https://images.unsplash.com/photo-1519904981063-b0cf448d479e?w=400&h=300&fit=crop&crop=center'; // Foggy winter street
       } else {
-        return 'https://images.unsplash.com/photo-1551524164-6cf2ac531d54?w=400&h=300&fit=crop&crop=center'; // Cold winter street
+        return 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=300&fit=crop&crop=center'; // Cold winter street
       }
     }
     
@@ -122,18 +122,18 @@ const Index = () => {
       } else if (conditionLower.includes('cloud') || conditionLower.includes('overcast')) {
         return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center'; // Cloudy street
       } else {
-        return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center'; // Cool street scene
+        return 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&h=300&fit=crop&crop=center'; // Cool street scene
       }
     }
     
     // Mild weather photos (15-25°C) - Pleasant scenes
     if (temperature >= 15 && temperature < 25) {
       if (conditionLower.includes('clear') || conditionLower.includes('sunny')) {
-        return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center'; // Sunny street
+        return 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400&h=300&fit=crop&crop=center'; // Sunny street
       } else if (conditionLower.includes('cloud') || conditionLower.includes('overcast')) {
-        return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center'; // Partly cloudy street
+        return 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=400&h=300&fit=crop&crop=center'; // Partly cloudy street
       } else {
-        return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center'; // Pleasant street scene
+        return 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400&h=300&fit=crop&crop=center'; // Pleasant street scene
       }
     }
     
@@ -863,11 +863,11 @@ const Index = () => {
   // Admin Dashboard - Enhanced view with calendar and moveout lists
   if (extendedProfile?.role === 'admin') {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 p-4 md:p-6">
         {/* Welcome Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Admin Dashboard</h1>
             <p className="text-muted-foreground">
               Welcome, {extendedProfile?.name || 'Administrator'}! You have administrative access to manage staff.
             </p>
@@ -968,11 +968,11 @@ const Index = () => {
         />
       )}
       
-      <div className="space-y-6">
+      <div className="space-y-6 p-4 md:p-6">
       {/* Welcome Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">
             {extendedProfile?.role === 'manager' || extendedProfile?.role === 'assistant_manager' ? (
               `Welcome back, ${extendedProfile?.name || 'User'}! Here's what's happening with your inventory in ${extendedProfile?.branch_name || 'branch'}.`
