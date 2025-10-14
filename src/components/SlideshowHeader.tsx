@@ -24,7 +24,7 @@ interface Slide {
 }
 
 export function SlideshowHeader() {
-  console.log('🌤️ SlideshowHeader: Component rendered - VERSION 3.0 - CACHE BUSTER -', new Date().toISOString());
+  console.log('🌤️ SlideshowHeader: Component rendered - VERSION 4.0 - CACHE BUSTER -', new Date().toISOString());
   const { profile } = useAuth();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [events, setEvents] = useState<Event[]>([]);
