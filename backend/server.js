@@ -141,6 +141,24 @@ app.use('/api/weather', weatherRoutes);
 console.log('🌤️ Weather routes registered at /api/weather');
 console.log('🌤️ Weather routes object:', weatherRoutes);
 
+// Health check endpoint for Render
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
+// Basic test endpoint
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Stock Nexus Backend API',
+    status: 'running',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Socket.IO connection handling
 io.on('connection', (socket) => {
   console.log('🔌 Client connected:', socket.id);
