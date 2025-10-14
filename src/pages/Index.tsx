@@ -548,22 +548,29 @@ const Index = () => {
         if (branch?.address) {
           // Extract city from address - prioritize Swedish city names
           const addressParts = branch.address.split(',');
+          console.log('📍 Address parts:', addressParts);
+          
           // Look for Swedish city names (Växjö, Stockholm, Gothenburg, etc.)
           let city = '';
           for (const part of addressParts) {
             const trimmed = part.trim();
+            console.log('📍 Checking part:', trimmed);
             if (trimmed.includes('Växjö') || trimmed.includes('Stockholm') || trimmed.includes('Gothenburg') || trimmed.includes('Malmö')) {
               city = trimmed.replace(/[.,]/g, '').trim(); // Remove punctuation
+              console.log('📍 Found Swedish city:', city);
               break;
             }
           }
-          // If no Swedish city found, use the last part (usually the city)
+          
+          // If no Swedish city found, use the second-to-last part (usually the city)
           if (!city && addressParts.length > 1) {
             city = addressParts[addressParts.length - 2].trim().replace(/[.,]/g, '');
+            console.log('📍 Using second-to-last part:', city);
           }
           // Fallback to first part if still no city
           if (!city) {
             city = addressParts[0].trim().replace(/[.,]/g, '');
+            console.log('📍 Using first part as fallback:', city);
           }
           
           console.log('📍 Using branch address:', branch.address, '-> extracted city:', city);
