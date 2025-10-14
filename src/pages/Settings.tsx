@@ -1280,7 +1280,7 @@ const Settings = () => {
 
                   <div className="space-y-2">
                     <Label className="text-sm font-medium text-muted-foreground">Branch Location</Label>
-                    <div className="text-sm font-medium">{branch.location || "Not specified"}</div>
+                    <div className="text-sm font-medium">{branch.address || "Not specified"}</div>
                   </div>
                 </div>
               )}
