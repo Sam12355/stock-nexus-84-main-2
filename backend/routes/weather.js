@@ -83,15 +83,6 @@ router.get('/test-weather', async (req, res) => {
   }
 });
 
-// Simple test endpoint to debug route registration
-router.get('/debug', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Weather debug endpoint working',
-    timestamp: new Date().toISOString()
-  });
-});
-
 // Weather API endpoint (temporarily without auth for testing)
 router.get('/weather', async (req, res) => {
   try {
