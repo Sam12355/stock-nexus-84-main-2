@@ -86,4 +86,27 @@ router.get('/weather', authenticateToken, async (req, res) => {
   }
 });
 
+// Test weather endpoint for debugging
+router.get('/weather/test', authenticateToken, async (req, res) => {
+  try {
+    const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY;
+    
+    res.json({
+      success: true,
+      debug: {
+        apiKeyConfigured: !!OPENWEATHER_API_KEY,
+        apiKeyLength: OPENWEATHER_API_KEY ? OPENWEATHER_API_KEY.length : 0,
+        apiKeyPrefix: OPENWEATHER_API_KEY ? OPENWEATHER_API_KEY.substring(0, 8) + '...' : 'Not set',
+        environment: process.env.NODE_ENV,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;

@@ -906,5 +906,19 @@ class ApiClient {
     return response.data;
   }
 
-export const apiClient = new ApiClient();
+  // Weather test method for debugging
+  async testWeatherConfig() {
+    const response = await this.request<{
+      success: boolean;
+      debug: {
+        apiKeyConfigured: boolean;
+        apiKeyLength: number;
+        apiKeyPrefix: string;
+        environment: string;
+        timestamp: string;
+      };
+    }>('/weather/test');
+    return response.debug;
+  }
+}
 
