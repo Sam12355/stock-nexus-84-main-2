@@ -18,7 +18,9 @@ export function DynamicHeader() {
   useEffect(() => {
     const fetchWeather = async () => {
       try {
+        console.log('🌤️ DynamicHeader: Fetching weather for Vaxjo');
         const weatherData = await apiClient.getWeather('Vaxjo');
+        console.log('🌤️ DynamicHeader: Received weather data:', weatherData);
         setWeather({
           temp: weatherData.temperature,
           condition: weatherData.condition

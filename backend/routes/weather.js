@@ -16,6 +16,9 @@ router.get('/weather', authenticateToken, async (req, res) => {
 
     const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY;
     
+    console.log('🌤️ Weather API Key configured:', !!OPENWEATHER_API_KEY);
+    console.log('🌤️ Fetching weather for location:', location);
+    
     if (!OPENWEATHER_API_KEY) {
       console.error('OpenWeather API key not configured');
       return res.status(500).json({
@@ -29,10 +32,12 @@ router.get('/weather', authenticateToken, async (req, res) => {
     );
     
     if (!response.ok) {
+      console.error('Weather API error:', response.status, response.statusText);
       throw new Error(`Weather API error: ${response.status}`);
     }
     
     const data = await response.json();
+    console.log('🌤️ Raw weather data:', JSON.stringify(data, null, 2));
     
     const weatherData = {
       temperature: Math.round(data.main.temp),
@@ -47,6 +52,8 @@ router.get('/weather', authenticateToken, async (req, res) => {
       sunrise: new Date(data.sys.sunrise * 1000).toLocaleTimeString(),
       sunset: new Date(data.sys.sunset * 1000).toLocaleTimeString()
     };
+    
+    console.log('🌤️ Processed weather data:', JSON.stringify(weatherData, null, 2));
     
     res.json({
       success: true,

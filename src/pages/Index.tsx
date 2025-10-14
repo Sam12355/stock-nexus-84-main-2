@@ -565,6 +565,7 @@ const Index = () => {
       
       // Use backend weather API
       const weatherData = await apiClient.getWeather(city);
+      console.log('🌤️ Dashboard: Received weather data:', weatherData);
       
       setWeather({
         temperature: weatherData.temperature,
