@@ -97,9 +97,7 @@ export function SlideshowHeader() {
           }
           
           console.log('📍 SlideshowHeader: Using branch address:', branch.address, '-> extracted city:', city);
-          // Hardcode Stockholm for testing
-          setBranchLocation('Stockholm');
-          console.log('🧪 SLIDESHOW HARDCODED: Using Stockholm for testing');
+          setBranchLocation(city);
         }
 
         // Fetch calendar events
