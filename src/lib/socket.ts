@@ -18,7 +18,7 @@ class SocketService {
     this.currentToken = token;
     this.currentBranchId = branchId;
     
-    const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://stock-nexus-84-main-2-1.onrender.com';
+    const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://stock-nexus-84-main-2-git-main-sam12355s-projects.vercel.app';
     this.socket = io(SOCKET_URL, {
       auth: {
         token: token
