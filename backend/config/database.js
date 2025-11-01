@@ -1,7 +1,16 @@
 const { Pool } = require('pg');
 
+// Debug: Log environment variables
+console.log('🔍 Database Configuration Debug:');
+console.log('DB_HOST:', process.env.DB_HOST);
+console.log('DB_PORT:', process.env.DB_PORT);
+console.log('DB_NAME:', process.env.DB_NAME);
+console.log('DB_USER:', process.env.DB_USER);
+console.log('DB_PASSWORD:', process.env.DB_PASSWORD ? '***SET***' : 'NOT SET');
+
 // Database configuration for Supabase PostgreSQL
 const isSupabase = process.env.DB_HOST?.includes('supabase.co');
+console.log('Is Supabase:', isSupabase);
 
 const dbConfig = isSupabase 
   ? {
@@ -22,6 +31,8 @@ const dbConfig = isSupabase
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
     };
+
+console.log('Connection Config:', isSupabase ? { connectionString: dbConfig.connectionString } : dbConfig);
 
 // Create connection pool
 const pool = new Pool(dbConfig);
