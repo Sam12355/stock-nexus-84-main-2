@@ -35,11 +35,11 @@ export function ICADeliveryList() {
   const [endDate, setEndDate] = useState(today.toISOString().split('T')[0]);
   
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 7; // Changed to 7 records per page
 
-  // Don't auto-fetch on mount - wait for user to click Apply
+  // Auto-load all records on mount
   useEffect(() => {
-    // Show message prompting user to apply filter
+    fetchRecords();
   }, []);
 
   const fetchRecords = async () => {
@@ -172,6 +172,27 @@ export function ICADeliveryList() {
           .no-print {
             display: none !important;
           }
+          .print-card {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            margin-bottom: 0.5rem;
+            border: 1px solid #ddd;
+            padding: 0.5rem;
+          }
+          .print-table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+          .print-table th,
+          .print-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+          }
+          .print-table th {
+            background-color: #f3f4f6;
+            font-weight: bold;
+          }
         }
       `}</style>
       <div className="p-6 space-y-6">
@@ -250,36 +271,95 @@ export function ICADeliveryList() {
         </Card>
       ) : (
         <>
-          <div id="printable-area" className="grid gap-4">
+          <div id="printable-area">
+            {/* Print header - only visible when printing */}
+            <div style={{ display: 'none' }} className="print:block mb-4">
+              <h1 className="text-2xl font-bold text-center mb-2">ICA Delivery Records</h1>
+              <p className="text-center text-gray-600">
+                {startDate && endDate ? `${startDate} to ${endDate}` : 'All Records'}
+              </p>
+            </div>
+            
+            {/* Print table - only visible when printing */}
+            <table className="print-table hidden print:table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Time</th>
+                  <th>User</th>
+                  <th>Period</th>
+                  <th>Normal</th>
+                  <th>Combo</th>
+                  <th>Vegan</th>
+                  <th>Salmon Avocado</th>
+                  <th>Wakame</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.values(groupedRecords)
+                  .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                  .map((group: any, index: number) => (
+                  <tr key={index}>
+                    <td>{new Date(group.submittedAt).toLocaleDateString()}</td>
+                    <td>{new Date(group.submittedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</td>
+                    <td>{group.userName}</td>
+                    <td>{group.timeOfDay}</td>
+                    <td>{group.items.find((i: any) => i.type === 'Normal')?.amount || 0}</td>
+                    <td>{group.items.find((i: any) => i.type === 'Combo')?.amount || 0}</td>
+                    <td>{group.items.find((i: any) => i.type === 'Vegan')?.amount || 0}</td>
+                    <td>{group.items.find((i: any) => i.type === 'Salmon Avocado')?.amount || 0}</td>
+                    <td>{group.items.find((i: any) => i.type === 'Wakame')?.amount || 0}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            
+            {/* Screen view - cards (hidden when printing) */}
+            <div className="space-y-3 max-w-4xl mx-auto print:hidden">
             {Object.values(groupedRecords)
               .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
               .map((group: any, index: number) => (
-              <Card key={index}>
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle>{group.userName}</CardTitle>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {group.timeOfDay} - {new Date(group.submittedAt).toLocaleString()}
+              <Card key={index} className="py-2">
+                <CardContent className="py-3">
+                  <div className="space-y-3">
+                    {/* Date on top - bigger */}
+                    <div className="text-center border-b pb-2">
+                      <p className="text-2xl font-bold text-gray-900">
+                        {new Date(group.submittedAt).toLocaleDateString('en-US', { 
+                          weekday: 'short', 
+                          year: 'numeric', 
+                          month: 'short', 
+                          day: 'numeric' 
+                        })}
                       </p>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {new Date(group.submittedAt).toLocaleTimeString('en-US', { 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}
+                      </p>
+                      {/* User name - smaller, underneath */}
+                      <p className="text-base text-gray-700 mt-2">{group.userName}</p>
+                      <p className="text-sm text-gray-500">{group.timeOfDay}</p>
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    {['Normal', 'Combo', 'Vegan', 'Salmon Avocado', 'Wakame'].map((type) => {
-                      const item = group.items.find((i: any) => i.type === type);
-                      return (
-                        <div key={type} className="border rounded-lg p-3">
-                          <p className="text-sm font-medium text-gray-700">{type}</p>
-                          <p className="text-2xl font-bold">{item ? item.amount : 0}</p>
-                        </div>
-                      );
-                    })}
+                    
+                    {/* Items in a compact row */}
+                    <div className="grid grid-cols-5 gap-2 text-center">
+                      {['Normal', 'Combo', 'Vegan', 'Salmon Avocado', 'Wakame'].map((type) => {
+                        const item = group.items.find((i: any) => i.type === type);
+                        return (
+                          <div key={type} className="border rounded p-2">
+                            <p className="text-xs font-medium text-gray-600 truncate">{type}</p>
+                            <p className="text-xl font-bold text-gray-900">{item ? item.amount : 0}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             ))}
+            </div>
           </div>
           
           {/* Pagination */}
