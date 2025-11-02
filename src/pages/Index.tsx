@@ -35,7 +35,8 @@ import {
   Sun,
   Zap,
   BarChart3,
-  History
+  History,
+  Loader2
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
@@ -168,6 +169,7 @@ const Index = () => {
     thresholdStockDetails: []
   });
   const [loading, setLoading] = useState(true);
+  const [isAddingEvent, setIsAddingEvent] = useState(false);
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(true);
   const [showStockModal, setShowStockModal] = useState(false);
@@ -708,6 +710,7 @@ const Index = () => {
       branchId = extendedProfile.branch_id;
     }
 
+    setIsAddingEvent(true);
     try {
       const eventData = {
         title: newEvent.title.trim(),
@@ -757,6 +760,8 @@ const Index = () => {
         description: "Failed to create event. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsAddingEvent(false);
     }
   };
 
@@ -1871,8 +1876,15 @@ const Index = () => {
               <Button variant="outline" onClick={() => setShowEventModal(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleAddEvent}>
-                Add Event
+              <Button onClick={handleAddEvent} disabled={isAddingEvent}>
+                {isAddingEvent ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  "Add Event"
+                )}
               </Button>
             </div>
           </div>

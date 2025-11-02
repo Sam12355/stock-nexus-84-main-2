@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Users, Plus, Edit, Trash2, Search, UserPlus } from "lucide-react";
+import { Users, Plus, Edit, Trash2, Search, UserPlus, Loader2 } from "lucide-react";
 import { z } from "zod";
 
 interface StaffMember {
@@ -56,6 +56,7 @@ const Staff = () => {
   const { toast } = useToast();
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -357,6 +358,7 @@ const Staff = () => {
     e.preventDefault();
     if (!validateForm()) return;
 
+    setIsSubmitting(true);
     try {
       const staffData: any = {
         name: formData.name.trim(),
@@ -434,6 +436,8 @@ const Staff = () => {
         description: "Failed to save staff member",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -833,13 +837,21 @@ const Staff = () => {
                   <Button
                     type="submit"
                     disabled={
-                      formData.role === 'district_manager' && 
+                      isSubmitting ||
+                      (formData.role === 'district_manager' && 
                       profile?.role === 'regional_manager' && 
                       hasDistrictManager &&
-                      !selectedStaff
+                      !selectedStaff)
                     }
                   >
-                    Add Staff Member
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Adding...
+                      </>
+                    ) : (
+                      "Add Staff Member"
+                    )}
                   </Button>
                 </div>
               </form>
@@ -1211,7 +1223,16 @@ const Staff = () => {
                 <Button type="button" variant="outline" onClick={() => setSelectedStaff(null)}>
                   Cancel
                 </Button>
-                <Button type="submit">Update Staff Member</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Update Staff Member"
+                  )}
+                </Button>
               </div>
             </form>
           </div>

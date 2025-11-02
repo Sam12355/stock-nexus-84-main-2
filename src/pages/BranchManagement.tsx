@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from '@/hooks/use-toast';
-import { Edit, Trash2, Plus } from 'lucide-react';
+import { Edit, Trash2, Plus, Loader2 } from 'lucide-react';
 import { z } from 'zod';
 
 interface Branch {
@@ -55,6 +55,7 @@ export default function BranchManagement() {
   const [districts, setDistricts] = useState<District[]>([]);
   const [filteredDistricts, setFilteredDistricts] = useState<District[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [branchToDelete, setBranchToDelete] = useState<Branch | null>(null);
@@ -240,6 +241,7 @@ export default function BranchManagement() {
     
     if (!validateForm()) return;
 
+    setIsSubmitting(true);
     try {
       const branchData = {
         name: formData.name.trim(),
@@ -275,6 +277,8 @@ export default function BranchManagement() {
         description: message,
         variant: "destructive"
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -480,8 +484,15 @@ export default function BranchManagement() {
               </div>
 
               <div className="flex gap-2 pt-4">
-                <Button type="submit" className="flex-1">
-                  {editingBranch ? 'Update' : 'Create'} Branch
+                <Button type="submit" className="flex-1" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {editingBranch ? 'Updating...' : 'Creating...'}
+                    </>
+                  ) : (
+                    `${editingBranch ? 'Update' : 'Create'} Branch`
+                  )}
                 </Button>
                 <Button type="button" variant="outline" onClick={resetForm}>
                   Cancel

@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Package, TrendingUp, AlertTriangle, Plus, Minus } from "lucide-react";
+import { Package, TrendingUp, AlertTriangle, Plus, Minus, Loader2 } from "lucide-react";
 import ReactSelect from 'react-select';
 
 // Extended interface for profile with branch_context
@@ -53,6 +53,7 @@ const Stock = () => {
   const { toast } = useToast();
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRemovingStock, setIsRemovingStock] = useState(false);
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null);
   const [quantity, setQuantity] = useState('');
   const [reason, setReason] = useState('');
@@ -100,6 +101,7 @@ const Stock = () => {
   const handleStockOut = async () => {
     if (!selectedItem || !quantity) return;
 
+    setIsRemovingStock(true);
     try {
       const result = await apiClient.updateStockQuantity(
         selectedItem.item_id,
@@ -134,6 +136,8 @@ const Stock = () => {
         description: errMsg,
         variant: "destructive",
       });
+    } finally {
+      setIsRemovingStock(false);
     }
   };
 
@@ -349,8 +353,15 @@ const Stock = () => {
                     />
                   </div>
                   
-                  <Button onClick={handleStockOut} className="w-full">
-                    Remove Stock
+                  <Button onClick={handleStockOut} className="w-full" disabled={isRemovingStock}>
+                    {isRemovingStock ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Removing...
+                      </>
+                    ) : (
+                      "Remove Stock"
+                    )}
                   </Button>
                 </>
               )}
