@@ -314,52 +314,55 @@ export function ICADeliveryList() {
               </tbody>
             </table>
             
-            {/* Screen view - cards (hidden when printing) */}
-            <div className="space-y-3 max-w-4xl mx-auto print:hidden">
-            {Object.values(groupedRecords)
-              .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-              .map((group: any, index: number) => (
-              <Card key={index} className="py-2">
-                <CardContent className="py-3">
-                  <div className="space-y-3">
-                    {/* Date on top - bigger */}
-                    <div className="text-center border-b pb-2">
-                      <p className="text-2xl font-bold text-gray-900">
-                        {new Date(group.submittedAt).toLocaleDateString('en-US', { 
-                          weekday: 'short', 
-                          year: 'numeric', 
-                          month: 'short', 
-                          day: 'numeric' 
+            {/* Screen view - all records in ONE card (hidden when printing) */}
+            <Card className="print:hidden">
+              <CardContent className="py-4">
+                <div className="space-y-4">
+                  {Object.values(groupedRecords)
+                    .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                    .map((group: any, index: number) => (
+                    <div key={index} className={index > 0 ? "border-t pt-4" : ""}>
+                      {/* Date, time, name, period - all in same line */}
+                      <div className="flex items-baseline gap-3 mb-3">
+                        <span className="text-xl font-bold">
+                          {new Date(group.submittedAt).toLocaleDateString('en-US', { 
+                            weekday: 'short', 
+                            month: 'short', 
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}
+                        </span>
+                        <span className="text-sm">
+                          {new Date(group.submittedAt).toLocaleTimeString('en-US', { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
+                        </span>
+                        <span className="text-base">
+                          {group.userName}
+                        </span>
+                        <span className="text-sm text-muted-foreground">
+                          {group.timeOfDay}
+                        </span>
+                      </div>
+                      
+                      {/* Items in a compact row */}
+                      <div className="grid grid-cols-5 gap-2">
+                        {['Normal', 'Combo', 'Vegan', 'Salmon Avocado', 'Wakame'].map((type) => {
+                          const item = group.items.find((i: any) => i.type === type);
+                          return (
+                            <div key={type} className="border rounded p-2 text-center">
+                              <p className="text-xs font-medium text-muted-foreground truncate">{type}</p>
+                              <p className="text-xl font-bold">{item ? item.amount : 0}</p>
+                            </div>
+                          );
                         })}
-                      </p>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {new Date(group.submittedAt).toLocaleTimeString('en-US', { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
-                      </p>
-                      {/* User name - smaller, underneath */}
-                      <p className="text-base text-gray-700 mt-2">{group.userName}</p>
-                      <p className="text-sm text-gray-500">{group.timeOfDay}</p>
+                      </div>
                     </div>
-                    
-                    {/* Items in a compact row */}
-                    <div className="grid grid-cols-5 gap-2 text-center">
-                      {['Normal', 'Combo', 'Vegan', 'Salmon Avocado', 'Wakame'].map((type) => {
-                        const item = group.items.find((i: any) => i.type === type);
-                        return (
-                          <div key={type} className="border rounded p-2">
-                            <p className="text-xs font-medium text-gray-600 truncate">{type}</p>
-                            <p className="text-xl font-bold text-gray-900">{item ? item.amount : 0}</p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
           
           {/* Pagination */}
