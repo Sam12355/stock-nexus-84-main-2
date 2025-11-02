@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Package2, Plus, Edit, Trash2, Search, Thermometer, AlertTriangle } from "lucide-react";
+import { Package2, Plus, Edit, Trash2, Search, Thermometer, AlertTriangle, Loader2 } from "lucide-react";
 import { z } from "zod";
 
 // Extended interface for profile with branch_context
@@ -75,6 +75,7 @@ const Items = () => {
   const { toast } = useToast();
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -119,6 +120,7 @@ const Items = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    setIsSubmitting(true);
     try {
       // Validate form data using Zod schema
       const validatedData = itemSchema.parse(formData);
@@ -130,6 +132,7 @@ const Items = () => {
           description: "Please select a branch for this item.",
           variant: "destructive",
         });
+        setIsSubmitting(false);
         return;
       }
 
@@ -182,6 +185,7 @@ const Items = () => {
           description: "Please check the form for errors",
           variant: "destructive",
         });
+        setIsSubmitting(false);
         return;
       }
       console.error('Error saving item:', error);
@@ -191,6 +195,8 @@ const Items = () => {
         description: errMsg,
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -464,7 +470,16 @@ const Items = () => {
                 <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit">Add Item</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Adding...
+                    </>
+                  ) : (
+                    "Add Item"
+                  )}
+                </Button>
               </div>
             </form>
           </DialogContent>
@@ -752,7 +767,16 @@ const Items = () => {
               <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit">Update Item</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  "Update Item"
+                )}
+              </Button>
             </div>
           </form>
         </DialogContent>
