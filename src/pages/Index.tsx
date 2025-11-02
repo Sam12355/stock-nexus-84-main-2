@@ -1225,25 +1225,14 @@ const Index = () => {
                 <div className="flex items-center gap-2">
                   {/* Generate Moveout List Button for Managers and Assistant Managers */}
                   {(extendedProfile?.role === 'manager' || extendedProfile?.role === 'assistant_manager') && (
-                    <>
-                      <Button
-                        onClick={() => setShowMoveoutModal(true)}
-                        size="sm"
-                        variant="outline"
-                      >
-                        <FileText className="h-4 w-4 mr-1" />
-                        Generate Moveout List
-                      </Button>
-                      <Button
-                        onClick={() => setShowICADeliveryModal(true)}
-                        size="sm"
-                        variant="outline"
-                        className="bg-green-600/20 hover:bg-green-600/30 border-green-600"
-                      >
-                        <Package className="h-4 w-4 mr-1" />
-                        ICA Delivery
-                      </Button>
-                    </>
+                    <Button
+                      onClick={() => setShowMoveoutModal(true)}
+                      size="sm"
+                      variant="outline"
+                    >
+                      <FileText className="h-4 w-4 mr-1" />
+                      Generate Moveout List
+                    </Button>
                   )}
                   {/* View History Button - Icon only */}
                   <Button

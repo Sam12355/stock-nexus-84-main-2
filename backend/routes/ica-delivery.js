@@ -74,24 +74,23 @@ router.post('/', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Check if user already submitted for this time period today
+    // Check if ANY user already submitted for this time period today (prevent duplicates)
     const today = new Date(submittedAt).toISOString().split('T')[0];
     const timeOfDay = entries[0]?.timeOfDay; // All entries should have same time of day
     
-    console.log('Checking for existing submission:', { userName, today, timeOfDay });
+    console.log('Checking for existing submission:', { today, timeOfDay });
     
     const existingSubmission = await query(`
       SELECT user_name FROM ica_delivery 
-      WHERE user_name = $1 
-        AND DATE(submitted_at) = $2
-        AND time_of_day = $3
+      WHERE DATE(submitted_at) = $1
+        AND time_of_day = $2
       LIMIT 1
-    `, [userName, today, timeOfDay]);
+    `, [today, timeOfDay]);
     
     if (existingSubmission.rows.length > 0) {
-      console.log('Duplicate submission detected');
+      console.log('Duplicate submission detected - already submitted by:', existingSubmission.rows[0].user_name);
       return res.status(400).json({ 
-        error: `${userName} has already submitted the delivery`,
+        error: `Delivery for ${timeOfDay} has already been submitted by ${existingSubmission.rows[0].user_name}`,
         duplicate: true 
       });
     }

@@ -3,10 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Download, FileSpreadsheet, Printer, Calendar } from "lucide-react";
+import { Download, FileSpreadsheet, Printer, Calendar, Plus } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import { ICADeliveryModal } from "@/components/ICADeliveryModal";
+import { useAuth } from "@/hooks/useAuth";
 
 interface ICADeliveryRecord {
   id: number;
@@ -21,8 +23,10 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://stock-nexus-84-mai
 
 export function ICADeliveryList() {
   const { toast } = useToast();
+  const { profile } = useAuth();
   const [records, setRecords] = useState<ICADeliveryRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Changed to false since we don't auto-fetch
+  const [showICADeliveryModal, setShowICADeliveryModal] = useState(false);
   
   // Set default date range to first day of month and today
   const today = new Date();
@@ -35,7 +39,7 @@ export function ICADeliveryList() {
 
   // Don't auto-fetch on mount - wait for user to click Apply
   useEffect(() => {
-    // Intentionally empty - user must click Apply to filter
+    // Show message prompting user to apply filter
   }, []);
 
   const fetchRecords = async () => {
@@ -174,6 +178,16 @@ export function ICADeliveryList() {
       <div className="flex justify-between items-center no-print">
         <h1 className="text-3xl font-bold">ICA Delivery Records</h1>
         <div className="flex gap-2">
+          {/* Add ICA Delivery Button - for managers, assistant managers, and staff */}
+          {profile && ['manager', 'assistant_manager', 'staff'].includes(profile.role) && (
+            <Button 
+              onClick={() => setShowICADeliveryModal(true)} 
+              className="gap-2 bg-green-600 hover:bg-green-700"
+            >
+              <Plus className="h-4 w-4" />
+              Add ICA Delivery
+            </Button>
+          )}
           <Button onClick={exportToPDF} variant="outline" className="gap-2">
             <Download className="h-4 w-4" />
             PDF
@@ -293,6 +307,18 @@ export function ICADeliveryList() {
         </>
       )}
     </div>
+
+    {/* ICA Delivery Modal */}
+    <ICADeliveryModal 
+      open={showICADeliveryModal} 
+      onOpenChange={(open) => {
+        setShowICADeliveryModal(open);
+        // Refresh records when modal closes after submission
+        if (!open && records.length > 0) {
+          fetchRecords();
+        }
+      }} 
+    />
     </>
   );
 }
