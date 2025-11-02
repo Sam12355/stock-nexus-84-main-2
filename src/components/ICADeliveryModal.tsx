@@ -80,6 +80,7 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [existingSubmissions, setExistingSubmissions] = useState<ExistingSubmission[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [hasEditableSubmission, setHasEditableSubmission] = useState(false);
   const [entries, setEntries] = useState<ICADeliveryEntry[]>([
     { type: "Normal", amount: "", timeOfDay: "Morning" },
     { type: "Combo", amount: "", timeOfDay: "Morning" },
@@ -92,6 +93,16 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
   useEffect(() => {
     if (open) {
       fetchMySubmissions();
+    } else {
+      // Reset when modal closes
+      setIsEditMode(false);
+      setEntries([
+        { type: "Normal", amount: "", timeOfDay: "Morning" },
+        { type: "Combo", amount: "", timeOfDay: "Morning" },
+        { type: "Vegan", amount: "", timeOfDay: "Morning" },
+        { type: "Salmon Avocado", amount: "", timeOfDay: "Morning" },
+        { type: "Wakame", amount: "", timeOfDay: "Morning" },
+      ]);
     }
   }, [open]);
 
@@ -108,27 +119,43 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
         const data = await response.json();
         setExistingSubmissions(data);
         
-        // If there are editable submissions (within 1 hour), populate the form
+        // Check if there are editable submissions (within 1 hour)
         const editableSubmissions = data.filter((s: ExistingSubmission) => s.hours_since_submission <= 1);
-        if (editableSubmissions.length > 0) {
-          setIsEditMode(true);
-          // Group by time_of_day and populate entries
-          const timeOfDay = editableSubmissions[0].time_of_day;
-          const newEntries = TYPES.map(type => {
-            const existing = editableSubmissions.find((s: ExistingSubmission) => s.type === type);
-            return {
-              type,
-              amount: existing ? existing.amount.toString() : "",
-              timeOfDay: timeOfDay,
-              id: existing?.id
-            };
-          });
-          setEntries(newEntries);
-        }
+        setHasEditableSubmission(editableSubmissions.length > 0);
       }
     } catch (error) {
       console.error('Error fetching submissions:', error);
     }
+  };
+
+  const handleEditClick = () => {
+    const editableSubmissions = existingSubmissions.filter((s: ExistingSubmission) => s.hours_since_submission <= 1);
+    if (editableSubmissions.length > 0) {
+      setIsEditMode(true);
+      // Group by time_of_day and populate entries
+      const timeOfDay = editableSubmissions[0].time_of_day;
+      const newEntries = TYPES.map(type => {
+        const existing = editableSubmissions.find((s: ExistingSubmission) => s.type === type);
+        return {
+          type,
+          amount: existing ? existing.amount.toString() : "",
+          timeOfDay: timeOfDay,
+          id: existing?.id
+        };
+      });
+      setEntries(newEntries);
+    }
+  };
+
+  const handleBackToAddForm = () => {
+    setIsEditMode(false);
+    setEntries([
+      { type: "Normal", amount: "", timeOfDay: "Morning" },
+      { type: "Combo", amount: "", timeOfDay: "Morning" },
+      { type: "Vegan", amount: "", timeOfDay: "Morning" },
+      { type: "Salmon Avocado", amount: "", timeOfDay: "Morning" },
+      { type: "Wakame", amount: "", timeOfDay: "Morning" },
+    ]);
   };
 
   const handlePresetClick = (preset: typeof PRESET_TAGS[0]) => {
@@ -262,23 +289,53 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Preset Tags */}
-          <div>
-            <Label className="text-sm font-medium mb-2 block text-gray-200">Quick Presets</Label>
-            <div className="flex flex-wrap gap-2">
-              {PRESET_TAGS.map((preset, index) => (
-                <Button
-                  key={index}
-                  type="button"
-                  variant="outline"
-                  onClick={() => handlePresetClick(preset)}
-                  className="text-sm bg-white/5 hover:bg-white/10 backdrop-blur-sm border-white/20 text-white hover:text-white"
-                >
-                  {preset.label}
-                </Button>
-              ))}
+          {/* Edit Submission Button - Show only when not in edit mode and has editable submission */}
+          {!isEditMode && hasEditableSubmission && (
+            <div className="flex justify-center">
+              <Button
+                type="button"
+                onClick={handleEditClick}
+                variant="outline"
+                className="bg-blue-600/80 hover:bg-blue-700/80 backdrop-blur-sm border-blue-500 text-white hover:text-white"
+              >
+                Edit Submission (within 1 hour)
+              </Button>
             </div>
-          </div>
+          )}
+
+          {/* Back to Add Form Button - Show only in edit mode */}
+          {isEditMode && (
+            <div className="flex justify-center">
+              <Button
+                type="button"
+                onClick={handleBackToAddForm}
+                variant="outline"
+                className="bg-white/5 hover:bg-white/10 backdrop-blur-sm border-white/20 text-white hover:text-white"
+              >
+                ← Back to Add Form
+              </Button>
+            </div>
+          )}
+
+          {/* Preset Tags - Show only in add mode */}
+          {!isEditMode && (
+            <div>
+              <Label className="text-sm font-medium mb-2 block text-gray-200">Quick Presets</Label>
+              <div className="flex flex-wrap gap-2">
+                {PRESET_TAGS.map((preset, index) => (
+                  <Button
+                    key={index}
+                    type="button"
+                    variant="outline"
+                    onClick={() => handlePresetClick(preset)}
+                    className="text-sm bg-white/5 hover:bg-white/10 backdrop-blur-sm border-white/20 text-white hover:text-white"
+                  >
+                    {preset.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
