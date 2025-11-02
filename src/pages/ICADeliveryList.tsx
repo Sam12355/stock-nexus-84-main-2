@@ -23,13 +23,19 @@ export function ICADeliveryList() {
   const { toast } = useToast();
   const [records, setRecords] = useState<ICADeliveryRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  
+  // Set default date range to first day of month and today
+  const today = new Date();
+  const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const [startDate, setStartDate] = useState(firstDayOfMonth.toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(today.toISOString().split('T')[0]);
+  
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // Don't auto-fetch on mount - wait for user to click Apply
   useEffect(() => {
-    fetchRecords();
+    // Intentionally empty - user must click Apply to filter
   }, []);
 
   const fetchRecords = async () => {
@@ -144,8 +150,28 @@ export function ICADeliveryList() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <>
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #printable-area, #printable-area * {
+            visibility: visible;
+          }
+          #printable-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
+      `}</style>
+      <div className="p-6 space-y-6">
+      <div className="flex justify-between items-center no-print">
         <h1 className="text-3xl font-bold">ICA Delivery Records</h1>
         <div className="flex gap-2">
           <Button onClick={exportToPDF} variant="outline" className="gap-2">
@@ -163,7 +189,7 @@ export function ICADeliveryList() {
         </div>
       </div>
 
-      <Card>
+      <Card className="no-print">
         <CardHeader>
           <div className="flex items-center gap-4">
             <Calendar className="h-5 w-5" />
@@ -210,7 +236,7 @@ export function ICADeliveryList() {
         </Card>
       ) : (
         <>
-          <div className="grid gap-4">
+          <div id="printable-area" className="grid gap-4">
             {Object.values(groupedRecords)
               .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
               .map((group: any, index: number) => (
@@ -244,7 +270,7 @@ export function ICADeliveryList() {
           
           {/* Pagination */}
           {Object.keys(groupedRecords).length > itemsPerPage && (
-            <div className="flex justify-center gap-2 mt-6">
+            <div className="flex justify-center gap-2 mt-6 no-print">
               <Button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
@@ -267,5 +293,6 @@ export function ICADeliveryList() {
         </>
       )}
     </div>
+    </>
   );
 }

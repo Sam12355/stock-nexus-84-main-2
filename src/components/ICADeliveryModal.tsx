@@ -297,7 +297,7 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[80vw] max-h-[85vh] overflow-y-auto bg-white/5 backdrop-blur-3xl border border-white/10 text-white">
+      <DialogContent className="max-w-[80vw] max-h-[85vh] overflow-y-auto bg-white/10 backdrop-blur-2xl border border-white/20 text-white">
         <DialogHeader>
           <DialogTitle className="text-2xl text-white">
             {isEditMode ? "Edit ICA Delivery" : "ICA Delivery"}
@@ -431,7 +431,7 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
 
     {/* Confirmation Dialog */}
     <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-      <DialogContent className="max-w-md bg-white/15 backdrop-blur-2xl border border-white/20 text-white">
+      <DialogContent className="max-w-md bg-white/20 backdrop-blur-xl border border-white/30 text-white">
         <DialogHeader>
           <DialogTitle className="text-white">Confirm ICA Delivery Order</DialogTitle>
         </DialogHeader>
