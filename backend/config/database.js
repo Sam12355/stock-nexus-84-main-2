@@ -14,10 +14,10 @@ console.log('Is Supabase:', isSupabase);
 
 const dbConfig = isSupabase 
   ? {
-      // Use direct host/port config for Supabase instead of connection string
+      // Use direct config for Supabase (not connection string)
       host: process.env.DB_HOST,
-      port: process.env.DB_PORT,
-      database: process.env.DB_NAME,
+      port: process.env.DB_PORT || 5432,
+      database: process.env.DB_NAME || 'postgres',
       user: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
       ssl: {
@@ -39,7 +39,13 @@ const dbConfig = isSupabase
       connectionTimeoutMillis: 2000,
     };
 
-console.log('Connection Config:', dbConfig);
+console.log('Connection Config:', isSupabase ? {
+  host: dbConfig.host,
+  port: dbConfig.port,
+  database: dbConfig.database,
+  user: dbConfig.user,
+  ssl: dbConfig.ssl
+} : dbConfig);
 
 // Create connection pool
 const pool = new Pool(dbConfig);
