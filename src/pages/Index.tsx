@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 // Supabase integration disabled - using API client instead
 import { apiClient } from "@/lib/api";
 import { notificationEvents } from "@/lib/notificationEvents";
+import { ICADeliveryModal } from "@/components/ICADeliveryModal";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -190,6 +191,7 @@ const Index = () => {
   
   // Moveout list state
   const [showMoveoutModal, setShowMoveoutModal] = useState(false);
+  const [showICADeliveryModal, setShowICADeliveryModal] = useState(false);
   const [availableItems, setAvailableItems] = useState<any[]>([]);
   const [selectedItems, setSelectedItems] = useState<any[]>([]);
   const [moveoutList, setMoveoutList] = useState<any[]>([]);
@@ -991,7 +993,7 @@ const Index = () => {
 
       {/* Generate Moveout List Button - Only for staff */}
       {extendedProfile?.role === 'staff' && (
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center gap-4 mb-6">
           <Button 
             onClick={() => setShowMoveoutModal(true)}
             className="px-8 py-3 text-lg"
@@ -999,6 +1001,14 @@ const Index = () => {
           >
             <FileText className="h-5 w-5 mr-2" />
             Generate Moveout List
+          </Button>
+          <Button 
+            onClick={() => setShowICADeliveryModal(true)}
+            className="px-8 py-3 text-lg bg-green-600 hover:bg-green-700"
+            size="lg"
+          >
+            <Package className="h-5 w-5 mr-2" />
+            ICA Delivery
           </Button>
         </div>
       )}
@@ -2079,6 +2089,12 @@ const Index = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ICA Delivery Modal */}
+      <ICADeliveryModal 
+        open={showICADeliveryModal}
+        onOpenChange={setShowICADeliveryModal}
+      />
       </div>
     </>
   );
