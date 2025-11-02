@@ -6,14 +6,28 @@ const { authenticateToken } = require('../middleware/auth');
 // Get all ICA delivery records (with optional date filter)
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { date } = req.query;
+    const { date, startDate, endDate } = req.query;
     
     let queryText = 'SELECT * FROM ica_delivery';
     let params = [];
+    let conditions = [];
     
     if (date) {
-      queryText += ' WHERE DATE(submitted_at) = $1';
+      conditions.push(`DATE(submitted_at) = $${params.length + 1}`);
       params.push(date);
+    } else if (startDate && endDate) {
+      conditions.push(`DATE(submitted_at) BETWEEN $${params.length + 1} AND $${params.length + 2}`);
+      params.push(startDate, endDate);
+    } else if (startDate) {
+      conditions.push(`DATE(submitted_at) >= $${params.length + 1}`);
+      params.push(startDate);
+    } else if (endDate) {
+      conditions.push(`DATE(submitted_at) <= $${params.length + 1}`);
+      params.push(endDate);
+    }
+    
+    if (conditions.length > 0) {
+      queryText += ' WHERE ' + conditions.join(' AND ');
     }
     
     queryText += ' ORDER BY submitted_at DESC';
@@ -84,10 +98,13 @@ router.post('/', authenticateToken, async (req, res) => {
           type, 
           amount, 
           time_of_day, 
-          submitted_at,
-          user_id
-        ) VALUES ($1, $2, $3, $4, $5, $6)
-      `, [userName, entry.type, parseInt(entry.amount), entry.timeOfDay, submittedAt, req.user.id]);
+          submitted_at
+          ${req.user.id ? ', user_id' : ''}
+        ) VALUES ($1, $2, $3, $4, $5${req.user.id ? ', $6' : ''})
+      `, req.user.id 
+        ? [userName, entry.type, parseInt(entry.amount), entry.timeOfDay, submittedAt, req.user.id]
+        : [userName, entry.type, parseInt(entry.amount), entry.timeOfDay, submittedAt]
+      );
     }
 
     res.json({ success: true, message: 'ICA delivery order submitted successfully' });

@@ -23,17 +23,31 @@ export function ICADeliveryList() {
   const { toast } = useToast();
   const [records, setRecords] = useState<ICADeliveryRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     fetchRecords();
-  }, [selectedDate]);
+  }, []);
 
   const fetchRecords = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${API_BASE_URL}/ica-delivery?date=${selectedDate}`, {
+      
+      let url = `${API_BASE_URL}/ica-delivery`;
+      const params = new URLSearchParams();
+      
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+      
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -42,6 +56,7 @@ export function ICADeliveryList() {
       if (response.ok) {
         const data = await response.json();
         setRecords(data);
+        setCurrentPage(1); // Reset to first page when fetching new data
       } else {
         throw new Error('Failed to fetch records');
       }
@@ -55,6 +70,15 @@ export function ICADeliveryList() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFilter = () => {
+    fetchRecords();
+  };
+
+  const handleClearFilter = () => {
+    setStartDate('');
+    setEndDate('');
   };
 
   const groupedRecords = records.reduce((acc, record) => {
@@ -75,7 +99,8 @@ export function ICADeliveryList() {
     const doc = new jsPDF();
     
     doc.setFontSize(18);
-    doc.text(`ICA Delivery Report - ${selectedDate}`, 14, 20);
+    const dateRange = startDate && endDate ? `${startDate} to ${endDate}` : 'All Records';
+    doc.text(`ICA Delivery Report - ${dateRange}`, 14, 20);
     
     const tableData = Object.values(groupedRecords).map((group: any) => {
       const itemsStr = group.items.map((item: any) => `${item.type}: ${item.amount}`).join(', ');
@@ -88,19 +113,19 @@ export function ICADeliveryList() {
     });
 
     autoTable(doc, {
-      head: [['User', 'Time of Day', 'Items', 'Submitted At']],
+      head: [['User', 'Time of the Day', 'Items', 'Submitted At']],
       body: tableData,
       startY: 30,
     });
 
-    doc.save(`ica-delivery-${selectedDate}.pdf`);
+    doc.save(`ica-delivery-${dateRange.replace(/\s+/g, '-')}.pdf`);
   };
 
   const exportToExcel = () => {
     const data = Object.values(groupedRecords).flatMap((group: any) => 
       group.items.map((item: any) => ({
         'User Name': group.userName,
-        'Time of Day': group.timeOfDay,
+        'Time of the Day': group.timeOfDay,
         'Type': item.type,
         'Amount': item.amount,
         'Submitted At': new Date(group.submittedAt).toLocaleString()
@@ -110,7 +135,8 @@ export function ICADeliveryList() {
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "ICA Delivery");
-    XLSX.writeFile(wb, `ica-delivery-${selectedDate}.xlsx`);
+    const dateRange = startDate && endDate ? `${startDate}-to-${endDate}` : 'all-records';
+    XLSX.writeFile(wb, `ica-delivery-${dateRange}.xlsx`);
   };
 
   const handlePrint = () => {
@@ -141,16 +167,32 @@ export function ICADeliveryList() {
         <CardHeader>
           <div className="flex items-center gap-4">
             <Calendar className="h-5 w-5" />
-            <CardTitle>Filter by Date</CardTitle>
+            <CardTitle>Filter by Date Range</CardTitle>
           </div>
         </CardHeader>
         <CardContent>
-          <Input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="max-w-xs"
-          />
+          <div className="flex gap-4 items-end flex-wrap">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Start Date</label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="max-w-xs"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">End Date</label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="max-w-xs"
+              />
+            </div>
+            <Button onClick={handleFilter}>Apply Filter</Button>
+            <Button onClick={handleClearFilter} variant="outline">Clear Filter</Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -163,36 +205,66 @@ export function ICADeliveryList() {
       ) : Object.keys(groupedRecords).length === 0 ? (
         <Card>
           <CardContent className="py-8">
-            <p className="text-center text-gray-500">No records found for {selectedDate}</p>
+            <p className="text-center text-gray-500">No records found</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
-          {Object.values(groupedRecords).map((group: any, index: number) => (
-            <Card key={index}>
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle>{group.userName}</CardTitle>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {group.timeOfDay} - {new Date(group.submittedAt).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  {group.items.map((item: any, idx: number) => (
-                    <div key={idx} className="border rounded-lg p-3">
-                      <p className="text-sm font-medium text-gray-700">{item.type}</p>
-                      <p className="text-2xl font-bold">{item.amount}</p>
+        <>
+          <div className="grid gap-4">
+            {Object.values(groupedRecords)
+              .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+              .map((group: any, index: number) => (
+              <Card key={index}>
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle>{group.userName}</CardTitle>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {group.timeOfDay} - {new Date(group.submittedAt).toLocaleString()}
+                      </p>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    {['Normal', 'Combo', 'Vegan', 'Salmon Avocado', 'Wakame'].map((type) => {
+                      const item = group.items.find((i: any) => i.type === type);
+                      return (
+                        <div key={type} className="border rounded-lg p-3">
+                          <p className="text-sm font-medium text-gray-700">{type}</p>
+                          <p className="text-2xl font-bold">{item ? item.amount : 0}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          
+          {/* Pagination */}
+          {Object.keys(groupedRecords).length > itemsPerPage && (
+            <div className="flex justify-center gap-2 mt-6">
+              <Button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                variant="outline"
+              >
+                Previous
+              </Button>
+              <span className="flex items-center px-4">
+                Page {currentPage} of {Math.ceil(Object.keys(groupedRecords).length / itemsPerPage)}
+              </span>
+              <Button
+                onClick={() => setCurrentPage(p => Math.min(Math.ceil(Object.keys(groupedRecords).length / itemsPerPage), p + 1))}
+                disabled={currentPage >= Math.ceil(Object.keys(groupedRecords).length / itemsPerPage)}
+                variant="outline"
+              >
+                Next
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

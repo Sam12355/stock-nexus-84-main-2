@@ -81,6 +81,7 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
   const [existingSubmissions, setExistingSubmissions] = useState<ExistingSubmission[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [hasEditableSubmission, setHasEditableSubmission] = useState(false);
+  const [remainingMinutes, setRemainingMinutes] = useState(0);
   const [entries, setEntries] = useState<ICADeliveryEntry[]>([
     { type: "Normal", amount: "", timeOfDay: "Morning" },
     { type: "Combo", amount: "", timeOfDay: "Morning" },
@@ -122,6 +123,13 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
         // Check if there are editable submissions (within 1 hour)
         const editableSubmissions = data.filter((s: ExistingSubmission) => s.hours_since_submission <= 1);
         setHasEditableSubmission(editableSubmissions.length > 0);
+        
+        // Calculate remaining minutes
+        if (editableSubmissions.length > 0) {
+          const hoursSince = editableSubmissions[0].hours_since_submission;
+          const minutesRemaining = Math.max(0, Math.floor((1 - hoursSince) * 60));
+          setRemainingMinutes(minutesRemaining);
+        }
       }
     } catch (error) {
       console.error('Error fetching submissions:', error);
@@ -165,6 +173,14 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
   const handleEntryChange = (index: number, field: keyof ICADeliveryEntry, value: string) => {
     const newEntries = [...entries];
     newEntries[index] = { ...newEntries[index], [field]: value };
+    
+    // If time of day changed, update all entries to match
+    if (field === 'timeOfDay') {
+      newEntries.forEach(entry => {
+        entry.timeOfDay = value;
+      });
+    }
+    
     setEntries(newEntries);
   };
 
@@ -281,7 +297,7 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[80vw] max-h-[85vh] overflow-y-auto bg-white/10 backdrop-blur-2xl border border-white/20 text-white">
+      <DialogContent className="max-w-[80vw] max-h-[85vh] overflow-y-auto bg-white/5 backdrop-blur-3xl border border-white/10 text-white">
         <DialogHeader>
           <DialogTitle className="text-2xl text-white">
             {isEditMode ? "Edit ICA Delivery" : "ICA Delivery"}
@@ -298,7 +314,7 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
                 variant="outline"
                 className="bg-blue-600/80 hover:bg-blue-700/80 backdrop-blur-sm border-blue-500 text-white hover:text-white"
               >
-                Edit Submission (within 1 hour)
+                Edit Submission ({remainingMinutes} minutes remaining)
               </Button>
             </div>
           )}
