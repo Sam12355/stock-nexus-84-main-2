@@ -40,7 +40,7 @@ router.post('/',
   authorize('admin', 'manager', 'assistant_manager'),
   [
     body('name').notEmpty().withMessage('Item name is required').isLength({ max: 100 }).withMessage('Name must be less than 100 characters'),
-    body('category').isIn(['fish_frozen', 'vegetables', 'other_frozen_food', 'meat_frozen', 'kitchen_supplies', 'grains', 'fruits', 'flour', 'cleaning_supplies', 'canned_prepared_food', 'beer_non_alc', 'sy_product_recipes', 'packaging', 'sauce', 'softdrinks', 'spices', 'other']).withMessage('Valid category is required'),
+    body('category').isIn(['Gronsakshuset', 'Kvalitetsfisk', 'Spendrups', 'Tingstad', 'Other']).withMessage('Valid supplier is required'),
     body('description').optional().custom((value) => {
       if (value === null || value === undefined || value === '') {
         return true; // Allow null, undefined, or empty string
@@ -95,15 +95,13 @@ router.post('/',
       const lowLevel = low_level || Math.max(1, Math.floor(threshold_level * 0.5));
       const criticalLevel = critical_level || Math.max(1, Math.floor(threshold_level * 0.2));
 
-      // First, try to drop and recreate the constraint to allow new categories
+      // First, try to drop and recreate the constraint to allow new suppliers
       try {
         await query('ALTER TABLE items DROP CONSTRAINT IF EXISTS items_category_check');
         await query(`
           ALTER TABLE items ADD CONSTRAINT items_category_check 
           CHECK (category IN (
-            'fish_frozen', 'vegetables', 'other_frozen_food', 'meat_frozen', 'kitchen_supplies',
-            'grains', 'fruits', 'flour', 'cleaning_supplies', 'canned_prepared_food',
-            'beer_non_alc', 'sy_product_recipes', 'packaging', 'sauce', 'softdrinks', 'spices', 'other'
+            'Gronsakshuset', 'Kvalitetsfisk', 'Spendrups', 'Tingstad', 'Other'
           ))
         `);
       } catch (constraintError) {
@@ -149,7 +147,7 @@ router.put('/:id',
   authorize('admin', 'manager', 'assistant_manager'),
   [
     body('name').notEmpty().withMessage('Item name is required').isLength({ max: 100 }).withMessage('Name must be less than 100 characters'),
-    body('category').isIn(['fish_frozen', 'vegetables', 'other_frozen_food', 'meat_frozen', 'kitchen_supplies', 'grains', 'fruits', 'flour', 'cleaning_supplies', 'canned_prepared_food', 'beer_non_alc', 'sy_product_recipes', 'packaging', 'sauce', 'softdrinks', 'spices', 'other']).withMessage('Valid category is required'),
+    body('category').isIn(['Gronsakshuset', 'Kvalitetsfisk', 'Spendrups', 'Tingstad', 'Other']).withMessage('Valid supplier is required'),
     body('description').optional().custom((value) => {
       if (value === null || value === undefined || value === '') {
         return true; // Allow null, undefined, or empty string
