@@ -14,27 +14,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Package, TrendingUp, AlertTriangle, Plus, Minus } from "lucide-react";
 import ReactSelect from 'react-select';
 
-// Category labels mapping
-const categoryLabels = {
-  fish_frozen: "Fish Frozen",
-  vegetables: "Vegetables",
-  other_frozen_food: "Other Frozen Food",
-  meat_frozen: "Meat Frozen",
-  kitchen_supplies: "Kitchen Supplies",
-  grains: "Grains",
-  fruits: "Fruits",
-  flour: "Flour",
-  cleaning_supplies: "Cleaning Supplies",
-  canned_prepared_food: "Canned & Prepared Food",
-  beer_non_alc: "Beer, non alc.",
-  sy_product_recipes: "SY Product Recipes",
-  packaging: "Packaging",
-  sauce: "Sauce",
-  softdrinks: "Softdrinks",
-  spices: "Spices",
-  other: "Other"
-};
-
 // Extended interface for profile with branch_context
 interface ExtendedProfile {
   id: string;
@@ -443,7 +422,7 @@ const Stock = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 bg-muted/50 rounded-lg">
                   <div className="flex-1">
                     <h3 className="text-lg font-semibold text-foreground">
-                      {categoryLabels[category as keyof typeof categoryLabels] || category}
+                      {category}
                     </h3>
                     <p className="text-sm text-muted-foreground">
                       {items.length} item{items.length !== 1 ? 's' : ''}
@@ -451,7 +430,7 @@ const Stock = () => {
                   </div>
                   <div className="w-full sm:w-64">
                     <Input
-                      placeholder={`Search within ${categoryLabels[category as keyof typeof categoryLabels] || category}...`}
+                      placeholder={`Search within ${category}...`}
                       value={categorySearchTerms[category] || ''}
                       onChange={(e) => handleCategorySearchChange(category, e.target.value)}
                       className="w-full"
@@ -483,7 +462,7 @@ const Stock = () => {
                           <div className="flex-1 min-w-0">
                             <h3 className="font-medium truncate">{item.items.name}</h3>
                             <p className="text-sm text-muted-foreground">
-                              {categoryLabels[item.items.category as keyof typeof categoryLabels] || item.items.category}
+                              {item.items.category}
                             </p>
                           </div>
                         </div>

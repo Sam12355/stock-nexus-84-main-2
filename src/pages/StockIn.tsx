@@ -14,27 +14,6 @@ import { Package, TrendingUp, AlertTriangle, Plus, ArrowDown, FileText, CheckCir
 import ReactSelect from 'react-select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
-// Category labels mapping
-const categoryLabels = {
-  fish_frozen: "Fish Frozen",
-  vegetables: "Vegetables",
-  other_frozen_food: "Other Frozen Food",
-  meat_frozen: "Meat Frozen",
-  kitchen_supplies: "Kitchen Supplies",
-  grains: "Grains",
-  fruits: "Fruits",
-  flour: "Flour",
-  cleaning_supplies: "Cleaning Supplies",
-  canned_prepared_food: "Canned & Prepared Food",
-  beer_non_alc: "Beer, non alc.",
-  sy_product_recipes: "SY Product Recipes",
-  packaging: "Packaging",
-  sauce: "Sauce",
-  softdrinks: "Softdrinks",
-  spices: "Spices",
-  other: "Other"
-};
-
 // Extended interface for profile with branch_context
 interface ExtendedProfile {
   id: string;
@@ -641,7 +620,7 @@ const StockIn = () => {
                   <div className="flex items-center gap-3 py-2 px-3 bg-muted/30 rounded-md">
                     <div className="flex-1">
                       <h4 className="text-sm font-medium text-foreground">
-                        {categoryLabels[category as keyof typeof categoryLabels] || category}
+                        {category}
                       </h4>
                       <p className="text-xs text-muted-foreground">
                         {items.length} item{items.length !== 1 ? 's' : ''}
@@ -649,7 +628,7 @@ const StockIn = () => {
                     </div>
                     <div className="w-48">
                       <Input
-                        placeholder={`Search ${categoryLabels[category as keyof typeof categoryLabels] || category}...`}
+                        placeholder={`Search ${category}...`}
                         value={categorySearchTerms[category] || ''}
                         onChange={(e) => handleCategorySearchChange(category, e.target.value)}
                         className="h-8 text-xs"
@@ -681,7 +660,7 @@ const StockIn = () => {
                             <div className="flex-1 min-w-0">
                               <h3 className="font-medium truncate">{item.items.name}</h3>
                               <p className="text-sm text-muted-foreground">
-                                {categoryLabels[item.items.category as keyof typeof categoryLabels] || item.items.category}
+                                {item.items.category}
                               </p>
                             </div>
                           </div>

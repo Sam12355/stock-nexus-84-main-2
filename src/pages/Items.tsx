@@ -49,50 +49,18 @@ interface Item {
   updated_at: string;
 }
 
-const categories = [
-  "fish_frozen",
-  "vegetables",
-  "other_frozen_food",
-  "meat_frozen",
-  "kitchen_supplies",
-  "grains",
-  "fruits",
-  "flour",
-  "cleaning_supplies",
-  "canned_prepared_food",
-  "beer_non_alc",
-  "sy_product_recipes",
-  "packaging",
-  "sauce",
-  "softdrinks",
-  "spices",
-  "other"
+const suppliers = [
+  "Gronsakshuset",
+  "Kvalitetsfisk",
+  "Spendrups",
+  "Tingstad",
+  "Other"
 ];
-
-const categoryLabels = {
-  fish_frozen: "Fish Frozen",
-  vegetables: "Vegetables",
-  other_frozen_food: "Other Frozen Food",
-  meat_frozen: "Meat Frozen",
-  kitchen_supplies: "Kitchen Supplies",
-  grains: "Grains",
-  fruits: "Fruits",
-  flour: "Flour",
-  cleaning_supplies: "Cleaning Supplies",
-  canned_prepared_food: "Canned & Prepared Food",
-  beer_non_alc: "Beer, non alc.",
-  sy_product_recipes: "SY Product Recipes",
-  packaging: "Packaging",
-  sauce: "Sauce",
-  softdrinks: "Softdrinks",
-  spices: "Spices",
-  other: "Other"
-};
 
 const itemSchema = z.object({
   name: z.string().trim().min(1, "Item name is required").max(100, "Name must be less than 100 characters"),
-  category: z.enum(categories as [string, ...string[]], {
-    required_error: "Category is required"
+  category: z.enum(suppliers as [string, ...string[]], {
+    required_error: "Supplier is required"
   }),
   description: z.string().max(500, "Description must be less than 500 characters").optional(),
   image_url: z.string().optional().or(z.literal("")),
@@ -338,15 +306,15 @@ const Items = () => {
               </div>
 
               <div>
-                <Label htmlFor="category">Category *</Label>
+                <Label htmlFor="category">Supplier *</Label>
                 <Select onValueChange={(value) => setFormData({ ...formData, category: value })}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
+                    <SelectValue placeholder="Select supplier" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {categoryLabels[category as keyof typeof categoryLabels]}
+                    {suppliers.map((supplier) => (
+                      <SelectItem key={supplier} value={supplier}>
+                        {supplier}
                       </SelectItem>
                     ))}
                   </SelectContent>
