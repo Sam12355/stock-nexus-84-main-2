@@ -1155,7 +1155,8 @@ const Index = () => {
         </Card>
         )}
 
-        {/* Weather Widget - Third column */}
+        {/* Weather Widget - Third column - Only show for non-staff roles */}
+        {extendedProfile?.role !== 'staff' && (
         <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -1207,6 +1208,7 @@ const Index = () => {
             )}
           </CardContent>
         </Card>
+        )}
 
       </div>
 
