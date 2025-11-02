@@ -26,6 +26,7 @@ interface ExistingSubmission {
 interface ICADeliveryModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void; // Optional callback when submission succeeds
 }
 
 const PRESET_TAGS = [
@@ -65,7 +66,7 @@ const TYPES = ["Normal", "Combo", "Vegan", "Salmon Avocado", "Wakame"];
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://stock-nexus-84-main-2-1.onrender.com/api';
 
-export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) {
+export function ICADeliveryModal({ open, onOpenChange, onSuccess }: ICADeliveryModalProps) {
   const { toast } = useToast();
   const { profile } = useAuth();
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -232,6 +233,9 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
           title: "Success",
           description: "ICA delivery order updated successfully",
         });
+        
+        // Call onSuccess callback to trigger refresh
+        onSuccess?.();
       } else {
         // Create new submission
         const response = await fetch(`${API_BASE_URL}/ica-delivery`, {
@@ -254,6 +258,9 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
             title: "Success",
             description: "ICA delivery order submitted successfully",
           });
+          
+          // Call onSuccess callback to trigger refresh
+          onSuccess?.();
         } else {
           console.error('Backend error:', data);
           if (data.duplicate) {

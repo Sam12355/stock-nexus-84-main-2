@@ -394,13 +394,11 @@ export function ICADeliveryList() {
     {/* ICA Delivery Modal */}
     <ICADeliveryModal 
       open={showICADeliveryModal} 
-      onOpenChange={(open) => {
-        setShowICADeliveryModal(open);
-        // Refresh records when modal closes after submission
-        if (!open && records.length > 0) {
-          fetchRecords();
-        }
-      }} 
+      onOpenChange={setShowICADeliveryModal}
+      onSuccess={() => {
+        // Only refresh when something was actually submitted/updated
+        fetchRecords();
+      }}
     />
     </>
   );
