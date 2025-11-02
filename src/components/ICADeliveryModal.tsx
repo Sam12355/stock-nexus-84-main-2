@@ -112,11 +112,13 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
     const validEntries = entries.filter(entry => entry.amount && entry.amount.trim() !== "");
     
     try {
-      const response = await apiClient.post('/ica-delivery', {
+      const response = await apiClient.post('/api/ica-delivery', {
         userName: profile?.name || 'Unknown',
         entries: validEntries,
         submittedAt: new Date().toISOString()
       });
+
+      const data = await response.json();
 
       if (response.ok) {
         toast({
@@ -136,29 +138,31 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
         setShowConfirmation(false);
         onOpenChange(false);
       } else {
-        throw new Error('Failed to submit');
+        throw new Error(data.error || 'Failed to submit');
       }
     } catch (error) {
+      console.error('ICA Delivery error:', error);
       toast({
         title: "Error",
-        description: "Failed to submit ICA delivery order",
+        description: error.message || "Failed to submit ICA delivery order",
         variant: "destructive",
       });
+      setShowConfirmation(false);
     }
   };
 
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[80vw] max-h-[85vh] overflow-y-auto bg-gradient-to-br from-blue-50/90 via-purple-50/90 to-pink-50/90 backdrop-blur-md border border-white/20">
+      <DialogContent className="max-w-[80vw] max-h-[85vh] overflow-y-auto bg-gray-900/95 backdrop-blur-xl border border-gray-700/50 text-white">
         <DialogHeader>
-          <DialogTitle className="text-2xl">ICA Delivery</DialogTitle>
+          <DialogTitle className="text-2xl text-white">ICA Delivery</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
           {/* Preset Tags */}
           <div>
-            <Label className="text-sm font-medium mb-2 block">Quick Presets</Label>
+            <Label className="text-sm font-medium mb-2 block text-gray-200">Quick Presets</Label>
             <div className="flex flex-wrap gap-2">
               {PRESET_TAGS.map((preset, index) => (
                 <Button
@@ -166,7 +170,7 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
                   type="button"
                   variant="outline"
                   onClick={() => handlePresetClick(preset)}
-                  className="text-sm bg-white/50 hover:bg-white/80 backdrop-blur-sm"
+                  className="text-sm bg-gray-800/60 hover:bg-gray-700/80 backdrop-blur-sm border-gray-600 text-white hover:text-white"
                 >
                   {preset.label}
                 </Button>
@@ -178,26 +182,26 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid gap-6">
               {entries.map((entry, index) => (
-                <div key={index} className="p-4 border rounded-lg space-y-4 bg-white/40 backdrop-blur-md border-white/30 shadow-lg">
-                  <h3 className="font-medium text-sm text-gray-700">
+                <div key={index} className="p-4 border rounded-lg space-y-4 bg-gray-800/40 backdrop-blur-md border-gray-700/50 shadow-lg">
+                  <h3 className="font-medium text-sm text-gray-200">
                     Set {index + 1}
                   </h3>
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Type - Fixed, not editable */}
                     <div className="space-y-2">
-                      <Label htmlFor={`type-${index}`}>Type</Label>
+                      <Label htmlFor={`type-${index}`} className="text-gray-200">Type</Label>
                       <Input
                         id={`type-${index}`}
                         value={entry.type}
                         disabled
-                        className="bg-gray-100/50 backdrop-blur-sm"
+                        className="bg-gray-700/50 backdrop-blur-sm border-gray-600 text-gray-300"
                       />
                     </div>
 
                     {/* Amount */}
                     <div className="space-y-2">
-                      <Label htmlFor={`amount-${index}`}>Amount</Label>
+                      <Label htmlFor={`amount-${index}`} className="text-gray-200">Amount</Label>
                       <Input
                         id={`amount-${index}`}
                         type="number"
@@ -205,23 +209,23 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
                         placeholder="Enter amount"
                         value={entry.amount}
                         onChange={(e) => handleEntryChange(index, "amount", e.target.value)}
-                        className="bg-white/50 backdrop-blur-sm"
+                        className="bg-gray-700/50 backdrop-blur-sm border-gray-600 text-white placeholder:text-gray-400"
                       />
                     </div>
 
                     {/* Time of Day */}
                     <div className="space-y-2">
-                      <Label htmlFor={`time-${index}`}>Time of Day</Label>
+                      <Label htmlFor={`time-${index}`} className="text-gray-200">Time of Day</Label>
                       <Select
                         value={entry.timeOfDay}
                         onValueChange={(value) => handleEntryChange(index, "timeOfDay", value)}
                       >
-                        <SelectTrigger id={`time-${index}`} className="bg-white/50 backdrop-blur-sm">
+                        <SelectTrigger id={`time-${index}`} className="bg-gray-700/50 backdrop-blur-sm border-gray-600 text-white">
                           <SelectValue placeholder="Select time" />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Morning">Morning</SelectItem>
-                          <SelectItem value="Afternoon">Afternoon</SelectItem>
+                        <SelectContent className="bg-gray-800 border-gray-700">
+                          <SelectItem value="Morning" className="text-white hover:bg-gray-700">Morning</SelectItem>
+                          <SelectItem value="Afternoon" className="text-white hover:bg-gray-700">Afternoon</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -231,10 +235,10 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
             </div>
 
             <div className="flex justify-end gap-2 pt-4">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="bg-white/50 backdrop-blur-sm">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="bg-gray-800/60 backdrop-blur-sm border-gray-600 text-white hover:bg-gray-700/80 hover:text-white">
                 Cancel
               </Button>
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white">
                 Submit
               </Button>
             </div>
@@ -245,30 +249,30 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
 
     {/* Confirmation Dialog */}
     <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-      <DialogContent className="max-w-md bg-white/95 backdrop-blur-md">
+      <DialogContent className="max-w-md bg-gray-900/98 backdrop-blur-md border border-gray-700 text-white">
         <DialogHeader>
-          <DialogTitle>Confirm ICA Delivery Order</DialogTitle>
+          <DialogTitle className="text-white">Confirm ICA Delivery Order</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-300">
             You are about to submit the following order:
           </p>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
+          <div className="bg-gray-800/60 border border-gray-700 rounded-lg p-4 space-y-2">
             {entries.filter(e => e.amount && e.amount.trim() !== "").map((entry, index) => (
-              <div key={index} className="text-sm">
-                <strong>{entry.type}:</strong> {entry.amount} units - {entry.timeOfDay}
+              <div key={index} className="text-sm text-gray-200">
+                <strong className="text-white">{entry.type}:</strong> {entry.amount} units - {entry.timeOfDay}
               </div>
             ))}
           </div>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-400">
             Submitted by: {profile?.name || 'Unknown'}
           </p>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setShowConfirmation(false)}>
+          <Button variant="outline" onClick={() => setShowConfirmation(false)} className="bg-gray-800/60 border-gray-600 text-white hover:bg-gray-700/80 hover:text-white">
             Cancel
           </Button>
-          <Button onClick={handleConfirmSubmit} className="bg-green-600 hover:bg-green-700">
+          <Button onClick={handleConfirmSubmit} className="bg-green-600 hover:bg-green-700 text-white">
             Confirm & Submit
           </Button>
         </DialogFooter>
