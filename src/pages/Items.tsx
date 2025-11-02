@@ -528,7 +528,7 @@ const Items = () => {
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="capitalize">
-                      {categoryLabels[item.category as keyof typeof categoryLabels]}
+                      {item.category}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -632,9 +632,9 @@ const Items = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {categoryLabels[category as keyof typeof categoryLabels]}
+                  {suppliers.map((supplier) => (
+                    <SelectItem key={supplier} value={supplier}>
+                      {supplier}
                     </SelectItem>
                   ))}
                 </SelectContent>
