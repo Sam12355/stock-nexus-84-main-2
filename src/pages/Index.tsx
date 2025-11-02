@@ -1172,7 +1172,6 @@ const Index = () => {
               <div className="space-y-3">
                 <div className="text-center">
                   <div className="text-3xl font-bold">{weather.temperature}°C</div>
-                  {console.log('🌤️ Dashboard: Rendering temperature:', weather.temperature)}
                   <p className="text-sm text-muted-foreground capitalize">{weather.condition}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-4 pt-2">
@@ -1211,10 +1210,63 @@ const Index = () => {
 
       </div>
 
-      {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column - Moveout Lists */}
-        <div>
+      {/* Generated Moveout Lists Section - Layout depends on role */}
+      {extendedProfile?.role === 'staff' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Weather Widget */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Cloud className="h-5 w-5" />
+                {weather?.location ? `Weather in ${weather.location}` : 'Weather'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {weatherLoading ? (
+                <div className="text-center py-4">
+                  <div className="text-sm text-muted-foreground">Loading weather...</div>
+                </div>
+              ) : weather ? (
+                <div className="space-y-3">
+                  <div className="text-center">
+                    <div className="text-3xl font-bold">{weather.temperature}°C</div>
+                    <p className="text-sm text-muted-foreground capitalize">{weather.condition}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 pt-2">
+                    <div className="flex items-center gap-2">
+                      <Droplets className="h-4 w-4 text-blue-500" />
+                      <span className="text-sm">{weather.humidity}%</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Wind className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm">{weather.windSpeed} km/h</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center mt-2">
+                    Good conditions for deliveries
+                  </p>
+                  
+                  {/* Weather Condition Photo */}
+                  <div className="mt-4">
+                    <img 
+                      src={getWeatherPhoto(weather.condition, weather.temperature)} 
+                      alt={`${weather.condition} weather at ${weather.temperature}°C`}
+                      className="w-full h-32 object-cover rounded-lg"
+                      onError={(e) => {
+                        e.currentTarget.src = 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center';
+                      }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <div className="text-sm text-muted-foreground">Weather unavailable</div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Moveout Lists */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -1228,17 +1280,6 @@ const Index = () => {
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
-                  {/* Generate Moveout List Button for Managers and Assistant Managers */}
-                  {(extendedProfile?.role === 'manager' || extendedProfile?.role === 'assistant_manager') && (
-                    <Button
-                      onClick={() => setShowMoveoutModal(true)}
-                      size="sm"
-                      variant="outline"
-                    >
-                      <FileText className="h-4 w-4 mr-1" />
-                      Generate Moveout List
-                    </Button>
-                  )}
                   {/* View History Button - Icon only */}
                   <Button
                     variant="outline"
@@ -1582,7 +1623,235 @@ const Index = () => {
             </CardContent>
           </Card>
         </div>
-      </div>
+      ) : (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Generated Moveout Lists
+                </CardTitle>
+                <CardDescription>
+                  {showHistory ? 'Generated and completed moveout lists' : 'Generated moveout lists'}
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                {/* Generate Moveout List Button for Managers and Assistant Managers */}
+                {(extendedProfile?.role === 'manager' || extendedProfile?.role === 'assistant_manager') && (
+                  <Button
+                    onClick={() => setShowMoveoutModal(true)}
+                    size="sm"
+                    variant="outline"
+                  >
+                    <FileText className="h-4 w-4 mr-1" />
+                    Generate Moveout List
+                  </Button>
+                )}
+                {/* View History Button - Icon only */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleToggleHistory}
+                  disabled={moveoutListsLoading}
+                  title={showHistory ? 'Hide History' : 'View History'}
+                >
+                  <History className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {moveoutListsLoading ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p>Loading moveout lists...</p>
+              </div>
+            ) : (() => {
+              // Always show draft lists at the top (these are the active/generated lists)
+              const activeLists = moveoutList.filter(list => list.status === 'draft');
+              const displayLists = showHistory ? [...activeLists, ...completedLists] : activeLists;
+              
+              return displayLists.length > 0 ? (
+                <div className="space-y-4">
+                  {/* Generated Lists Section */}
+                  {activeLists.length > 0 && (
+                    <>
+                      {activeLists.map((list, index) => {
+                        console.log('Rendering active moveout list:', list); // Debug log
+                        return (
+                          <Accordion key={list.id || index} type="single" collapsible className="w-full">
+                        <AccordionItem value={`item-${index}`}>
+                          <AccordionTrigger className="text-left">
+                            <div className="flex items-center justify-between w-full mr-4">
+                              <span className="font-semibold">{list.title || `Moveout List #${index + 1}`}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-muted-foreground">
+                                  {new Date(list.created_at).toLocaleDateString()}
+                                </span>
+                                   <Badge variant={list.status === 'draft' ? 'default' : list.status === 'completed' ? 'secondary' : 'destructive'}>
+                                     {list.status === 'draft' ? 'Pending' : list.status === 'completed' ? 'Completed' : list.status}
+                                   </Badge>
+                              </div>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            {list.description && (
+                              <p className="text-sm text-muted-foreground mb-4">{list.description}</p>
+                            )}
+                            
+                            {/* Completion Summary - Show only when all items are completed */}
+                            {list.status === 'completed' && list.items && list.items.every((item: any) => item.status === 'completed') && (
+                              <div className="mb-4">
+                                <button
+                                  onClick={() => {
+                                    const currentState = expandedSummaries[list.id] || false;
+                                    setExpandedSummaries(prev => ({
+                                      ...prev,
+                                      [list.id]: !currentState
+                                    }));
+                                  }}
+                                  className="flex items-center gap-2 text-sm font-medium text-green-800 hover:text-green-900 transition-colors"
+                                >
+                                  {expandedSummaries[list.id] ? (
+                                    <>
+                                      <span>▼</span>
+                                      <span>Hide Completion Summary</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span>▶</span>
+                                      <span>View Completion Summary</span>
+                                    </>
+                                  )}
+                                </button>
+                                {expandedSummaries[list.id] && (
+                                  <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                    <h4 className="text-sm font-medium text-green-800 mb-2">✅ Completion Summary</h4>
+                                    <div className="space-y-1">
+                                      {list.items.map((item: any, index: number) => (
+                                        <div key={index} className="text-xs text-green-700">
+                                          <span className="font-medium">{item.item_name}</span> - Completed by <span className="font-semibold">{item.processed_by}</span> on {new Date(item.processed_at).toLocaleDateString()} at {new Date(item.processed_at).toLocaleTimeString()}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-sm">
+                                   <thead>
+                                     <tr className="border-b">
+                                       <th className="text-left p-2">Item Name</th>
+                                       <th className="text-left p-2">Requesting Quantity</th>
+                                       <th className="text-left p-2">Action</th>
+                                     </tr>
+                                   </thead>
+                                <tbody>
+                                  {list.items && Array.isArray(list.items) ? list.items.map((item: any, itemIndex: number) => (
+                                    <tr key={itemIndex} className="border-b">
+                                      <td className="p-2">{item.item_name || item.itemName || 'Unknown Item'}</td>
+                                      <td className="p-2">{item.request_amount || item.requestingQuantity || 0}</td>
+                                      <td className="p-2">
+                                        {item.status === 'completed' ? (
+                                          <span className="text-sm text-green-600 font-medium">
+                                            Completed
+                                          </span>
+                                        ) : (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => handleMoveoutItemDoneWithConfirmation(list.id, item)}
+                                            disabled={processingItem === `${list.id}-${item.item_id}`}
+                                          >
+                                            {processingItem === `${list.id}-${item.item_id}` ? (
+                                              <>
+                                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current mr-2"></div>
+                                                Processing...
+                                              </>
+                                            ) : (
+                                              'Done'
+                                            )}
+                                          </Button>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  )) : (
+                                    <tr>
+                                      <td colSpan={3} className="p-4 text-center text-muted-foreground">
+                                        No items in this list
+                                      </td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                            
+                            {/* Completion Information */}
+                            {list.items && Array.isArray(list.items) && list.items.some((item: any) => item.completed) && (
+                              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                  <span className="text-sm font-medium text-green-800">
+                                    Completed by {(() => {
+                                      const completedItems = list.items.filter((item: any) => item.completed);
+                                      const uniqueCompleters = [...new Set(completedItems.map((item: any) => item.completedByName).filter(Boolean))];
+                                      return uniqueCompleters.length > 0 ? uniqueCompleters.join(', ') : 'Unknown';
+                                    })()}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
+                        );
+                      })}
+                    </>
+                  )}
+                  
+                  {/* Load More button for history */}
+                  {showHistory && (() => {
+                    const allLists = moveoutList.filter(list => list.status === 'completed');
+                    const hasMore = historyLoadedCount < allLists.length;
+                    
+                    return hasMore ? (
+                      <div className="text-center pt-4">
+                        <Button
+                          variant="outline"
+                          onClick={handleLoadHistory}
+                          disabled={moveoutListsLoading}
+                        >
+                          <History className="h-4 w-4 mr-2" />
+                          Load More (5)
+                        </Button>
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>
+                    {showHistory && activeLists.length === 0
+                      ? 'No moveout lists found' 
+                      : 'No active moveout lists generated yet'
+                    }
+                  </p>
+                  {!showHistory && (
+                    <p className="text-sm">Click "Generate Moveout List" to create your first list</p>
+                  )}
+                  {showHistory && activeLists.length === 0 && (
+                    <p className="text-sm">No active or completed moveout lists found</p>
+                  )}
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stock Details Modal */}
       <Dialog open={showStockModal} onOpenChange={setShowStockModal}>
