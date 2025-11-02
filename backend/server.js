@@ -25,6 +25,7 @@ const moveoutListRoutes = require('./routes/moveout-lists');
 const softdrinkTrendsRoutes = require('./routes/softdrink-trends');
 const debugRoutes = require('./routes/debug');
 const weatherRoutes = require('./routes/weather'); // Weather API routes
+const icaDeliveryRoutes = require('./routes/ica-delivery');
 const schedulerService = require('./services/scheduler');
 const emailService = require('./services/email');
 
@@ -136,6 +137,7 @@ app.use('/api/setup', setupRoutes);
 app.use('/api/receipts', receiptRoutes);
 app.use('/api/moveout-lists', moveoutListRoutes);
 app.use('/api/softdrink-trends', softdrinkTrendsRoutes);
+app.use('/api/ica-delivery', icaDeliveryRoutes);
 app.use('/api/debug', debugRoutes);
 app.use('/api/weather', weatherRoutes);
 
