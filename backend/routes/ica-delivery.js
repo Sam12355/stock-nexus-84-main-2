@@ -67,13 +67,18 @@ router.post('/', authenticateToken, async (req, res) => {
   try {
     const { userName, entries, submittedAt } = req.body;
 
+    console.log('ICA Delivery POST request:', { userName, entries: entries?.length, submittedAt, userId: req.user?.id });
+
     if (!userName || !entries || entries.length === 0) {
+      console.error('Missing required fields:', { userName, entriesLength: entries?.length });
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
     // Check if user already submitted for this time period today
     const today = new Date(submittedAt).toISOString().split('T')[0];
     const timeOfDay = entries[0]?.timeOfDay; // All entries should have same time of day
+    
+    console.log('Checking for existing submission:', { userName, today, timeOfDay });
     
     const existingSubmission = await query(`
       SELECT user_name FROM ica_delivery 
@@ -84,6 +89,7 @@ router.post('/', authenticateToken, async (req, res) => {
     `, [userName, today, timeOfDay]);
     
     if (existingSubmission.rows.length > 0) {
+      console.log('Duplicate submission detected');
       return res.status(400).json({ 
         error: `${userName} has already submitted the delivery`,
         duplicate: true 
@@ -91,7 +97,9 @@ router.post('/', authenticateToken, async (req, res) => {
     }
 
     // Insert each entry
+    console.log('Inserting entries...');
     for (const entry of entries) {
+      console.log('Inserting entry:', { type: entry.type, amount: entry.amount, timeOfDay: entry.timeOfDay });
       await query(`
         INSERT INTO ica_delivery (
           user_name, 
@@ -99,18 +107,20 @@ router.post('/', authenticateToken, async (req, res) => {
           amount, 
           time_of_day, 
           submitted_at
-          ${req.user.id ? ', user_id' : ''}
-        ) VALUES ($1, $2, $3, $4, $5${req.user.id ? ', $6' : ''})
-      `, req.user.id 
+          ${req.user?.id ? ', user_id' : ''}
+        ) VALUES ($1, $2, $3, $4, $5${req.user?.id ? ', $6' : ''})
+      `, req.user?.id 
         ? [userName, entry.type, parseInt(entry.amount), entry.timeOfDay, submittedAt, req.user.id]
         : [userName, entry.type, parseInt(entry.amount), entry.timeOfDay, submittedAt]
       );
     }
 
+    console.log('ICA delivery order submitted successfully');
     res.json({ success: true, message: 'ICA delivery order submitted successfully' });
   } catch (error) {
     console.error('Error creating ICA delivery order:', error);
-    res.status(500).json({ error: 'Failed to create ICA delivery order' });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: 'Failed to create ICA delivery order', details: error.message });
   }
 });
 

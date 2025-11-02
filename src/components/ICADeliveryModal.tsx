@@ -39,13 +39,13 @@ const PRESET_TAGS = [
     ]
   },
   {
-    label: "Afternoon : 5 / 5 / 1 / 1",
+    label: "Afternoon : 5 / 5 / 1 / 1w",
     values: [
       { type: "Normal", amount: "5", timeOfDay: "Afternoon" },
       { type: "Combo", amount: "5", timeOfDay: "Afternoon" },
       { type: "Vegan", amount: "1", timeOfDay: "Afternoon" },
       { type: "Salmon Avocado", amount: "1", timeOfDay: "Afternoon" },
-      { type: "Wakame", amount: "", timeOfDay: "Afternoon" },
+      { type: "Wakame", amount: "1", timeOfDay: "Afternoon" },
     ]
   },
   {
@@ -56,16 +56,6 @@ const PRESET_TAGS = [
       { type: "Vegan", amount: "1", timeOfDay: "Morning" },
       { type: "Salmon Avocado", amount: "1", timeOfDay: "Morning" },
       { type: "Wakame", amount: "4", timeOfDay: "Morning" },
-    ]
-  },
-  {
-    label: "Afternoon : 5 / 5 / 1 / 1",
-    values: [
-      { type: "Normal", amount: "5", timeOfDay: "Afternoon" },
-      { type: "Combo", amount: "5", timeOfDay: "Afternoon" },
-      { type: "Vegan", amount: "1", timeOfDay: "Afternoon" },
-      { type: "Salmon Avocado", amount: "1", timeOfDay: "Afternoon" },
-      { type: "Wakame", amount: "", timeOfDay: "Afternoon" },
     ]
   },
 ];
@@ -82,6 +72,7 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
   const [isEditMode, setIsEditMode] = useState(false);
   const [hasEditableSubmission, setHasEditableSubmission] = useState(false);
   const [remainingMinutes, setRemainingMinutes] = useState(0);
+  const [loading, setLoading] = useState(false);
   const [entries, setEntries] = useState<ICADeliveryEntry[]>([
     { type: "Normal", amount: "", timeOfDay: "Morning" },
     { type: "Combo", amount: "", timeOfDay: "Morning" },
@@ -209,6 +200,7 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
     // Filter out empty entries
     const validEntries = entries.filter(entry => entry.amount && entry.amount.trim() !== "");
     
+    setLoading(true);
     try {
       const token = localStorage.getItem('auth_token');
       
@@ -259,6 +251,7 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
             description: "ICA delivery order submitted successfully",
           });
         } else {
+          console.error('Backend error:', data);
           if (data.duplicate) {
             toast({
               title: "Duplicate Submission",
@@ -266,6 +259,7 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
               variant: "destructive",
             });
             setShowConfirmation(false);
+            setLoading(false);
             return;
           }
           throw new Error(data.error || 'Failed to submit');
@@ -282,6 +276,7 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
       ]);
       setIsEditMode(false);
       setShowConfirmation(false);
+      setLoading(false);
       onOpenChange(false);
     } catch (error: any) {
       console.error('ICA Delivery error:', error);
@@ -291,6 +286,7 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
         variant: "destructive",
       });
       setShowConfirmation(false);
+      setLoading(false);
     }
   };
 
@@ -394,6 +390,7 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
                       <Select
                         value={entry.timeOfDay}
                         onValueChange={(value) => handleEntryChange(index, "timeOfDay", value)}
+                        disabled={isEditMode}
                       >
                         <SelectTrigger id={`time-${index}`} className="bg-white/5 backdrop-blur-sm border-white/20 text-white">
                           <SelectValue placeholder="Select time" />
@@ -410,11 +407,18 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
             </div>
 
             <div className="flex justify-end gap-2 pt-4">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="bg-white/5 backdrop-blur-sm border-white/20 text-white hover:bg-white/10 hover:text-white">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="bg-white/5 backdrop-blur-sm border-white/20 text-white hover:bg-white/10 hover:text-white" disabled={loading}>
                 Cancel
               </Button>
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white">
-                Submit
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={loading}>
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <span className="animate-spin">⏳</span>
+                    {isEditMode ? 'Updating...' : 'Submitting...'}
+                  </span>
+                ) : (
+                  isEditMode ? 'Update' : 'Submit'
+                )}
               </Button>
             </div>
           </form>
@@ -444,11 +448,18 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
           </p>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setShowConfirmation(false)} className="bg-white/5 border-white/20 text-white hover:bg-white/10 hover:text-white">
+          <Button variant="outline" onClick={() => setShowConfirmation(false)} className="bg-white/5 border-white/20 text-white hover:bg-white/10 hover:text-white" disabled={loading}>
             Cancel
           </Button>
-          <Button onClick={handleConfirmSubmit} className="bg-green-600 hover:bg-green-700 text-white">
-            Confirm & Submit
+          <Button onClick={handleConfirmSubmit} className="bg-green-600 hover:bg-green-700 text-white" disabled={loading}>
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <span className="animate-spin">⏳</span>
+                Confirming...
+              </span>
+            ) : (
+              'Confirm & Submit'
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
