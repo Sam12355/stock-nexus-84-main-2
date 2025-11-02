@@ -27,6 +27,7 @@ import BranchManagement from "./pages/BranchManagement";
 import BranchAssignments from "./pages/BranchAssignments";
 import MoveoutList from "./pages/MoveoutList";
 import NotificationsPage from "./pages/Notifications";
+import { ICADeliveryList } from "./pages/ICADeliveryList";
 
 import NotFound from "./pages/NotFound";
 
@@ -50,6 +51,7 @@ const App = () => (
               
               <Route path="/items" element={<DashboardLayout><Items /></DashboardLayout>} />
               <Route path="/stock" element={<DashboardLayout><Stock /></DashboardLayout>} />
+              <Route path="/ica-delivery-list" element={<DashboardLayout><RoleGuard allowedRoles={['manager', 'assistant_manager']}><ICADeliveryList /></RoleGuard></DashboardLayout>} />
               <Route path="/stock-in" element={<DashboardLayout><StockInPermissionGuard><StockIn /></StockInPermissionGuard></DashboardLayout>} />
               <Route path="/record-stock-in" element={<DashboardLayout><RoleGuard allowedRoles={['staff']}><RecordStockIn /></RoleGuard></DashboardLayout>} />
               <Route path="/reports" element={<DashboardLayout><Reports /></DashboardLayout>} />

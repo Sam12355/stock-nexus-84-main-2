@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,15 @@ interface ICADeliveryEntry {
   type: string;
   amount: string;
   timeOfDay: string;
+  id?: number;
+}
+
+interface ExistingSubmission {
+  id: number;
+  type: string;
+  amount: number;
+  time_of_day: string;
+  hours_since_submission: number;
 }
 
 interface ICADeliveryModalProps {
@@ -69,6 +78,8 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
   const { toast } = useToast();
   const { profile } = useAuth();
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [existingSubmissions, setExistingSubmissions] = useState<ExistingSubmission[]>([]);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [entries, setEntries] = useState<ICADeliveryEntry[]>([
     { type: "Normal", amount: "", timeOfDay: "Morning" },
     { type: "Combo", amount: "", timeOfDay: "Morning" },
@@ -76,6 +87,49 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
     { type: "Salmon Avocado", amount: "", timeOfDay: "Morning" },
     { type: "Wakame", amount: "", timeOfDay: "Morning" },
   ]);
+
+  // Fetch existing submissions when modal opens
+  useEffect(() => {
+    if (open) {
+      fetchMySubmissions();
+    }
+  }, [open]);
+
+  const fetchMySubmissions = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${API_BASE_URL}/ica-delivery/my-submissions`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setExistingSubmissions(data);
+        
+        // If there are editable submissions (within 1 hour), populate the form
+        const editableSubmissions = data.filter((s: ExistingSubmission) => s.hours_since_submission <= 1);
+        if (editableSubmissions.length > 0) {
+          setIsEditMode(true);
+          // Group by time_of_day and populate entries
+          const timeOfDay = editableSubmissions[0].time_of_day;
+          const newEntries = TYPES.map(type => {
+            const existing = editableSubmissions.find((s: ExistingSubmission) => s.type === type);
+            return {
+              type,
+              amount: existing ? existing.amount.toString() : "",
+              timeOfDay: timeOfDay,
+              id: existing?.id
+            };
+          });
+          setEntries(newEntries);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching submissions:', error);
+    }
+  };
 
   const handlePresetClick = (preset: typeof PRESET_TAGS[0]) => {
     setEntries(preset.values);
@@ -114,42 +168,79 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
     
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${API_BASE_URL}/ica-delivery`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          userName: profile?.name || 'Unknown',
-          entries: validEntries,
-          submittedAt: new Date().toISOString()
-        })
-      });
+      
+      if (isEditMode) {
+        // Update existing entries
+        for (const entry of validEntries) {
+          if (entry.id) {
+            const response = await fetch(`${API_BASE_URL}/ica-delivery/${entry.id}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ amount: entry.amount })
+            });
 
-      const data = await response.json();
+            if (!response.ok) {
+              const data = await response.json();
+              throw new Error(data.error || 'Failed to update');
+            }
+          }
+        }
 
-      if (response.ok) {
         toast({
           title: "Success",
-          description: "ICA delivery order submitted successfully",
+          description: "ICA delivery order updated successfully",
         });
-        
-        // Reset form
-        setEntries([
-          { type: "Normal", amount: "", timeOfDay: "Morning" },
-          { type: "Combo", amount: "", timeOfDay: "Morning" },
-          { type: "Vegan", amount: "", timeOfDay: "Morning" },
-          { type: "Salmon Avocado", amount: "", timeOfDay: "Morning" },
-          { type: "Wakame", amount: "", timeOfDay: "Morning" },
-        ]);
-        
-        setShowConfirmation(false);
-        onOpenChange(false);
       } else {
-        throw new Error(data.error || 'Failed to submit');
+        // Create new submission
+        const response = await fetch(`${API_BASE_URL}/ica-delivery`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            userName: profile?.name || 'Unknown',
+            entries: validEntries,
+            submittedAt: new Date().toISOString()
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          toast({
+            title: "Success",
+            description: "ICA delivery order submitted successfully",
+          });
+        } else {
+          if (data.duplicate) {
+            toast({
+              title: "Duplicate Submission",
+              description: data.error,
+              variant: "destructive",
+            });
+            setShowConfirmation(false);
+            return;
+          }
+          throw new Error(data.error || 'Failed to submit');
+        }
       }
-    } catch (error) {
+        
+      // Reset form
+      setEntries([
+        { type: "Normal", amount: "", timeOfDay: "Morning" },
+        { type: "Combo", amount: "", timeOfDay: "Morning" },
+        { type: "Vegan", amount: "", timeOfDay: "Morning" },
+        { type: "Salmon Avocado", amount: "", timeOfDay: "Morning" },
+        { type: "Wakame", amount: "", timeOfDay: "Morning" },
+      ]);
+      setIsEditMode(false);
+      setShowConfirmation(false);
+      onOpenChange(false);
+    } catch (error: any) {
       console.error('ICA Delivery error:', error);
       toast({
         title: "Error",
@@ -165,7 +256,9 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[80vw] max-h-[85vh] overflow-y-auto bg-white/10 backdrop-blur-2xl border border-white/20 text-white">
         <DialogHeader>
-          <DialogTitle className="text-2xl text-white">ICA Delivery</DialogTitle>
+          <DialogTitle className="text-2xl text-white">
+            {isEditMode ? "Edit ICA Delivery" : "ICA Delivery"}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">

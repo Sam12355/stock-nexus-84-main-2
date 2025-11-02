@@ -66,6 +66,12 @@ const menuItems = [
     roles: ['manager', 'assistant_manager', 'staff']
   },
   {
+    title: "ICA Delivery",
+    url: "/ica-delivery-list",
+    icon: ClipboardList,
+    roles: ['manager', 'assistant_manager']
+  },
+  {
     title: "Stock In",
     url: "/stock-in",
     icon: Plus,
