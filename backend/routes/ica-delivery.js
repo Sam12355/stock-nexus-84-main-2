@@ -102,17 +102,14 @@ router.post('/', authenticateToken, async (req, res) => {
       console.log('Inserting entry:', { type: entry.type, amount: entry.amount, timeOfDay: entry.timeOfDay });
       await query(`
         INSERT INTO ica_delivery (
+          user_id,
           user_name, 
           type, 
           amount, 
           time_of_day, 
           submitted_at
-          ${req.user?.id ? ', user_id' : ''}
-        ) VALUES ($1, $2, $3, $4, $5${req.user?.id ? ', $6' : ''})
-      `, req.user?.id 
-        ? [userName, entry.type, parseInt(entry.amount), entry.timeOfDay, submittedAt, req.user.id]
-        : [userName, entry.type, parseInt(entry.amount), entry.timeOfDay, submittedAt]
-      );
+        ) VALUES ($1, $2, $3, $4, $5, $6)
+      `, [null, userName, entry.type, parseInt(entry.amount), entry.timeOfDay, submittedAt]);
     }
 
     console.log('ICA delivery order submitted successfully');
@@ -128,7 +125,7 @@ router.post('/', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { amount } = req.body;
+    const { amount, timeOfDay } = req.body;
     const userName = req.user.name;
     
     // Check if record exists and belongs to user
@@ -151,9 +148,9 @@ router.put('/:id', authenticateToken, async (req, res) => {
     // Update the record
     await query(`
       UPDATE ica_delivery 
-      SET amount = $1
-      WHERE id = $2
-    `, [parseInt(amount), id]);
+      SET amount = $1, time_of_day = $2
+      WHERE id = $3
+    `, [parseInt(amount), timeOfDay, id]);
     
     res.json({ success: true, message: 'Record updated successfully' });
   } catch (error) {

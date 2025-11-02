@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { Loader2 } from "lucide-react";
 
 interface ICADeliveryEntry {
   type: string;
@@ -214,7 +215,10 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
               },
-              body: JSON.stringify({ amount: entry.amount })
+              body: JSON.stringify({ 
+                amount: entry.amount,
+                timeOfDay: entry.timeOfDay 
+              })
             });
 
             if (!response.ok) {
@@ -390,7 +394,6 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
                       <Select
                         value={entry.timeOfDay}
                         onValueChange={(value) => handleEntryChange(index, "timeOfDay", value)}
-                        disabled={isEditMode}
                       >
                         <SelectTrigger id={`time-${index}`} className="bg-white/5 backdrop-blur-sm border-white/20 text-white">
                           <SelectValue placeholder="Select time" />
@@ -413,7 +416,7 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
               <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={loading}>
                 {loading ? (
                   <span className="flex items-center gap-2">
-                    <span className="animate-spin">⏳</span>
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     {isEditMode ? 'Updating...' : 'Submitting...'}
                   </span>
                 ) : (
@@ -454,7 +457,7 @@ export function ICADeliveryModal({ open, onOpenChange }: ICADeliveryModalProps) 
           <Button onClick={handleConfirmSubmit} className="bg-green-600 hover:bg-green-700 text-white" disabled={loading}>
             {loading ? (
               <span className="flex items-center gap-2">
-                <span className="animate-spin">⏳</span>
+                <Loader2 className="h-4 w-4 animate-spin" />
                 Confirming...
               </span>
             ) : (
