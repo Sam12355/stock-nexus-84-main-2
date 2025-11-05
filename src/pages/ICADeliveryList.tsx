@@ -288,11 +288,11 @@ export function ICADeliveryList() {
                   <th>Time</th>
                   <th>User</th>
                   <th>Period</th>
-                  <th>Normal</th>
+                  <th>Salmon and Rolls</th>
                   <th>Combo</th>
-                  <th>Vegan</th>
-                  <th>Salmon Avocado</th>
-                  <th>Wakame</th>
+                  <th>Salmon and Avocado Rolls</th>
+                  <th>Vegan Combo</th>
+                  <th>Goma Wakame</th>
                 </tr>
               </thead>
               <tbody>
@@ -304,11 +304,11 @@ export function ICADeliveryList() {
                     <td>{new Date(group.submittedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</td>
                     <td>{group.userName}</td>
                     <td>{group.timeOfDay}</td>
-                    <td>{group.items.find((i: any) => i.type === 'Normal')?.amount || 0}</td>
+                    <td>{group.items.find((i: any) => i.type === 'Salmon and Rolls')?.amount || 0}</td>
                     <td>{group.items.find((i: any) => i.type === 'Combo')?.amount || 0}</td>
-                    <td>{group.items.find((i: any) => i.type === 'Vegan')?.amount || 0}</td>
-                    <td>{group.items.find((i: any) => i.type === 'Salmon Avocado')?.amount || 0}</td>
-                    <td>{group.items.find((i: any) => i.type === 'Wakame')?.amount || 0}</td>
+                    <td>{group.items.find((i: any) => i.type === 'Salmon and Avocado Rolls')?.amount || 0}</td>
+                    <td>{group.items.find((i: any) => i.type === 'Vegan Combo')?.amount || 0}</td>
+                    <td>{group.items.find((i: any) => i.type === 'Goma Wakame')?.amount || 0}</td>
                   </tr>
                 ))}
               </tbody>
@@ -348,7 +348,7 @@ export function ICADeliveryList() {
                       
                       {/* Items in a compact row */}
                       <div className="grid grid-cols-5 gap-2">
-                        {['Normal', 'Combo', 'Vegan', 'Salmon Avocado', 'Wakame'].map((type) => {
+                        {['Salmon and Rolls', 'Combo', 'Salmon and Avocado Rolls', 'Vegan Combo', 'Goma Wakame'].map((type) => {
                           const item = group.items.find((i: any) => i.type === type);
                           return (
                             <div key={type} className="border rounded p-2 text-center">

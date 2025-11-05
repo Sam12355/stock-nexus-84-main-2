@@ -33,36 +33,36 @@ const PRESET_TAGS = [
   {
     label: "Morning : 5 / 5 / 1 / 1 / 4w",
     values: [
-      { type: "Normal", amount: "5", timeOfDay: "Morning" },
+      { type: "Salmon and Rolls", amount: "5", timeOfDay: "Morning" },
       { type: "Combo", amount: "5", timeOfDay: "Morning" },
-      { type: "Vegan", amount: "1", timeOfDay: "Morning" },
-      { type: "Salmon Avocado", amount: "1", timeOfDay: "Morning" },
-      { type: "Wakame", amount: "4", timeOfDay: "Morning" },
+      { type: "Salmon and Avocado Rolls", amount: "1", timeOfDay: "Morning" },
+      { type: "Vegan Combo", amount: "1", timeOfDay: "Morning" },
+      { type: "Goma Wakame", amount: "4", timeOfDay: "Morning" },
     ]
   },
   {
     label: "Afternoon : 5 / 5 / 1 / 1w",
     values: [
-      { type: "Normal", amount: "5", timeOfDay: "Afternoon" },
+      { type: "Salmon and Rolls", amount: "5", timeOfDay: "Afternoon" },
       { type: "Combo", amount: "5", timeOfDay: "Afternoon" },
-      { type: "Vegan", amount: "1", timeOfDay: "Afternoon" },
-      { type: "Salmon Avocado", amount: "1", timeOfDay: "Afternoon" },
-      { type: "Wakame", amount: "1", timeOfDay: "Afternoon" },
+      { type: "Salmon and Avocado Rolls", amount: "1", timeOfDay: "Afternoon" },
+      { type: "Vegan Combo", amount: "1", timeOfDay: "Afternoon" },
+      { type: "Goma Wakame", amount: "1", timeOfDay: "Afternoon" },
     ]
   },
   {
     label: "Morning : 10 / 10 / 1 / 1 / 4w",
     values: [
-      { type: "Normal", amount: "10", timeOfDay: "Morning" },
+      { type: "Salmon and Rolls", amount: "10", timeOfDay: "Morning" },
       { type: "Combo", amount: "10", timeOfDay: "Morning" },
-      { type: "Vegan", amount: "1", timeOfDay: "Morning" },
-      { type: "Salmon Avocado", amount: "1", timeOfDay: "Morning" },
-      { type: "Wakame", amount: "4", timeOfDay: "Morning" },
+      { type: "Salmon and Avocado Rolls", amount: "1", timeOfDay: "Morning" },
+      { type: "Vegan Combo", amount: "1", timeOfDay: "Morning" },
+      { type: "Goma Wakame", amount: "4", timeOfDay: "Morning" },
     ]
   },
 ];
 
-const TYPES = ["Normal", "Combo", "Vegan", "Salmon Avocado", "Wakame"];
+const TYPES = ["Salmon and Rolls", "Combo", "Salmon and Avocado Rolls", "Vegan Combo", "Goma Wakame"];
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://stock-nexus-84-main-2-1.onrender.com/api';
 
@@ -76,11 +76,11 @@ export function ICADeliveryModal({ open, onOpenChange, onSuccess }: ICADeliveryM
   const [remainingMinutes, setRemainingMinutes] = useState(0);
   const [loading, setLoading] = useState(false);
   const [entries, setEntries] = useState<ICADeliveryEntry[]>([
-    { type: "Normal", amount: "", timeOfDay: "Morning" },
+    { type: "Salmon and Rolls", amount: "", timeOfDay: "Morning" },
     { type: "Combo", amount: "", timeOfDay: "Morning" },
-    { type: "Vegan", amount: "", timeOfDay: "Morning" },
-    { type: "Salmon Avocado", amount: "", timeOfDay: "Morning" },
-    { type: "Wakame", amount: "", timeOfDay: "Morning" },
+    { type: "Salmon and Avocado Rolls", amount: "", timeOfDay: "Morning" },
+    { type: "Vegan Combo", amount: "", timeOfDay: "Morning" },
+    { type: "Goma Wakame", amount: "", timeOfDay: "Morning" },
   ]);
 
   // Fetch existing submissions when modal opens
@@ -91,11 +91,11 @@ export function ICADeliveryModal({ open, onOpenChange, onSuccess }: ICADeliveryM
       // Reset when modal closes
       setIsEditMode(false);
       setEntries([
-        { type: "Normal", amount: "", timeOfDay: "Morning" },
+        { type: "Salmon and Rolls", amount: "", timeOfDay: "Morning" },
         { type: "Combo", amount: "", timeOfDay: "Morning" },
-        { type: "Vegan", amount: "", timeOfDay: "Morning" },
-        { type: "Salmon Avocado", amount: "", timeOfDay: "Morning" },
-        { type: "Wakame", amount: "", timeOfDay: "Morning" },
+        { type: "Salmon and Avocado Rolls", amount: "", timeOfDay: "Morning" },
+        { type: "Vegan Combo", amount: "", timeOfDay: "Morning" },
+        { type: "Goma Wakame", amount: "", timeOfDay: "Morning" },
       ]);
     }
   }, [open]);
@@ -151,11 +151,11 @@ export function ICADeliveryModal({ open, onOpenChange, onSuccess }: ICADeliveryM
   const handleBackToAddForm = () => {
     setIsEditMode(false);
     setEntries([
-      { type: "Normal", amount: "", timeOfDay: "Morning" },
+      { type: "Salmon and Rolls", amount: "", timeOfDay: "Morning" },
       { type: "Combo", amount: "", timeOfDay: "Morning" },
-      { type: "Vegan", amount: "", timeOfDay: "Morning" },
-      { type: "Salmon Avocado", amount: "", timeOfDay: "Morning" },
-      { type: "Wakame", amount: "", timeOfDay: "Morning" },
+      { type: "Salmon and Avocado Rolls", amount: "", timeOfDay: "Morning" },
+      { type: "Vegan Combo", amount: "", timeOfDay: "Morning" },
+      { type: "Goma Wakame", amount: "", timeOfDay: "Morning" },
     ]);
   };
 
@@ -279,11 +279,11 @@ export function ICADeliveryModal({ open, onOpenChange, onSuccess }: ICADeliveryM
         
       // Reset form
       setEntries([
-        { type: "Normal", amount: "", timeOfDay: "Morning" },
+        { type: "Salmon and Rolls", amount: "", timeOfDay: "Morning" },
         { type: "Combo", amount: "", timeOfDay: "Morning" },
-        { type: "Vegan", amount: "", timeOfDay: "Morning" },
-        { type: "Salmon Avocado", amount: "", timeOfDay: "Morning" },
-        { type: "Wakame", amount: "", timeOfDay: "Morning" },
+        { type: "Salmon and Avocado Rolls", amount: "", timeOfDay: "Morning" },
+        { type: "Vegan Combo", amount: "", timeOfDay: "Morning" },
+        { type: "Goma Wakame", amount: "", timeOfDay: "Morning" },
       ]);
       setIsEditMode(false);
       setShowConfirmation(false);
