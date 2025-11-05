@@ -12,7 +12,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Package, TrendingUp, AlertTriangle, Plus, ArrowDown, FileText, CheckCircle, Clock, XCircle, Eye, Download, ZoomIn, ZoomOut, Move } from "lucide-react";
+import { Package, TrendingUp, AlertTriangle, Plus, ArrowDown, FileText, CheckCircle, Clock, XCircle, Eye, Download, ZoomIn, ZoomOut, Move, Loader2 } from "lucide-react";
 import ReactSelect from 'react-select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
