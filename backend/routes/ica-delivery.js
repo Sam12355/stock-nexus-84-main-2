@@ -120,14 +120,34 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 });
 
-// Update ICA delivery record (only within 1 hour)
+// Update ICA delivery record (managers/assistant managers can edit anytime, others within 1 hour)
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { amount, timeOfDay } = req.body;
+    const userRole = req.user.role;
     const userName = req.user.name;
     
-    // Check if record exists and belongs to user
+    // Managers and assistant managers can edit any record without time restrictions
+    if (userRole === 'manager' || userRole === 'assistant_manager') {
+      // Just check if record exists
+      const record = await query('SELECT * FROM ica_delivery WHERE id = $1', [id]);
+      
+      if (record.rows.length === 0) {
+        return res.status(404).json({ error: 'Record not found' });
+      }
+      
+      // Update the record
+      await query(`
+        UPDATE ica_delivery 
+        SET amount = $1, time_of_day = $2
+        WHERE id = $3
+      `, [parseInt(amount), timeOfDay, id]);
+      
+      return res.json({ success: true, message: 'Record updated successfully' });
+    }
+    
+    // For other users: check if record belongs to user and is within 1 hour
     const record = await query(`
       SELECT *, 
         EXTRACT(EPOCH FROM (NOW() - submitted_at))/3600 as hours_since_submission
@@ -158,11 +178,26 @@ router.put('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Delete ICA delivery record
+// Delete ICA delivery record (managers/assistant managers can delete any record)
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    await query('DELETE FROM ica_delivery WHERE id = $1', [id]);
+    const userRole = req.user.role;
+    
+    // Managers and assistant managers can delete any record
+    if (userRole === 'manager' || userRole === 'assistant_manager') {
+      await query('DELETE FROM ica_delivery WHERE id = $1', [id]);
+      return res.json({ success: true, message: 'ICA delivery record deleted successfully' });
+    }
+    
+    // Other users can only delete their own records
+    const userName = req.user.name;
+    const result = await query('DELETE FROM ica_delivery WHERE id = $1 AND user_name = $2 RETURNING *', [id, userName]);
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Record not found or unauthorized' });
+    }
+    
     res.json({ success: true, message: 'ICA delivery record deleted successfully' });
   } catch (error) {
     console.error('Error deleting ICA delivery record:', error);
