@@ -70,10 +70,6 @@ export function ICADeliveryModal({ open, onOpenChange, onSuccess }: ICADeliveryM
   const { toast } = useToast();
   const { profile } = useAuth();
   const [showConfirmation, setShowConfirmation] = useState(false);
-  const [existingSubmissions, setExistingSubmissions] = useState<ExistingSubmission[]>([]);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [hasEditableSubmission, setHasEditableSubmission] = useState(false);
-  const [remainingMinutes, setRemainingMinutes] = useState(0);
   const [loading, setLoading] = useState(false);
   const [entries, setEntries] = useState<ICADeliveryEntry[]>([
     { type: "Salmon and Rolls", amount: "", timeOfDay: "Morning" },
@@ -83,13 +79,9 @@ export function ICADeliveryModal({ open, onOpenChange, onSuccess }: ICADeliveryM
     { type: "Goma Wakame", amount: "", timeOfDay: "Morning" },
   ]);
 
-  // Fetch existing submissions when modal opens
+  // Reset when modal closes
   useEffect(() => {
-    if (open) {
-      fetchMySubmissions();
-    } else {
-      // Reset when modal closes
-      setIsEditMode(false);
+    if (!open) {
       setEntries([
         { type: "Salmon and Rolls", amount: "", timeOfDay: "Morning" },
         { type: "Combo", amount: "", timeOfDay: "Morning" },
@@ -99,65 +91,6 @@ export function ICADeliveryModal({ open, onOpenChange, onSuccess }: ICADeliveryM
       ]);
     }
   }, [open]);
-
-  const fetchMySubmissions = async () => {
-    try {
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${API_BASE_URL}/ica-delivery/my-submissions`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setExistingSubmissions(data);
-        
-        // Check if there are editable submissions (within 1 hour)
-        const editableSubmissions = data.filter((s: ExistingSubmission) => s.hours_since_submission <= 1);
-        setHasEditableSubmission(editableSubmissions.length > 0);
-        
-        // Calculate remaining minutes
-        if (editableSubmissions.length > 0) {
-          const hoursSince = editableSubmissions[0].hours_since_submission;
-          const minutesRemaining = Math.max(0, Math.floor((1 - hoursSince) * 60));
-          setRemainingMinutes(minutesRemaining);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching submissions:', error);
-    }
-  };
-
-  const handleEditClick = () => {
-    const editableSubmissions = existingSubmissions.filter((s: ExistingSubmission) => s.hours_since_submission <= 1);
-    if (editableSubmissions.length > 0) {
-      setIsEditMode(true);
-      // Group by time_of_day and populate entries
-      const timeOfDay = editableSubmissions[0].time_of_day;
-      const newEntries = TYPES.map(type => {
-        const existing = editableSubmissions.find((s: ExistingSubmission) => s.type === type);
-        return {
-          type,
-          amount: existing ? existing.amount.toString() : "",
-          timeOfDay: timeOfDay,
-          id: existing?.id
-        };
-      });
-      setEntries(newEntries);
-    }
-  };
-
-  const handleBackToAddForm = () => {
-    setIsEditMode(false);
-    setEntries([
-      { type: "Salmon and Rolls", amount: "", timeOfDay: "Morning" },
-      { type: "Combo", amount: "", timeOfDay: "Morning" },
-      { type: "Salmon and Avocado Rolls", amount: "", timeOfDay: "Morning" },
-      { type: "Vegan Combo", amount: "", timeOfDay: "Morning" },
-      { type: "Goma Wakame", amount: "", timeOfDay: "Morning" },
-    ]);
-  };
 
   const handlePresetClick = (preset: typeof PRESET_TAGS[0]) => {
     setEntries(preset.values);
@@ -206,75 +139,43 @@ export function ICADeliveryModal({ open, onOpenChange, onSuccess }: ICADeliveryM
     try {
       const token = localStorage.getItem('auth_token');
       
-      if (isEditMode) {
-        // Update existing entries
-        for (const entry of validEntries) {
-          if (entry.id) {
-            const response = await fetch(`${API_BASE_URL}/ica-delivery/${entry.id}`, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({ 
-                amount: entry.amount,
-                timeOfDay: entry.timeOfDay 
-              })
-            });
+      // Create new submission
+      const response = await fetch(`${API_BASE_URL}/ica-delivery`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          userName: profile?.name || 'Unknown',
+          entries: validEntries,
+          submittedAt: new Date().toISOString()
+        })
+      });
 
-            if (!response.ok) {
-              const data = await response.json();
-              throw new Error(data.error || 'Failed to update');
-            }
-          }
-        }
+      const data = await response.json();
 
+      if (response.ok) {
         toast({
           title: "Success",
-          description: "ICA delivery order updated successfully",
+          description: "ICA delivery order submitted successfully",
         });
         
         // Call onSuccess callback to trigger refresh
         onSuccess?.();
       } else {
-        // Create new submission
-        const response = await fetch(`${API_BASE_URL}/ica-delivery`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            userName: profile?.name || 'Unknown',
-            entries: validEntries,
-            submittedAt: new Date().toISOString()
-          })
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
+        console.error('Backend error:', data);
+        if (data.duplicate) {
           toast({
-            title: "Success",
-            description: "ICA delivery order submitted successfully",
+            title: "Duplicate Submission",
+            description: data.error,
+            variant: "destructive",
           });
-          
-          // Call onSuccess callback to trigger refresh
-          onSuccess?.();
-        } else {
-          console.error('Backend error:', data);
-          if (data.duplicate) {
-            toast({
-              title: "Duplicate Submission",
-              description: data.error,
-              variant: "destructive",
-            });
-            setShowConfirmation(false);
-            setLoading(false);
-            return;
-          }
-          throw new Error(data.error || 'Failed to submit');
+          setShowConfirmation(false);
+          setLoading(false);
+          return;
         }
+        throw new Error(data.error || 'Failed to submit');
       }
         
       // Reset form
@@ -285,7 +186,6 @@ export function ICADeliveryModal({ open, onOpenChange, onSuccess }: ICADeliveryM
         { type: "Vegan Combo", amount: "", timeOfDay: "Morning" },
         { type: "Goma Wakame", amount: "", timeOfDay: "Morning" },
       ]);
-      setIsEditMode(false);
       setShowConfirmation(false);
       setLoading(false);
       onOpenChange(false);
@@ -307,43 +207,14 @@ export function ICADeliveryModal({ open, onOpenChange, onSuccess }: ICADeliveryM
       <DialogContent className="max-w-[80vw] max-h-[85vh] overflow-y-auto bg-white/10 backdrop-blur-2xl border border-white/20 text-white">
         <DialogHeader>
           <DialogTitle className="text-2xl text-white">
-            {isEditMode ? "Edit ICA Delivery" : "ICA Delivery"}
+            ICA Delivery
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Edit Submission Button - Show only when not in edit mode and has editable submission */}
-          {!isEditMode && hasEditableSubmission && (
-            <div className="flex justify-center">
-              <Button
-                type="button"
-                onClick={handleEditClick}
-                variant="outline"
-                className="bg-blue-600/80 hover:bg-blue-700/80 backdrop-blur-sm border-blue-500 text-white hover:text-white"
-              >
-                Edit Submission ({remainingMinutes} minutes remaining)
-              </Button>
-            </div>
-          )}
-
-          {/* Back to Add Form Button - Show only in edit mode */}
-          {isEditMode && (
-            <div className="flex justify-center">
-              <Button
-                type="button"
-                onClick={handleBackToAddForm}
-                variant="outline"
-                className="bg-white/5 hover:bg-white/10 backdrop-blur-sm border-white/20 text-white hover:text-white"
-              >
-                ← Back to Add Form
-              </Button>
-            </div>
-          )}
-
-          {/* Preset Tags - Show only in add mode */}
-          {!isEditMode && (
-            <div>
-              <Label className="text-sm font-medium mb-2 block text-gray-200">Quick Presets</Label>
+          {/* Preset Tags */}
+          <div>
+            <Label className="text-sm font-medium mb-2 block text-gray-200">Quick Presets</Label>
               <div className="flex flex-wrap gap-2">
                 {PRESET_TAGS.map((preset, index) => (
                   <Button
@@ -358,7 +229,6 @@ export function ICADeliveryModal({ open, onOpenChange, onSuccess }: ICADeliveryM
                 ))}
               </div>
             </div>
-          )}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -413,10 +283,10 @@ export function ICADeliveryModal({ open, onOpenChange, onSuccess }: ICADeliveryM
                 {loading ? (
                   <span className="flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    {isEditMode ? 'Updating...' : 'Submitting...'}
+                    Submitting...
                   </span>
                 ) : (
-                  isEditMode ? 'Update' : 'Submit'
+                  'Submit'
                 )}
               </Button>
             </div>

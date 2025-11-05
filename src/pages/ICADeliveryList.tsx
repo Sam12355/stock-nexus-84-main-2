@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Download, FileSpreadsheet, Printer, Calendar, Plus } from "lucide-react";
+import { Download, FileSpreadsheet, Printer, Calendar, Plus, Edit2, Trash2 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
@@ -100,18 +100,22 @@ export function ICADeliveryList() {
   };
 
   const groupedRecords = records.reduce((acc, record) => {
-    const key = `${record.user_name}-${record.time_of_day}`;
+    // Include date in the key so records from different dates don't overwrite each other
+    const submissionDate = new Date(record.submitted_at).toLocaleDateString();
+    const key = `${record.user_name}-${record.time_of_day}-${submissionDate}`;
     if (!acc[key]) {
       acc[key] = {
         userName: record.user_name,
         timeOfDay: record.time_of_day,
         submittedAt: record.submitted_at,
-        items: []
+        items: [],
+        recordIds: [] // Store IDs for edit/delete
       };
     }
 
     const mappedType = TYPE_MAP[record.type] || record.type;
-    acc[key].items.push({ type: mappedType, amount: record.amount });
+    acc[key].items.push({ type: mappedType, amount: record.amount, id: record.id });
+    acc[key].recordIds.push(record.id);
     return acc;
   }, {} as Record<string, any>);
 
@@ -161,6 +165,45 @@ export function ICADeliveryList() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDelete = async (recordIds: number[]) => {
+    if (!window.confirm('Are you sure you want to delete this delivery record?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      
+      // Delete all records in this group
+      for (const id of recordIds) {
+        const response = await fetch(`${API_BASE_URL}/ica-delivery/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete record');
+        }
+      }
+
+      toast({
+        title: "Success",
+        description: "ICA delivery record deleted successfully",
+      });
+
+      // Refresh the list
+      fetchRecords();
+    } catch (error) {
+      console.error('Error deleting record:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete ICA delivery record",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -354,6 +397,19 @@ export function ICADeliveryList() {
                         <span className="text-sm text-muted-foreground">
                           {group.timeOfDay}
                         </span>
+                        
+                        {/* Action buttons for managers/assistant managers */}
+                        {(profile?.role === 'manager' || profile?.role === 'assistant_manager') && (
+                          <div className="ml-auto flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleDelete(group.recordIds)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                       
                       {/* Items in a compact row */}

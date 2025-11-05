@@ -6,10 +6,10 @@ You need to run this SQL script in your Supabase SQL Editor to add the `user_id`
 
 ```sql
 -- Add user_id column to ica_delivery table if it doesn't exist
-DO $$ 
+DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
+        SELECT 1 FROM information_schema.columns
         WHERE table_name = 'ica_delivery' AND column_name = 'user_id'
     ) THEN
         ALTER TABLE ica_delivery ADD COLUMN user_id INTEGER;
@@ -32,15 +32,18 @@ CREATE INDEX IF NOT EXISTS idx_ica_delivery_user_id ON ica_delivery(user_id);
 ## Features Implemented
 
 ### 1. Duplicate Prevention
+
 - Users cannot submit multiple times for the same time period (Morning/Afternoon) on the same day
 - Error message shows: "<username> has already submitted the delivery"
 
 ### 2. Edit Within 1 Hour
+
 - Users can edit their submission within 1 hour of submission
 - After 1 hour, the edit option is no longer available
 - Form auto-populates with existing data when editing
 
 ### 3. ICA Delivery List (Manager/Assistant Manager Only)
+
 - New menu item "ICA Delivery" appears below "Stock Out"
 - View all submissions with date filtering
 - Export options:
@@ -53,6 +56,7 @@ CREATE INDEX IF NOT EXISTS idx_ica_delivery_user_id ON ica_delivery(user_id);
 ## User Workflow
 
 ### For Staff Users:
+
 1. Click "ICA Delivery" button next to "Generate Moveout List"
 2. Use preset tags for quick form filling or enter manually
 3. Fill in amounts for each type (Normal, Combo, Vegan, Salmon Avocado, Wakame)
@@ -61,6 +65,7 @@ CREATE INDEX IF NOT EXISTS idx_ica_delivery_user_id ON ica_delivery(user_id);
 6. **Edit**: If within 1 hour, can reopen and edit their submission
 
 ### For Managers/Assistant Managers:
+
 1. Go to "ICA Delivery" menu item (below Stock Out)
 2. Use date picker to select date
 3. View all submissions grouped by user
@@ -69,12 +74,14 @@ CREATE INDEX IF NOT EXISTS idx_ica_delivery_user_id ON ica_delivery(user_id);
 ## Technical Details
 
 ### Backend Routes:
+
 - `GET /api/ica-delivery?date=YYYY-MM-DD` - Fetch records by date
 - `GET /api/ica-delivery/my-submissions` - Get current user's today's submissions
 - `POST /api/ica-delivery` - Create new submission (with duplicate check)
 - `PUT /api/ica-delivery/:id` - Edit submission (only within 1 hour)
 
 ### Database Schema:
+
 ```sql
 ica_delivery table:
 - id (SERIAL PRIMARY KEY)
@@ -88,6 +95,7 @@ ica_delivery table:
 ```
 
 ## Notes
+
 - The transparent glass effect is applied throughout the modal
 - "Time of Day" label changed to "Time of the Day"
 - All changes are deployed and live after running the SQL migration
