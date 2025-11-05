@@ -74,8 +74,31 @@ router.post('/',
     body('critical_level').optional().isInt({ min: 1, max: 10000 }).withMessage('Critical level must be between 1 and 10,000'),
     body('base_unit').optional().isIn(['piece', 'kg', 'gram', 'liter', 'ml']).withMessage('Base unit must be piece, kg, gram, liter, or ml'),
     body('enable_packaging').optional().isBoolean().withMessage('Enable packaging must be boolean'),
-    body('packaging_unit').optional().isIn(['box', 'carton', 'case', 'packet', 'bag', 'crate']).withMessage('Packaging unit must be box, carton, case, packet, bag, or crate'),
-    body('units_per_package').optional().isInt({ min: 1, max: 100000 }).withMessage('Units per package must be between 1 and 100,000'),
+    body('packaging_unit').optional().custom((value, { req }) => {
+      // Only validate if enable_packaging is true
+      if (req.body.enable_packaging === true) {
+        if (!value) {
+          throw new Error('Packaging unit is required when package tracking is enabled');
+        }
+        if (!['box', 'carton', 'case', 'packet', 'bag', 'crate'].includes(value)) {
+          throw new Error('Packaging unit must be box, carton, case, packet, bag, or crate');
+        }
+      }
+      return true;
+    }),
+    body('units_per_package').optional().custom((value, { req }) => {
+      // Only validate if enable_packaging is true
+      if (req.body.enable_packaging === true) {
+        if (!value) {
+          throw new Error('Units per package is required when package tracking is enabled');
+        }
+        const num = parseInt(value);
+        if (isNaN(num) || num < 1 || num > 100000) {
+          throw new Error('Units per package must be between 1 and 100,000');
+        }
+      }
+      return true;
+    }),
     body('branch_id').isUUID().withMessage('Valid branch ID is required'),
     body('created_by').isUUID().withMessage('Valid creator ID is required')
   ],
@@ -187,8 +210,31 @@ router.put('/:id',
     body('critical_level').optional().isInt({ min: 1, max: 10000 }).withMessage('Critical level must be between 1 and 10,000'),
     body('base_unit').optional().isIn(['piece', 'kg', 'gram', 'liter', 'ml']).withMessage('Base unit must be piece, kg, gram, liter, or ml'),
     body('enable_packaging').optional().isBoolean().withMessage('Enable packaging must be boolean'),
-    body('packaging_unit').optional().isIn(['box', 'carton', 'case', 'packet', 'bag', 'crate']).withMessage('Packaging unit must be box, carton, case, packet, bag, or crate'),
-    body('units_per_package').optional().isInt({ min: 1, max: 100000 }).withMessage('Units per package must be between 1 and 100,000')
+    body('packaging_unit').optional().custom((value, { req }) => {
+      // Only validate if enable_packaging is true
+      if (req.body.enable_packaging === true) {
+        if (!value) {
+          throw new Error('Packaging unit is required when package tracking is enabled');
+        }
+        if (!['box', 'carton', 'case', 'packet', 'bag', 'crate'].includes(value)) {
+          throw new Error('Packaging unit must be box, carton, case, packet, bag, or crate');
+        }
+      }
+      return true;
+    }),
+    body('units_per_package').optional().custom((value, { req }) => {
+      // Only validate if enable_packaging is true
+      if (req.body.enable_packaging === true) {
+        if (!value) {
+          throw new Error('Units per package is required when package tracking is enabled');
+        }
+        const num = parseInt(value);
+        if (isNaN(num) || num < 1 || num > 100000) {
+          throw new Error('Units per package must be between 1 and 100,000');
+        }
+      }
+      return true;
+    })
   ],
   async (req, res) => {
     try {
