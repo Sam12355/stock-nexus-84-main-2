@@ -82,6 +82,7 @@ const StockIn = () => {
   const [quickActionItem, setQuickActionItem] = useState<StockItem | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'low' | 'critical'>('all');
   const [isQuickActionLoading, setIsQuickActionLoading] = useState(false);
+  const [isAddingStock, setIsAddingStock] = useState(false);
   
   // Receipt management state
   const [receipts, setReceipts] = useState<StockReceipt[]>([]);
@@ -313,6 +314,7 @@ const StockIn = () => {
       return;
     }
 
+    setIsAddingStock(true);
     try {
       // Calculate quantity in base units
       let quantityInBaseUnits = quantityNum;
@@ -333,17 +335,18 @@ const StockIn = () => {
         unitLabel
       );
       
-      toast({
-        title: "Success",
-        description: `Added ${quantity} ${unitLabel}${quantityNum !== 1 ? 's' : ''} (${quantityInBaseUnits} ${selectedItem.items.base_unit}${quantityInBaseUnits !== 1 ? 's' : ''})`,
-      });
-
       // Stock alerts are automatically handled by the backend
       // Trigger notification refresh since stock levels changed
       notificationEvents.triggerNotificationUpdate();
 
-      // Refresh stock data
-      fetchStockData();
+      // Refresh stock data first
+      await fetchStockData();
+      
+      // Show success toast AFTER data is refreshed
+      toast({
+        title: "Success",
+        description: `Added ${quantity} ${unitLabel}${quantityNum !== 1 ? 's' : ''} (${quantityInBaseUnits} ${selectedItem.items.base_unit}${quantityInBaseUnits !== 1 ? 's' : ''})`,
+      });
       
       // Reset form and close dialog
       setSelectedItem(null);
@@ -360,6 +363,8 @@ const StockIn = () => {
         description: errMsg,
         variant: "destructive",
       });
+    } finally {
+      setIsAddingStock(false);
     }
   };
 
@@ -410,17 +415,19 @@ const StockIn = () => {
         unitLabel
       );
 
+      // Stock alerts are automatically handled by the backend
+      // Trigger notification refresh since stock levels changed
+      notificationEvents.triggerNotificationUpdate();
+
+      // Refresh stock data first
+      await fetchStockData();
+      
+      // Show success toast AFTER data is refreshed
       toast({
         title: "Success",
         description: `Added ${quantity} ${unitLabel}${quantityNum !== 1 ? 's' : ''} (${quantityInBaseUnits} ${item.items.base_unit}${quantityInBaseUnits !== 1 ? 's' : ''})`,
       });
 
-      // Check if stock alert should be sent
-      // Stock alerts are automatically handled by the backend
-      // Trigger notification refresh since stock levels changed
-      notificationEvents.triggerNotificationUpdate();
-
-      fetchStockData();
       setQuantity('');
       setQuickActionUnitType('base');
       setQuickActionItem(null);
@@ -640,7 +647,8 @@ const StockIn = () => {
                     />
                   </div>
                   
-                  <Button onClick={handleStockIn} className="w-full">
+                  <Button onClick={handleStockIn} className="w-full" disabled={isAddingStock}>
+                    {isAddingStock && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Add Stock
                   </Button>
                 </>

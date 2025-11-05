@@ -184,17 +184,17 @@ const Stock = () => {
         unitLabel
       );
 
-      toast({
-        title: "Success",
-        description: `Removed ${quantity} ${unitLabel}${quantityNum !== 1 ? 's' : ''} (${quantityInBaseUnits} ${selectedItem.items.base_unit}${quantityInBaseUnits !== 1 ? 's' : ''})`,
-      });
-
       // Stock alerts are automatically handled by the backend
       // Trigger notification refresh since stock alerts might have been generated
       notificationEvents.triggerNotificationUpdate();
 
-      // Refresh stock data
-      fetchStockData();
+      // Refresh stock data first
+      await fetchStockData();
+
+      toast({
+        title: "Success",
+        description: `Removed ${quantity} ${unitLabel}${quantityNum !== 1 ? 's' : ''} (${quantityInBaseUnits} ${selectedItem.items.base_unit}${quantityInBaseUnits !== 1 ? 's' : ''})`,
+      });
       
       // Reset form and close dialog
       setSelectedItem(null);
@@ -297,17 +297,19 @@ const Stock = () => {
         unitLabel
       );
 
-      toast({
-        title: "Success",
-        description: `Removed ${quantity} ${unitLabel}${quantityNum !== 1 ? 's' : ''} (${quantityInBaseUnits} ${item.items.base_unit}${quantityInBaseUnits !== 1 ? 's' : ''})`,
-      });
-
       // Check if stock alert should be sent
       // Stock alerts are automatically handled by the backend
       // Trigger notification refresh since stock alerts might have been generated
       notificationEvents.triggerNotificationUpdate();
 
-      fetchStockData();
+      // Refresh stock data first
+      await fetchStockData();
+
+      toast({
+        title: "Success",
+        description: `Removed ${quantity} ${unitLabel}${quantityNum !== 1 ? 's' : ''} (${quantityInBaseUnits} ${item.items.base_unit}${quantityInBaseUnits !== 1 ? 's' : ''})`,
+      });
+
       setQuantity('');
       setQuickActionUnitType('base');
       setQuickActionItem(null);
