@@ -74,6 +74,7 @@ const StockIn = () => {
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null);
   const [quantity, setQuantity] = useState('');
   const [unitType, setUnitType] = useState<'base' | 'packaging'>('base');
+  const [quickActionUnitType, setQuickActionUnitType] = useState<'base' | 'packaging'>('base');
   const [reason, setReason] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [categorySearchTerms, setCategorySearchTerms] = useState<{ [category: string]: string }>({});
@@ -374,21 +375,44 @@ const StockIn = () => {
       return;
     }
 
+    // Validate that quantity is a positive number
+    const quantityNum = parseInt(quantity);
+    if (isNaN(quantityNum) || quantityNum <= 0) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid quantity greater than 0",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (isQuickActionLoading) return; // Prevent multiple clicks
 
     setIsQuickActionLoading(true);
 
     try {
+      // Calculate quantity in base units
+      let quantityInBaseUnits = quantityNum;
+      
+      if (quickActionUnitType === 'packaging' && item.items.units_per_package) {
+        quantityInBaseUnits = quantityNum * item.items.units_per_package;
+      }
+
+      const unitLabel = quickActionUnitType === 'packaging' ? item.items.packaging_unit : item.items.base_unit;
+
       const result = await apiClient.updateStockQuantity(
         item.item_id,
         'in',
-        parseInt(quantity),
-        `Quick stock in`
+        quantityInBaseUnits,
+        `Quick stock in`,
+        quickActionUnitType,
+        quantityNum,
+        unitLabel
       );
 
       toast({
         title: "Success",
-        description: `Stock added successfully`,
+        description: `Added ${quantity} ${unitLabel}${quantityNum !== 1 ? 's' : ''} (${quantityInBaseUnits} ${item.items.base_unit}${quantityInBaseUnits !== 1 ? 's' : ''})`,
       });
 
       // Check if stock alert should be sent
@@ -398,6 +422,7 @@ const StockIn = () => {
 
       fetchStockData();
       setQuantity('');
+      setQuickActionUnitType('base');
       setQuickActionItem(null);
     } catch (error) {
       console.error('Error updating stock:', error);
@@ -668,7 +693,7 @@ const StockIn = () => {
           <CardHeader>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <CardTitle>
-                {filterType === 'all' ? 'Current Stock Levels' :
+                {filterType === 'all' ? 'Current Stock Levels updated' :
                  filterType === 'low' ? 'Low Stock Items' :
                  'Critical Stock Items'}
               </CardTitle>
@@ -751,40 +776,74 @@ const StockIn = () => {
                             
                             <div className="flex justify-end">
                             {quickActionItem?.id === item.id ? (
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <Input
-                                  type="number"
-                                  placeholder="Qty"
-                                  value={quantity}
-                                  onChange={(e) => setQuantity(e.target.value)}
-                                  className="w-16 h-8 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                  disabled={isQuickActionLoading}
-                                />
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleQuickStockIn(item)}
-                                  className="h-8 px-2"
-                                  disabled={isQuickActionLoading}
-                                >
-                                  {isQuickActionLoading ? (
-                                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
-                                  ) : (
-                                    <Plus className="h-3 w-3" />
+                              <div className="flex flex-col gap-2 w-full sm:w-auto">
+                                {/* Unit Selection for packaging-enabled items */}
+                                {item.items.enable_packaging && item.items.packaging_unit && (
+                                  <div className="flex gap-2 items-center">
+                                    <Label className="text-xs whitespace-nowrap">Unit:</Label>
+                                    <RadioGroup 
+                                      value={quickActionUnitType} 
+                                      onValueChange={(value: 'base' | 'packaging') => setQuickActionUnitType(value)} 
+                                      className="flex gap-3"
+                                    >
+                                      <div className="flex items-center space-x-1">
+                                        <RadioGroupItem value="base" id={`quick-base-${item.id}`} className="h-3 w-3" />
+                                        <Label htmlFor={`quick-base-${item.id}`} className="cursor-pointer font-normal text-xs">
+                                          {item.items.base_unit || 'piece'}
+                                        </Label>
+                                      </div>
+                                      <div className="flex items-center space-x-1">
+                                        <RadioGroupItem value="packaging" id={`quick-packaging-${item.id}`} className="h-3 w-3" />
+                                        <Label htmlFor={`quick-packaging-${item.id}`} className="cursor-pointer font-normal text-xs">
+                                          {item.items.packaging_unit}
+                                        </Label>
+                                      </div>
+                                    </RadioGroup>
+                                  </div>
+                                )}
+                                
+                                {/* Quantity input and action buttons */}
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Input
+                                    type="number"
+                                    placeholder="Qty"
+                                    value={quantity}
+                                    onChange={(e) => setQuantity(e.target.value)}
+                                    className="w-16 h-8 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    disabled={isQuickActionLoading}
+                                  />
+                                  {item.items.enable_packaging && quickActionUnitType === 'packaging' && quantity && item.items.units_per_package && (
+                                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                      = {parseInt(quantity) * item.items.units_per_package} {item.items.base_unit}
+                                    </span>
                                   )}
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => {
-                                    setQuickActionItem(null);
-                                    setQuantity('');
-                                  }}
-                                  className="h-8 px-2"
-                                  disabled={isQuickActionLoading}
-                                >
-                                  ✕
-                                </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleQuickStockIn(item)}
+                                    className="h-8 px-2"
+                                    disabled={isQuickActionLoading}
+                                  >
+                                    {isQuickActionLoading ? (
+                                      <div className="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+                                    ) : (
+                                      <Plus className="h-3 w-3" />
+                                    )}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => {
+                                      setQuickActionItem(null);
+                                      setQuantity('');
+                                      setQuickActionUnitType('base');
+                                    }}
+                                    className="h-8 px-2"
+                                    disabled={isQuickActionLoading}
+                                  >
+                                    ✕
+                                  </Button>
+                                </div>
                               </div>
                             ) : (
                                 <>
@@ -794,6 +853,7 @@ const StockIn = () => {
                                     onClick={() => {
                                       setQuickActionItem(item);
                                       setQuantity('');
+                                      setQuickActionUnitType('base');
                                     }}
                                     disabled={isQuickActionLoading}
                                   >
