@@ -208,9 +208,12 @@ export function ICADeliveryList() {
         description: "ICA delivery record deleted successfully",
       });
 
+
+      // Update state directly instead of refetching
+      setRecords(prevRecords => prevRecords.filter(r => !recordToDelete.includes(r.id)));
+      
       setShowDeleteDialog(false);
       setRecordToDelete(null);
-      fetchRecords();
     } catch (error) {
       console.error('Error deleting record:', error);
       toast({
@@ -270,9 +273,18 @@ export function ICADeliveryList() {
         description: "ICA delivery record updated successfully",
       });
 
+
+      // Update state directly instead of refetching
+      setRecords(prevRecords => prevRecords.map(r => {
+        const editEntry = editEntries.find(e => e.id === r.id);
+        if (editEntry) {
+          return { ...r, amount: parseInt(editEntry.amount), time_of_day: editEntry.timeOfDay };
+        }
+        return r;
+      }));
+      
       setShowEditDialog(false);
       setEditingRecord(null);
-      setEditEntries([]);
       fetchRecords();
     } catch (error) {
       console.error('Error updating record:', error);
