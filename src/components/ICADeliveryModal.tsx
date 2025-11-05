@@ -365,22 +365,11 @@ export function ICADeliveryModal({ open, onOpenChange, onSuccess }: ICADeliveryM
             <div className="grid gap-6">
               {entries.map((entry, index) => (
                 <div key={index} className="p-4 border rounded-lg space-y-4 bg-white/5 backdrop-blur-md border-white/10 shadow-lg">
-                  <h3 className="font-medium text-sm text-gray-200">
+                  <h3 className="font-medium text-base text-white">
                     {entry.type}
                   </h3>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Type - Fixed, not editable */}
-                    <div className="space-y-2">
-                      <Label htmlFor={`type-${index}`} className="text-gray-200">Type</Label>
-                      <Input
-                        id={`type-${index}`}
-                        value={entry.type}
-                        disabled
-                        className="bg-white/5 backdrop-blur-sm border-white/20 text-gray-300"
-                      />
-                    </div>
-
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Amount */}
                     <div className="space-y-2">
                       <Label htmlFor={`amount-${index}`} className="text-gray-200">Amount</Label>
