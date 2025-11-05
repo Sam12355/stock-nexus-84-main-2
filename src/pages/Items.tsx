@@ -12,6 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Package2, Plus, Edit, Trash2, Search, Thermometer, AlertTriangle, Loader2 } from "lucide-react";
 import { z } from "zod";
 
@@ -43,6 +45,10 @@ interface Item {
   threshold_level: number;
   low_level?: number;
   critical_level?: number;
+  base_unit?: string;
+  enable_packaging?: boolean;
+  packaging_unit?: string;
+  units_per_package?: number;
   branch_id: string;
   created_by?: string;
   created_at: string;
@@ -88,7 +94,11 @@ const Items = () => {
     storage_temperature: "",
     threshold_level: "",
     low_level: "",
-    critical_level: ""
+    critical_level: "",
+    base_unit: "piece",
+    enable_packaging: false,
+    packaging_unit: "",
+    units_per_package: ""
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
@@ -227,7 +237,11 @@ const Items = () => {
       storage_temperature: "",
       threshold_level: "",
       low_level: "",
-      critical_level: ""
+      critical_level: "",
+      base_unit: "piece",
+      enable_packaging: false,
+      packaging_unit: "",
+      units_per_package: ""
     });
     setFormErrors({});
     setSelectedItem(null);
@@ -243,7 +257,11 @@ const Items = () => {
       storage_temperature: item.storage_temperature?.toString() || "",
       threshold_level: item.threshold_level.toString(),
       low_level: item.low_level?.toString() || "",
-      critical_level: item.critical_level?.toString() || ""
+      critical_level: item.critical_level?.toString() || "",
+      base_unit: item.base_unit || "piece",
+      enable_packaging: item.enable_packaging || false,
+      packaging_unit: item.packaging_unit || "",
+      units_per_package: item.units_per_package?.toString() || ""
     });
     setIsEditModalOpen(true);
   };
@@ -464,6 +482,91 @@ const Items = () => {
                   </p>
                   {formErrors.critical_level && <p className="text-sm text-red-500 mt-1">{formErrors.critical_level}</p>}
                 </div>
+              </div>
+
+              {/* Unit of Measurement Section */}
+              <div className="border-t pt-4 space-y-4">
+                <h3 className="font-semibold text-lg">Unit of Measurement</h3>
+                
+                <div>
+                  <Label htmlFor="base_unit">Base Unit *</Label>
+                  <Select 
+                    value={formData.base_unit} 
+                    onValueChange={(value) => setFormData({ ...formData, base_unit: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select base unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="piece">Piece</SelectItem>
+                      <SelectItem value="kg">Kilogram (kg)</SelectItem>
+                      <SelectItem value="gram">Gram (g)</SelectItem>
+                      <SelectItem value="liter">Liter (L)</SelectItem>
+                      <SelectItem value="ml">Milliliter (ml)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    The smallest unit for inventory tracking
+                  </p>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="enable_packaging" 
+                    checked={formData.enable_packaging}
+                    onCheckedChange={(checked) => setFormData({ ...formData, enable_packaging: checked as boolean })}
+                  />
+                  <Label htmlFor="enable_packaging" className="cursor-pointer">
+                    Track by packages/boxes
+                  </Label>
+                </div>
+
+                {formData.enable_packaging && (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="packaging_unit">Packaging Unit *</Label>
+                        <Select 
+                          value={formData.packaging_unit} 
+                          onValueChange={(value) => setFormData({ ...formData, packaging_unit: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select packaging unit" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="box">Box</SelectItem>
+                            <SelectItem value="carton">Carton</SelectItem>
+                            <SelectItem value="case">Case</SelectItem>
+                            <SelectItem value="packet">Packet</SelectItem>
+                            <SelectItem value="bag">Bag</SelectItem>
+                            <SelectItem value="crate">Crate</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="units_per_package">Units per Package *</Label>
+                        <Input
+                          id="units_per_package"
+                          type="number"
+                          min="1"
+                          value={formData.units_per_package}
+                          onChange={(e) => setFormData({ ...formData, units_per_package: e.target.value })}
+                          placeholder="e.g., 20"
+                        />
+                      </div>
+                    </div>
+
+                    {formData.packaging_unit && formData.units_per_package && (
+                      <Alert className="bg-blue-50 border-blue-200">
+                        <AlertDescription className="text-blue-800">
+                          <strong>Example:</strong> If you stock in 5 {formData.packaging_unit}s, 
+                          the system will automatically add {5 * parseInt(formData.units_per_package || '0')} {formData.base_unit}s to inventory.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </>
+                )}
               </div>
 
               <div className="flex justify-end space-x-2 pt-4">
@@ -761,6 +864,91 @@ const Items = () => {
                 </p>
                 {formErrors.critical_level && <p className="text-sm text-red-500 mt-1">{formErrors.critical_level}</p>}
               </div>
+            </div>
+
+            {/* Unit of Measurement Section */}
+            <div className="border-t pt-4 space-y-4">
+              <h3 className="font-semibold text-lg">Unit of Measurement</h3>
+              
+              <div>
+                <Label htmlFor="edit-base-unit">Base Unit *</Label>
+                <Select 
+                  value={formData.base_unit} 
+                  onValueChange={(value) => setFormData({ ...formData, base_unit: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select base unit" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="piece">Piece</SelectItem>
+                    <SelectItem value="kg">Kilogram (kg)</SelectItem>
+                    <SelectItem value="gram">Gram (g)</SelectItem>
+                    <SelectItem value="liter">Liter (L)</SelectItem>
+                    <SelectItem value="ml">Milliliter (ml)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  The smallest unit for inventory tracking
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="edit-enable-packaging" 
+                  checked={formData.enable_packaging}
+                  onCheckedChange={(checked) => setFormData({ ...formData, enable_packaging: checked as boolean })}
+                />
+                <Label htmlFor="edit-enable-packaging" className="cursor-pointer">
+                  Track by packages/boxes
+                </Label>
+              </div>
+
+              {formData.enable_packaging && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="edit-packaging-unit">Packaging Unit *</Label>
+                      <Select 
+                        value={formData.packaging_unit} 
+                        onValueChange={(value) => setFormData({ ...formData, packaging_unit: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select packaging unit" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="box">Box</SelectItem>
+                          <SelectItem value="carton">Carton</SelectItem>
+                          <SelectItem value="case">Case</SelectItem>
+                          <SelectItem value="packet">Packet</SelectItem>
+                          <SelectItem value="bag">Bag</SelectItem>
+                          <SelectItem value="crate">Crate</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="edit-units-per-package">Units per Package *</Label>
+                      <Input
+                        id="edit-units-per-package"
+                        type="number"
+                        min="1"
+                        value={formData.units_per_package}
+                        onChange={(e) => setFormData({ ...formData, units_per_package: e.target.value })}
+                        placeholder="e.g., 20"
+                      />
+                    </div>
+                  </div>
+
+                  {formData.packaging_unit && formData.units_per_package && (
+                    <Alert className="bg-blue-50 border-blue-200">
+                      <AlertDescription className="text-blue-800">
+                        <strong>Example:</strong> If you stock in 5 {formData.packaging_unit}s, 
+                        the system will automatically add {5 * parseInt(formData.units_per_package || '0')} {formData.base_unit}s to inventory.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </>
+              )}
             </div>
 
             <div className="flex justify-end space-x-2 pt-4">

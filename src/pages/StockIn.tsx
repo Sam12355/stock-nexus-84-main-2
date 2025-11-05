@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Package, TrendingUp, AlertTriangle, Plus, ArrowDown, FileText, CheckCircle, Clock, XCircle, Eye, Download, ZoomIn, ZoomOut, Move } from "lucide-react";
@@ -45,6 +47,10 @@ interface StockItem {
     critical_level?: number;
     image_url?: string;
     branch_id: string;
+    base_unit?: string;
+    enable_packaging?: boolean;
+    packaging_unit?: string;
+    units_per_package?: number;
   };
 }
 
@@ -67,6 +73,7 @@ const StockIn = () => {
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null);
   const [quantity, setQuantity] = useState('');
+  const [unitType, setUnitType] = useState<'base' | 'packaging'>('base');
   const [reason, setReason] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [categorySearchTerms, setCategorySearchTerms] = useState<{ [category: string]: string }>({});
@@ -288,16 +295,25 @@ const StockIn = () => {
     if (!selectedItem || !quantity) return;
 
     try {
+      // Calculate quantity in base units
+      let quantityInBaseUnits = parseInt(quantity);
+      
+      if (unitType === 'packaging' && selectedItem.items.units_per_package) {
+        quantityInBaseUnits = parseInt(quantity) * selectedItem.items.units_per_package;
+      }
+
       const result = await apiClient.updateStockQuantity(
         selectedItem.item_id,
         'in',
-        parseInt(quantity),
+        quantityInBaseUnits,
         reason || null
       );
 
+      const unitLabel = unitType === 'packaging' ? selectedItem.items.packaging_unit : selectedItem.items.base_unit;
+      
       toast({
         title: "Success",
-        description: `Stock added successfully`,
+        description: `Added ${quantity} ${unitLabel}${parseInt(quantity) !== 1 ? 's' : ''} (${quantityInBaseUnits} ${selectedItem.items.base_unit}${quantityInBaseUnits !== 1 ? 's' : ''})`,
       });
 
       // Stock alerts are automatically handled by the backend
@@ -310,6 +326,7 @@ const StockIn = () => {
       // Reset form and close dialog
       setSelectedItem(null);
       setQuantity('');
+      setUnitType('base');
       setReason('');
       setIsMovementDialogOpen(false);
       setSearchTerm('');
@@ -525,6 +542,26 @@ const StockIn = () => {
               
               {selectedItem && (
                 <>
+                  {selectedItem.items.enable_packaging && selectedItem.items.packaging_unit && (
+                    <div>
+                      <Label>Stock In By:</Label>
+                      <RadioGroup value={unitType} onValueChange={(value: 'base' | 'packaging') => setUnitType(value)} className="flex gap-4 mt-2">
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="base" id="base" />
+                          <Label htmlFor="base" className="cursor-pointer font-normal">
+                            {selectedItem.items.base_unit || 'piece'}
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="packaging" id="packaging" />
+                          <Label htmlFor="packaging" className="cursor-pointer font-normal">
+                            {selectedItem.items.packaging_unit}
+                          </Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+                  )}
+
                   <div>
                     <Label>Quantity to Add</Label>
                     <Input
@@ -534,6 +571,13 @@ const StockIn = () => {
                       placeholder="Enter quantity to add"
                       className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
+                    {selectedItem.items.enable_packaging && unitType === 'packaging' && quantity && selectedItem.items.units_per_package && (
+                      <Alert className="mt-2 bg-blue-50 border-blue-200">
+                        <AlertDescription className="text-blue-800 text-sm">
+                          {quantity} {selectedItem.items.packaging_unit}{parseInt(quantity) !== 1 ? 's' : ''} = {parseInt(quantity) * selectedItem.items.units_per_package} {selectedItem.items.base_unit}{(parseInt(quantity) * selectedItem.items.units_per_package) !== 1 ? 's' : ''}
+                        </AlertDescription>
+                      </Alert>
+                    )}
                   </div>
                   
                   <div>

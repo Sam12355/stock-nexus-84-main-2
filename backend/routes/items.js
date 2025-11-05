@@ -72,6 +72,10 @@ router.post('/',
     body('threshold_level').isInt({ min: 1, max: 10000 }).withMessage('Threshold must be between 1 and 10,000'),
     body('low_level').optional().isInt({ min: 1, max: 10000 }).withMessage('Low level must be between 1 and 10,000'),
     body('critical_level').optional().isInt({ min: 1, max: 10000 }).withMessage('Critical level must be between 1 and 10,000'),
+    body('base_unit').optional().isIn(['piece', 'kg', 'gram', 'liter', 'ml']).withMessage('Base unit must be piece, kg, gram, liter, or ml'),
+    body('enable_packaging').optional().isBoolean().withMessage('Enable packaging must be boolean'),
+    body('packaging_unit').optional().isIn(['box', 'carton', 'case', 'packet', 'bag', 'crate']).withMessage('Packaging unit must be box, carton, case, packet, bag, or crate'),
+    body('units_per_package').optional().isInt({ min: 1, max: 100000 }).withMessage('Units per package must be between 1 and 100,000'),
     body('branch_id').isUUID().withMessage('Valid branch ID is required'),
     body('created_by').isUUID().withMessage('Valid creator ID is required')
   ],
@@ -89,11 +93,13 @@ router.post('/',
         });
       }
 
-      const { name, category, description, image_url, storage_temperature, threshold_level, low_level, critical_level, branch_id, created_by } = req.body;
+      const { name, category, description, image_url, storage_temperature, threshold_level, low_level, critical_level, base_unit, enable_packaging, packaging_unit, units_per_package, branch_id, created_by } = req.body;
 
       // Set default values if not provided
       const lowLevel = low_level || Math.max(1, Math.floor(threshold_level * 0.5));
       const criticalLevel = critical_level || Math.max(1, Math.floor(threshold_level * 0.2));
+      const baseUnit = base_unit || 'piece';
+      const enablePackaging = enable_packaging || false;
 
       // First, try to drop and recreate the constraint to allow new suppliers
       try {
@@ -109,8 +115,8 @@ router.post('/',
       }
 
       const result = await query(
-        'INSERT INTO items (name, category, description, image_url, storage_temperature, threshold_level, branch_id, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-        [name, category, description || null, image_url || null, storage_temperature || null, threshold_level, branch_id, created_by]
+        'INSERT INTO items (name, category, description, image_url, storage_temperature, threshold_level, base_unit, enable_packaging, packaging_unit, units_per_package, branch_id, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *',
+        [name, category, description || null, image_url || null, storage_temperature || null, threshold_level, baseUnit, enablePackaging, packaging_unit || null, units_per_package || null, branch_id, created_by]
       );
 
       // Create initial stock record for the item
@@ -178,7 +184,11 @@ router.put('/:id',
     }),
     body('threshold_level').isInt({ min: 1, max: 10000 }).withMessage('Threshold must be between 1 and 10,000'),
     body('low_level').optional().isInt({ min: 1, max: 10000 }).withMessage('Low level must be between 1 and 10,000'),
-    body('critical_level').optional().isInt({ min: 1, max: 10000 }).withMessage('Critical level must be between 1 and 10,000')
+    body('critical_level').optional().isInt({ min: 1, max: 10000 }).withMessage('Critical level must be between 1 and 10,000'),
+    body('base_unit').optional().isIn(['piece', 'kg', 'gram', 'liter', 'ml']).withMessage('Base unit must be piece, kg, gram, liter, or ml'),
+    body('enable_packaging').optional().isBoolean().withMessage('Enable packaging must be boolean'),
+    body('packaging_unit').optional().isIn(['box', 'carton', 'case', 'packet', 'bag', 'crate']).withMessage('Packaging unit must be box, carton, case, packet, bag, or crate'),
+    body('units_per_package').optional().isInt({ min: 1, max: 100000 }).withMessage('Units per package must be between 1 and 100,000')
   ],
   async (req, res) => {
     try {
@@ -192,15 +202,17 @@ router.put('/:id',
       }
 
       const { id } = req.params;
-      const { name, category, description, image_url, storage_temperature, threshold_level, low_level, critical_level } = req.body;
+      const { name, category, description, image_url, storage_temperature, threshold_level, low_level, critical_level, base_unit, enable_packaging, packaging_unit, units_per_package } = req.body;
 
       // Set default values if not provided
       const lowLevel = low_level || Math.max(1, Math.floor(threshold_level * 0.5));
       const criticalLevel = critical_level || Math.max(1, Math.floor(threshold_level * 0.2));
+      const baseUnit = base_unit || 'piece';
+      const enablePackaging = enable_packaging !== undefined ? enable_packaging : false;
 
       const result = await query(
-        'UPDATE items SET name = $1, category = $2, description = $3, image_url = $4, storage_temperature = $5, threshold_level = $6, updated_at = NOW() WHERE id = $7 RETURNING *',
-        [name, category, description || null, image_url || null, storage_temperature || null, threshold_level, id]
+        'UPDATE items SET name = $1, category = $2, description = $3, image_url = $4, storage_temperature = $5, threshold_level = $6, base_unit = $7, enable_packaging = $8, packaging_unit = $9, units_per_package = $10, updated_at = NOW() WHERE id = $11 RETURNING *',
+        [name, category, description || null, image_url || null, storage_temperature || null, threshold_level, baseUnit, enablePackaging, packaging_unit || null, units_per_package || null, id]
       );
 
       if (result.rows.length === 0) {
