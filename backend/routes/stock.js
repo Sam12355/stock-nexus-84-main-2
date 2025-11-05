@@ -13,7 +13,9 @@ router.get('/', authenticateToken, async (req, res) => {
     console.log('🔍 Fetching stock data for user:', req.user.email, 'role:', req.user.role);
     
     let queryText = `
-      SELECT s.*, i.name, i.category, i.threshold_level, i.image_url, i.branch_id
+      SELECT s.*, 
+             i.name, i.category, i.threshold_level, i.image_url, i.branch_id,
+             i.base_unit, i.packaging_unit, i.units_per_package, i.enable_packaging
       FROM stock s
       JOIN items i ON s.item_id = i.id
     `;
@@ -43,7 +45,11 @@ router.get('/', authenticateToken, async (req, res) => {
         category: row.category,
         threshold_level: row.threshold_level,
         image_url: row.image_url,
-        branch_id: row.branch_id
+        branch_id: row.branch_id,
+        base_unit: row.base_unit,
+        packaging_unit: row.packaging_unit,
+        units_per_package: row.units_per_package,
+        enable_packaging: row.enable_packaging
       }
     }));
 
