@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { Calendar, Download, Edit2, FileSpreadsheet, Plus, Printer, Trash2 } from "lucide-react";
+import { Calendar, Download, Edit2, FileSpreadsheet, Loader2, Plus, Printer, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
 
@@ -40,6 +40,7 @@ export function ICADeliveryList() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingRecord, setEditingRecord] = useState<any>(null);
   const [editEntries, setEditEntries] = useState<any[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
   
   // Set default date range to first day of month and today
   const today = new Date();
@@ -221,26 +222,37 @@ export function ICADeliveryList() {
   };
 
   const handleEditClick = (group: any) => {
+    const itemOrder = ['Salmon and Rolls', 'Combo', 'Salmon and Avocado Rolls', 'Vegan Combo', 'Goma Wakame'];
+    
+    // Sort items according to the defined order
+    const sortedItems = itemOrder.map(type => {
+      const item = group.items.find((i: any) => i.type === type);
+      return item ? {
+        id: item.id,
+        type: item.type,
+        amount: item.amount.toString(),
+        timeOfDay: group.timeOfDay
+      } : null;
+    }).filter(Boolean);
+    
     setEditingRecord(group);
-    setEditEntries(group.items.map((item: any) => ({
-      id: item.id,
-      type: item.type,
-      amount: item.amount.toString(),
-      timeOfDay: group.timeOfDay
-    })));
+    setEditEntries(sortedItems);
     setShowEditDialog(true);
   };
 
   const handleConfirmEdit = async () => {
+    if (isSaving) return;
+    
     try {
+      setIsSaving(true);
       const token = localStorage.getItem('auth_token');
       
       for (const entry of editEntries) {
-        const response = await fetch(`${API_BASE_URL}/ica-delivery/${entry.id}`, {
+        const response = await fetch(\`\${API_BASE_URL}/ica-delivery/\${entry.id}\`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            'Authorization': \`Bearer \${token}\`
           },
           body: JSON.stringify({ 
             amount: parseInt(entry.amount),
@@ -269,6 +281,8 @@ export function ICADeliveryList() {
         description: "Failed to update ICA delivery record",
         variant: "destructive",
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -531,7 +545,7 @@ export function ICADeliveryList() {
     />
 
     <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-      <DialogContent className="max-w-md bg-white/95 backdrop-blur-xl border border-gray-200">
+      <DialogContent className="max-w-md bg-black/40 backdrop-blur-xl border border-gray-700">
         <DialogHeader>
           <DialogTitle>Confirm Delete</DialogTitle>
           <DialogDescription>
@@ -550,7 +564,7 @@ export function ICADeliveryList() {
     </Dialog>
 
     <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-white/95 backdrop-blur-xl border border-gray-200">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-black/40 backdrop-blur-xl border border-gray-700">
         <DialogHeader>
           <DialogTitle>Edit ICA Delivery Record</DialogTitle>
           <DialogDescription>
@@ -620,8 +634,15 @@ export function ICADeliveryList() {
           <Button variant="outline" onClick={() => setShowEditDialog(false)}>
             Cancel
           </Button>
-          <Button onClick={handleConfirmEdit}>
-            Save Changes
+          <Button onClick={handleConfirmEdit} disabled={isSaving}>
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Save Changes"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
