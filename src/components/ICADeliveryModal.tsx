@@ -366,7 +366,7 @@ export function ICADeliveryModal({ open, onOpenChange, onSuccess }: ICADeliveryM
               {entries.map((entry, index) => (
                 <div key={index} className="p-4 border rounded-lg space-y-4 bg-white/5 backdrop-blur-md border-white/10 shadow-lg">
                   <h3 className="font-medium text-sm text-gray-200">
-                    Set {index + 1}
+                    {entry.type}
                   </h3>
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

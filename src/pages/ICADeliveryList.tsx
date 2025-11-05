@@ -91,6 +91,14 @@ export function ICADeliveryList() {
     setEndDate('');
   };
 
+  // Map legacy type names (from older DB entries) to the new display names
+  const TYPE_MAP: Record<string, string> = {
+    'Normal': 'Salmon and Rolls',
+    'Vegan': 'Salmon and Avocado Rolls',
+    'Salmon Avocado': 'Vegan Combo',
+    'Wakame': 'Goma Wakame'
+  };
+
   const groupedRecords = records.reduce((acc, record) => {
     const key = `${record.user_name}-${record.time_of_day}`;
     if (!acc[key]) {
@@ -101,7 +109,9 @@ export function ICADeliveryList() {
         items: []
       };
     }
-    acc[key].items.push({ type: record.type, amount: record.amount });
+
+    const mappedType = TYPE_MAP[record.type] || record.type;
+    acc[key].items.push({ type: mappedType, amount: record.amount });
     return acc;
   }, {} as Record<string, any>);
 
