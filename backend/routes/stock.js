@@ -63,7 +63,7 @@ router.get('/', authenticateToken, async (req, res) => {
 // Update stock quantity
 router.post('/movement', authenticateToken, async (req, res) => {
   try {
-    const { item_id, movement_type, quantity, reason } = req.body;
+    const { item_id, movement_type, quantity, reason, unit_type, original_quantity, unit_label } = req.body;
 
     if (!item_id || !movement_type || !quantity) {
       return res.status(400).json({
@@ -108,10 +108,10 @@ router.post('/movement', authenticateToken, async (req, res) => {
       [newQuantity, req.user.id, item_id]
     );
 
-    // Log the movement
+    // Log the movement with UoM details
     await query(
-      'INSERT INTO stock_movements (item_id, movement_type, quantity, reason, created_by, created_at) VALUES ($1, $2, $3, $4, $5, NOW())',
-      [item_id, movement_type, parseInt(quantity), reason || null, req.user.id]
+      'INSERT INTO stock_movements (item_id, movement_type, quantity, reason, unit_type, original_quantity, unit_label, created_by, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())',
+      [item_id, movement_type, parseInt(quantity), reason || null, unit_type || 'base', original_quantity || parseInt(quantity), unit_label || 'piece', req.user.id]
     );
 
     // Log the activity

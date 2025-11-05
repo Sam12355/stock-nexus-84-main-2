@@ -6,37 +6,58 @@
 -- =====================================================
 
 -- Step 1: Add new columns to items table
-ALTER TABLE public.items 
+ALTER TABLE items 
 ADD COLUMN IF NOT EXISTS base_unit VARCHAR(50) DEFAULT 'piece',
 ADD COLUMN IF NOT EXISTS packaging_unit VARCHAR(50),
 ADD COLUMN IF NOT EXISTS units_per_package INTEGER,
 ADD COLUMN IF NOT EXISTS enable_packaging BOOLEAN DEFAULT false;
 
 -- Step 2: Add comments for documentation
-COMMENT ON COLUMN public.items.base_unit IS 'The base unit for inventory tracking (piece, kg, gram, liter, ml)';
-COMMENT ON COLUMN public.items.packaging_unit IS 'The packaging unit (box, carton, case, packet, bag, crate)';
-COMMENT ON COLUMN public.items.units_per_package IS 'Number of base units per package (e.g., 20 pieces per box)';
-COMMENT ON COLUMN public.items.enable_packaging IS 'Whether this item supports package-based tracking';
+COMMENT ON COLUMN items.base_unit IS 'The base unit for inventory tracking (piece, kg, gram, liter, ml)';
+COMMENT ON COLUMN items.packaging_unit IS 'The packaging unit (box, carton, case, packet, bag, crate)';
+COMMENT ON COLUMN items.units_per_package IS 'Number of base units per package (e.g., 20 pieces per box)';
+COMMENT ON COLUMN items.enable_packaging IS 'Whether this item supports package-based tracking';
 
 -- Step 3: Set default base_unit for existing items
-UPDATE public.items 
+UPDATE items 
 SET base_unit = 'piece' 
 WHERE base_unit IS NULL;
 
 -- Step 4: Add check constraint to ensure units_per_package is positive when set
-ALTER TABLE public.items 
+ALTER TABLE items 
 ADD CONSTRAINT items_units_per_package_check 
 CHECK (units_per_package IS NULL OR units_per_package > 0);
 
 -- Step 5: Add check constraint for valid base units
-ALTER TABLE public.items
+ALTER TABLE items
 ADD CONSTRAINT items_base_unit_check
 CHECK (base_unit IN ('piece', 'kg', 'gram', 'liter', 'ml'));
 
 -- Step 6: Add check constraint for valid packaging units
-ALTER TABLE public.items
+ALTER TABLE items
 ADD CONSTRAINT items_packaging_unit_check
 CHECK (packaging_unit IS NULL OR packaging_unit IN ('box', 'carton', 'case', 'packet', 'bag', 'crate'));
+
+-- =====================================================
+-- Step 7: Add UoM tracking to stock_movements table
+-- =====================================================
+
+ALTER TABLE stock_movements
+ADD COLUMN IF NOT EXISTS unit_type VARCHAR(20) DEFAULT 'base',
+ADD COLUMN IF NOT EXISTS original_quantity INTEGER,
+ADD COLUMN IF NOT EXISTS unit_label VARCHAR(50);
+
+-- Add comments for stock_movements columns
+COMMENT ON COLUMN stock_movements.unit_type IS 'Type of unit used for the movement: base or packaging';
+COMMENT ON COLUMN stock_movements.original_quantity IS 'The original quantity entered by user (e.g., 2 cartons)';
+COMMENT ON COLUMN stock_movements.unit_label IS 'The unit label used (e.g., piece, carton, box)';
+
+-- Update existing stock_movements to have default values
+UPDATE stock_movements 
+SET unit_type = 'base',
+    original_quantity = quantity,
+    unit_label = 'piece'
+WHERE unit_type IS NULL;
 
 -- =====================================================
 -- Verification Queries (run these to verify migration)
@@ -46,7 +67,6 @@ CHECK (packaging_unit IS NULL OR packaging_unit IN ('box', 'carton', 'case', 'pa
 SELECT column_name, data_type, column_default, is_nullable
 FROM information_schema.columns
 WHERE table_name = 'items' 
-AND table_schema = 'public'
 AND column_name IN ('base_unit', 'packaging_unit', 'units_per_package', 'enable_packaging')
 ORDER BY ordinal_position;
 
@@ -54,13 +74,12 @@ ORDER BY ordinal_position;
 SELECT COUNT(*) as total_items, 
        COUNT(base_unit) as items_with_base_unit,
        COUNT(CASE WHEN base_unit = 'piece' THEN 1 END) as items_with_piece_unit
-FROM public.items;
+FROM items;
 
 -- View all constraints on items table
 SELECT constraint_name, constraint_type
 FROM information_schema.table_constraints
 WHERE table_name = 'items'
-AND table_schema = 'public'
 ORDER BY constraint_name;
 
 -- =====================================================
@@ -69,7 +88,7 @@ ORDER BY constraint_name;
 
 -- Example 1: Avocado sold in boxes of 20 pieces
 /*
-INSERT INTO public.items (
+INSERT INTO items (
     name, 
     category, 
     base_unit, 
@@ -94,7 +113,7 @@ INSERT INTO public.items (
 
 -- Example 2: Olive Oil sold by liter in bottles
 /*
-INSERT INTO public.items (
+INSERT INTO items (
     name,
     category,
     base_unit,
@@ -122,13 +141,13 @@ INSERT INTO public.items (
 -- =====================================================
 /*
 -- Remove constraints
-ALTER TABLE public.items DROP CONSTRAINT IF EXISTS items_base_unit_check;
-ALTER TABLE public.items DROP CONSTRAINT IF EXISTS items_packaging_unit_check;
-ALTER TABLE public.items DROP CONSTRAINT IF EXISTS items_units_per_package_check;
+ALTER TABLE items DROP CONSTRAINT IF EXISTS items_base_unit_check;
+ALTER TABLE items DROP CONSTRAINT IF EXISTS items_packaging_unit_check;
+ALTER TABLE items DROP CONSTRAINT IF EXISTS items_units_per_package_check;
 
 -- Remove columns
-ALTER TABLE public.items DROP COLUMN IF EXISTS enable_packaging;
-ALTER TABLE public.items DROP COLUMN IF EXISTS units_per_package;
-ALTER TABLE public.items DROP COLUMN IF EXISTS packaging_unit;
-ALTER TABLE public.items DROP COLUMN IF EXISTS base_unit;
+ALTER TABLE items DROP COLUMN IF EXISTS enable_packaging;
+ALTER TABLE items DROP COLUMN IF EXISTS units_per_package;
+ALTER TABLE items DROP COLUMN IF EXISTS packaging_unit;
+ALTER TABLE items DROP COLUMN IF EXISTS base_unit;
 */

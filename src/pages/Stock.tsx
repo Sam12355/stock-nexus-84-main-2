@@ -137,14 +137,17 @@ const Stock = () => {
         quantityInBaseUnits = quantityNum * selectedItem.items.units_per_package;
       }
 
+      const unitLabel = unitType === 'packaging' ? selectedItem.items.packaging_unit : selectedItem.items.base_unit;
+
       const result = await apiClient.updateStockQuantity(
         selectedItem.item_id,
         'out',
         quantityInBaseUnits,
-        reason || null
+        reason || null,
+        unitType,
+        quantityNum,
+        unitLabel
       );
-
-      const unitLabel = unitType === 'packaging' ? selectedItem.items.packaging_unit : selectedItem.items.base_unit;
 
       toast({
         title: "Success",

@@ -147,7 +147,15 @@ class ApiClient {
     return response.data;
   }
 
-  async updateStockQuantity(itemId: string, movementType: string, quantity: number, reason?: string) {
+  async updateStockQuantity(
+    itemId: string, 
+    movementType: string, 
+    quantity: number, 
+    reason?: string,
+    unitType?: string,
+    originalQuantity?: number,
+    unitLabel?: string
+  ) {
     const response = await this.request<{
       success: boolean;
       data: any;
@@ -157,7 +165,10 @@ class ApiClient {
         item_id: itemId,
         movement_type: movementType,
         quantity,
-        reason
+        reason,
+        unit_type: unitType,
+        original_quantity: originalQuantity,
+        unit_label: unitLabel
       }),
     });
     return response.data;
