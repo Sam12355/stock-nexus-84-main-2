@@ -324,6 +324,7 @@ const StockIn = () => {
       }
 
       const unitLabel = unitType === 'packaging' ? selectedItem.items.packaging_unit : selectedItem.items.base_unit;
+      const baseUnitLabel = selectedItem.items.base_unit;
 
       const result = await apiClient.updateStockQuantity(
         selectedItem.item_id,
@@ -342,19 +343,19 @@ const StockIn = () => {
       // Refresh stock data first
       await fetchStockData();
       
-      // Show success toast AFTER data is refreshed
-      toast({
-        title: "Success",
-        description: `Added ${quantity} ${unitLabel}${quantityNum !== 1 ? 's' : ''} (${quantityInBaseUnits} ${selectedItem.items.base_unit}${quantityInBaseUnits !== 1 ? 's' : ''})`,
-      });
-      
-      // Reset form and close dialog
+      // Reset form and close dialog first
       setSelectedItem(null);
       setQuantity('');
       setUnitType('base');
       setReason('');
       setIsMovementDialogOpen(false);
       setSearchTerm('');
+      
+      // Show success toast AFTER data is refreshed (using saved values)
+      toast({
+        title: "Success",
+        description: `Added ${quantityNum} ${unitLabel}${quantityNum !== 1 ? 's' : ''} (${quantityInBaseUnits} ${baseUnitLabel}${quantityInBaseUnits !== 1 ? 's' : ''})`,
+      });
     } catch (error) {
       console.error('Error updating stock:', error);
       const errMsg = (error as any)?.message || "Failed to update stock";
@@ -404,6 +405,7 @@ const StockIn = () => {
       }
 
       const unitLabel = quickActionUnitType === 'packaging' ? item.items.packaging_unit : item.items.base_unit;
+      const baseUnitLabel = item.items.base_unit;
 
       const result = await apiClient.updateStockQuantity(
         item.item_id,
@@ -422,15 +424,16 @@ const StockIn = () => {
       // Refresh stock data first
       await fetchStockData();
       
-      // Show success toast AFTER data is refreshed
-      toast({
-        title: "Success",
-        description: `Added ${quantity} ${unitLabel}${quantityNum !== 1 ? 's' : ''} (${quantityInBaseUnits} ${item.items.base_unit}${quantityInBaseUnits !== 1 ? 's' : ''})`,
-      });
-
+      // Reset form first
       setQuantity('');
       setQuickActionUnitType('base');
       setQuickActionItem(null);
+      
+      // Show success toast AFTER data is refreshed (using saved values)
+      toast({
+        title: "Success",
+        description: `Added ${quantityNum} ${unitLabel}${quantityNum !== 1 ? 's' : ''} (${quantityInBaseUnits} ${baseUnitLabel}${quantityInBaseUnits !== 1 ? 's' : ''})`,
+      });
     } catch (error) {
       console.error('Error updating stock:', error);
       const errMsg = (error as any)?.message || "Failed to update stock";
