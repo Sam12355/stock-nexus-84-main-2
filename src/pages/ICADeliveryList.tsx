@@ -274,7 +274,7 @@ export function ICADeliveryList() {
 
   return (
     <>
-      <style>{\`
+      <style>{`
         @media print {
           body * {
             visibility: hidden;
@@ -313,7 +313,7 @@ export function ICADeliveryList() {
             font-weight: bold;
           }
         }
-      \`}</style>
+      `}</style>
       <div className="p-6 space-y-6">
       <div className="flex justify-between items-center no-print">
         <h1 className="text-3xl font-bold">ICA Delivery Records</h1>
@@ -393,7 +393,7 @@ export function ICADeliveryList() {
             <div style={{ display: 'none' }} className="print:block mb-4">
               <h1 className="text-2xl font-bold text-center mb-2">ICA Delivery Records</h1>
               <p className="text-center text-gray-600">
-                {startDate && endDate ? \`\${startDate} to \${endDate}\` : 'All Records'}
+                {startDate && endDate ? `\${startDate} to \${endDate}` : 'All Records'}
               </p>
             </div>
             
