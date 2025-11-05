@@ -106,15 +106,35 @@ const Stock = () => {
   };
 
   const handleStockOut = async () => {
-    if (!selectedItem || !quantity) return;
+    if (!selectedItem || !quantity) {
+      toast({
+        title: "Error",
+        description: "Please enter a quantity",
+        variant: "destructive",
+      });
+      setIsRemovingStock(false);
+      return;
+    }
+
+    // Validate that quantity is a positive number
+    const quantityNum = parseInt(quantity);
+    if (isNaN(quantityNum) || quantityNum <= 0) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid quantity greater than 0",
+        variant: "destructive",
+      });
+      setIsRemovingStock(false);
+      return;
+    }
 
     setIsRemovingStock(true);
     try {
       // Calculate quantity in base units
-      let quantityInBaseUnits = parseInt(quantity);
+      let quantityInBaseUnits = quantityNum;
       
       if (unitType === 'packaging' && selectedItem.items.units_per_package) {
-        quantityInBaseUnits = parseInt(quantity) * selectedItem.items.units_per_package;
+        quantityInBaseUnits = quantityNum * selectedItem.items.units_per_package;
       }
 
       const result = await apiClient.updateStockQuantity(
@@ -128,7 +148,7 @@ const Stock = () => {
 
       toast({
         title: "Success",
-        description: `Removed ${quantity} ${unitLabel}${parseInt(quantity) !== 1 ? 's' : ''} (${quantityInBaseUnits} ${selectedItem.items.base_unit}${quantityInBaseUnits !== 1 ? 's' : ''})`,
+        description: `Removed ${quantity} ${unitLabel}${quantityNum !== 1 ? 's' : ''} (${quantityInBaseUnits} ${selectedItem.items.base_unit}${quantityInBaseUnits !== 1 ? 's' : ''})`,
       });
 
       // Stock alerts are automatically handled by the backend
@@ -321,8 +341,13 @@ const Stock = () => {
                   onChange={(selectedOption) => {
                     if (selectedOption) {
                       setSelectedItem(selectedOption.item);
+                      // Reset to base unit when selecting a new item
+                      setUnitType('base');
+                      setQuantity('');
                     } else {
                       setSelectedItem(null);
+                      setUnitType('base');
+                      setQuantity('');
                     }
                   }}
                   styles={{
