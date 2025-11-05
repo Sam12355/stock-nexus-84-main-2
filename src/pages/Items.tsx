@@ -14,26 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Package2, Plus, Edit, Trash2, Search, Thermometer, AlertTriangle, Loader2 } from "lucide-react";
+import { Package2, Plus, Edit, Trash2, Search, Thermometer, AlertTriangle, Loader2, Package } from "lucide-react";
 import { z } from "zod";
-
-// Extended interface for profile with branch_context
-interface ExtendedProfile {
-  id: string;
-  user_id: string;
-  name: string;
-  email: string;
-  phone?: string;
-  photo_url?: string;
-  position?: string;
-  role: 'regional_manager' | 'district_manager' | 'manager' | 'assistant_manager' | 'staff';
-  branch_id?: string;
-  branch_context?: string;
-  last_access?: string;
-  access_count: number;
-  created_at: string;
-  updated_at: string;
-}
 
 interface Item {
   id: string;
@@ -77,7 +59,7 @@ const itemSchema = z.object({
 });
 
 const Items = () => {
-  const { profile } = useAuth() as { profile: ExtendedProfile | null };
+  const { profile } = useAuth();
   const { toast } = useToast();
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
