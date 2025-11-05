@@ -307,8 +307,8 @@ const Items = () => {
               {/* Basic Item Details Section */}
               <div className="space-y-4">
                 <div className="border-b pb-2">
-                  <h3 className="font-semibold text-lg flex items-center gap-2">
-                    <Package2 className="h-5 w-5" />
+                  <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                    <Package2 className="h-4 w-4" />
                     Basic Item Details
                   </h3>
                 </div>
@@ -430,8 +430,8 @@ const Items = () => {
               {/* Unit of Measurement Section */}
               <div className="space-y-4">
                 <div className="border-b pb-2">
-                  <h3 className="font-semibold text-lg flex items-center gap-2">
-                    <Package className="h-5 w-5" />
+                  <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                    <Package className="h-4 w-4" />
                     Unit of Measurement
                   </h3>
                 </div>
@@ -523,8 +523,8 @@ const Items = () => {
               {/* Threshold Details Section */}
               <div className="space-y-4">
                 <div className="border-b pb-2">
-                  <h3 className="font-semibold text-lg flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5" />
+                  <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" />
                     Threshold Details
                   </h3>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -749,8 +749,8 @@ const Items = () => {
             {/* Basic Item Details Section */}
             <div className="space-y-4">
               <div className="border-b pb-2">
-                <h3 className="font-semibold text-lg flex items-center gap-2">
-                  <Package2 className="h-5 w-5" />
+                <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                  <Package2 className="h-4 w-4" />
                   Basic Item Details
                 </h3>
               </div>
@@ -843,8 +843,8 @@ const Items = () => {
             {/* Unit of Measurement Section */}
             <div className="space-y-4">
               <div className="border-b pb-2">
-                <h3 className="font-semibold text-lg flex items-center gap-2">
-                  <Package className="h-5 w-5" />
+                <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                  <Package className="h-4 w-4" />
                   Unit of Measurement
                 </h3>
               </div>
@@ -936,8 +936,8 @@ const Items = () => {
             {/* Threshold Details Section */}
             <div className="space-y-4">
               <div className="border-b pb-2">
-                <h3 className="font-semibold text-lg flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5" />
+                <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
                   Threshold Details
                 </h3>
                 <p className="text-xs text-muted-foreground mt-1">
