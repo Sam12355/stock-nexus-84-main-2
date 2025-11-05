@@ -321,176 +321,138 @@ const Items = () => {
                 Add New Item
               </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="item-name">Item Name *</Label>
-                <Input
-                  id="item-name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Enter item name"
-                />
-                {formErrors.name && <p className="text-sm text-red-500 mt-1">{formErrors.name}</p>}
-              </div>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Basic Item Details Section */}
+              <div className="space-y-4">
+                <div className="border-b pb-2">
+                  <h3 className="font-semibold text-lg flex items-center gap-2">
+                    <Package2 className="h-5 w-5" />
+                    Basic Item Details
+                  </h3>
+                </div>
 
-              <div>
-                <Label htmlFor="category">Supplier *</Label>
-                <Select onValueChange={(value) => setFormData({ ...formData, category: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select supplier" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {suppliers.map((supplier) => (
-                      <SelectItem key={supplier} value={supplier}>
-                        {supplier}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                 {formErrors.category && <p className="text-sm text-red-500 mt-1">{formErrors.category}</p>}
+                <div>
+                  <Label htmlFor="item-name">Item Name *</Label>
+                  <Input
+                    id="item-name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Enter item name"
+                  />
+                  {formErrors.name && <p className="text-sm text-red-500 mt-1">{formErrors.name}</p>}
+                </div>
 
-                 {/* Branch selection for regional and district managers */}
-                 {(profile?.role === 'regional_manager' || profile?.role === 'district_manager') && (
-                   <div className="mt-2">
-                     {profile?.branch_context ? (
-                       <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                         <Label className="text-sm font-medium text-blue-800">Branch Assignment</Label>
-                         <p className="text-sm text-blue-700 mt-1">
-                           Item will be created for your selected branch: <strong>
-                             {branches.find(b => b.id === profile.branch_context)?.name || 'Your Selected Branch'}
-                           </strong>
-                         </p>
-                       </div>
-                     ) : (
-                       <>
-                         <Label htmlFor="branch">Branch *</Label>
-                         <Select onValueChange={(value) => setSelectedBranchId(value)}>
-                           <SelectTrigger>
-                             <SelectValue placeholder="Select branch" />
-                           </SelectTrigger>
-                           <SelectContent>
-                             {branches.map((b) => (
-                               <SelectItem key={b.id} value={b.id}>
-                                 {b.name}
-                               </SelectItem>
-                             ))}
-                           </SelectContent>
-                         </Select>
-                       </>
-                     )}
-                   </div>
-                 )}
-              </div>
+                <div>
+                  <Label htmlFor="category">Supplier *</Label>
+                  <Select onValueChange={(value) => setFormData({ ...formData, category: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select supplier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {suppliers.map((supplier) => (
+                        <SelectItem key={supplier} value={supplier}>
+                          {supplier}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {formErrors.category && <p className="text-sm text-red-500 mt-1">{formErrors.category}</p>}
 
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Enter item description"
-                  rows={3}
-                />
-                {formErrors.description && <p className="text-sm text-red-500 mt-1">{formErrors.description}</p>}
-              </div>
+                  {/* Branch selection for regional and district managers */}
+                  {(profile?.role === 'regional_manager' || profile?.role === 'district_manager') && (
+                    <div className="mt-2">
+                      {profile?.branch_context ? (
+                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                          <Label className="text-sm font-medium text-blue-800">Branch Assignment</Label>
+                          <p className="text-sm text-blue-700 mt-1">
+                            Item will be created for your selected branch: <strong>
+                              {branches.find(b => b.id === profile.branch_context)?.name || 'Your Selected Branch'}
+                            </strong>
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          <Label htmlFor="branch">Branch *</Label>
+                          <Select onValueChange={(value) => setSelectedBranchId(value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select branch" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {branches.map((b) => (
+                                <SelectItem key={b.id} value={b.id}>
+                                  {b.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
 
-              <div>
-                <Label htmlFor="image-url">Item Photo</Label>
-                <Input
-                  id="image-url"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onload = (event) => {
-                        setFormData({ ...formData, image_url: event.target?.result as string });
-                      };
-                      reader.readAsDataURL(file);
-                    }
-                  }}
-                />
-                {formData.image_url && (
-                  <div className="mt-2">
-                    <img src={formData.image_url} alt="Preview" className="w-16 h-16 object-cover rounded" />
+                <div>
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Enter item description"
+                    rows={3}
+                  />
+                  {formErrors.description && <p className="text-sm text-red-500 mt-1">{formErrors.description}</p>}
+                </div>
+
+                <div>
+                  <Label htmlFor="image-url">Item Photo</Label>
+                  <Input
+                    id="image-url"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          setFormData({ ...formData, image_url: event.target?.result as string });
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                  {formData.image_url && (
+                    <div className="mt-2">
+                      <img src={formData.image_url} alt="Preview" className="w-16 h-16 object-cover rounded" />
+                    </div>
+                  )}
+                  {formErrors.image_url && <p className="text-sm text-red-500 mt-1">{formErrors.image_url}</p>}
+                </div>
+
+                <div>
+                  <Label htmlFor="storage-temp">Storage Temperature (°C)</Label>
+                  <div className="relative">
+                    <Input
+                      id="storage-temp"
+                      type="number"
+                      step="0.1"
+                      value={formData.storage_temperature}
+                      onChange={(e) => setFormData({ ...formData, storage_temperature: e.target.value })}
+                      placeholder="e.g., -18 for frozen"
+                    />
+                    <Thermometer className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
                   </div>
-                )}
-                {formErrors.image_url && <p className="text-sm text-red-500 mt-1">{formErrors.image_url}</p>}
-              </div>
-
-              <div>
-                <Label htmlFor="storage-temp">Storage Temperature (°C)</Label>
-                <div className="relative">
-                  <Input
-                    id="storage-temp"
-                    type="number"
-                    step="0.1"
-                    value={formData.storage_temperature}
-                    onChange={(e) => setFormData({ ...formData, storage_temperature: e.target.value })}
-                    placeholder="e.g., -18 for frozen"
-                  />
-                  <Thermometer className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
-                </div>
-                {formErrors.storage_temperature && <p className="text-sm text-red-500 mt-1">{formErrors.storage_temperature}</p>}
-              </div>
-
-              <div>
-                <Label htmlFor="threshold">Threshold Level *</Label>
-                <div className="relative">
-                  <Input
-                    id="threshold"
-                    type="number"
-                    min="1"
-                    value={formData.threshold_level}
-                    onChange={(e) => setFormData({ ...formData, threshold_level: e.target.value })}
-                    placeholder="e.g., 10"
-                  />
-                  <AlertTriangle className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Alert will be triggered when stock falls below this level
-                </p>
-                {formErrors.threshold_level && <p className="text-sm text-red-500 mt-1">{formErrors.threshold_level}</p>}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="low_level">Low Level Alert (Optional)</Label>
-                  <Input
-                    id="low_level"
-                    type="number"
-                    min="1"
-                    value={formData.low_level}
-                    onChange={(e) => setFormData({ ...formData, low_level: e.target.value })}
-                    placeholder="e.g., 5"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Low stock alert threshold (default: 50% of threshold)
-                  </p>
-                  {formErrors.low_level && <p className="text-sm text-red-500 mt-1">{formErrors.low_level}</p>}
-                </div>
-
-                <div>
-                  <Label htmlFor="critical_level">Critical Level Alert (Optional)</Label>
-                  <Input
-                    id="critical_level"
-                    type="number"
-                    min="1"
-                    value={formData.critical_level}
-                    onChange={(e) => setFormData({ ...formData, critical_level: e.target.value })}
-                    placeholder="e.g., 2"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Critical stock alert threshold (default: 20% of threshold)
-                  </p>
-                  {formErrors.critical_level && <p className="text-sm text-red-500 mt-1">{formErrors.critical_level}</p>}
+                  {formErrors.storage_temperature && <p className="text-sm text-red-500 mt-1">{formErrors.storage_temperature}</p>}
                 </div>
               </div>
 
               {/* Unit of Measurement Section */}
-              <div className="border-t pt-4 space-y-4">
-                <h3 className="font-semibold text-lg">Unit of Measurement</h3>
+              <div className="space-y-4">
+                <div className="border-b pb-2">
+                  <h3 className="font-semibold text-lg flex items-center gap-2">
+                    <Package className="h-5 w-5" />
+                    Unit of Measurement
+                  </h3>
+                </div>
                 
                 <div>
                   <Label htmlFor="base_unit">Base Unit *</Label>
@@ -521,9 +483,12 @@ const Items = () => {
                     onCheckedChange={(checked) => setFormData({ ...formData, enable_packaging: checked as boolean })}
                   />
                   <Label htmlFor="enable_packaging" className="cursor-pointer">
-                    Track by packages/boxes
+                    Track by packages/boxes (e.g., items that arrive in cartons)
                   </Label>
                 </div>
+                <p className="text-xs text-muted-foreground -mt-2 ml-6">
+                  Leave unchecked for items counted individually (e.g., single bottles, loose vegetables)
+                </p>
 
                 {formData.enable_packaging && (
                   <>
@@ -571,6 +536,72 @@ const Items = () => {
                     )}
                   </>
                 )}
+              </div>
+
+              {/* Threshold Details Section */}
+              <div className="space-y-4">
+                <div className="border-b pb-2">
+                  <h3 className="font-semibold text-lg flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5" />
+                    Threshold Details
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Set stock levels that trigger automatic alerts
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="threshold">Threshold Level *</Label>
+                  <div className="relative">
+                    <Input
+                      id="threshold"
+                      type="number"
+                      min="1"
+                      value={formData.threshold_level}
+                      onChange={(e) => setFormData({ ...formData, threshold_level: e.target.value })}
+                      placeholder="e.g., 10"
+                    />
+                    <AlertTriangle className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Alert will be triggered when stock falls below this level
+                  </p>
+                  {formErrors.threshold_level && <p className="text-sm text-red-500 mt-1">{formErrors.threshold_level}</p>}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="low_level">Low Level Alert (Optional)</Label>
+                    <Input
+                      id="low_level"
+                      type="number"
+                      min="1"
+                      value={formData.low_level}
+                      onChange={(e) => setFormData({ ...formData, low_level: e.target.value })}
+                      placeholder="e.g., 5"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Low stock alert threshold (default: 50% of threshold)
+                    </p>
+                    {formErrors.low_level && <p className="text-sm text-red-500 mt-1">{formErrors.low_level}</p>}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="critical_level">Critical Level Alert (Optional)</Label>
+                    <Input
+                      id="critical_level"
+                      type="number"
+                      min="1"
+                      value={formData.critical_level}
+                      onChange={(e) => setFormData({ ...formData, critical_level: e.target.value })}
+                      placeholder="e.g., 2"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Critical stock alert threshold (default: 20% of threshold)
+                    </p>
+                    {formErrors.critical_level && <p className="text-sm text-red-500 mt-1">{formErrors.critical_level}</p>}
+                  </div>
+                </div>
               </div>
 
               <div className="flex justify-end space-x-2 pt-4">
@@ -732,147 +763,109 @@ const Items = () => {
               Edit Item
             </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="edit-item-name">Item Name *</Label>
-              <Input
-                id="edit-item-name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Enter item name"
-              />
-              {formErrors.name && <p className="text-sm text-red-500 mt-1">{formErrors.name}</p>}
-            </div>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Basic Item Details Section */}
+            <div className="space-y-4">
+              <div className="border-b pb-2">
+                <h3 className="font-semibold text-lg flex items-center gap-2">
+                  <Package2 className="h-5 w-5" />
+                  Basic Item Details
+                </h3>
+              </div>
 
-            <div>
-              <Label htmlFor="edit-category">Category *</Label>
-              <Select 
-                value={formData.category} 
-                onValueChange={(value) => setFormData({ ...formData, category: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {suppliers.map((supplier) => (
-                    <SelectItem key={supplier} value={supplier}>
-                      {supplier}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {formErrors.category && <p className="text-sm text-red-500 mt-1">{formErrors.category}</p>}
-            </div>
+              <div>
+                <Label htmlFor="edit-item-name">Item Name *</Label>
+                <Input
+                  id="edit-item-name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Enter item name"
+                />
+                {formErrors.name && <p className="text-sm text-red-500 mt-1">{formErrors.name}</p>}
+              </div>
 
-            <div>
-              <Label htmlFor="edit-description">Description</Label>
-              <Textarea
-                id="edit-description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Enter item description"
-                rows={3}
-              />
-              {formErrors.description && <p className="text-sm text-red-500 mt-1">{formErrors.description}</p>}
-            </div>
+              <div>
+                <Label htmlFor="edit-category">Category *</Label>
+                <Select 
+                  value={formData.category} 
+                  onValueChange={(value) => setFormData({ ...formData, category: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {suppliers.map((supplier) => (
+                      <SelectItem key={supplier} value={supplier}>
+                        {supplier}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {formErrors.category && <p className="text-sm text-red-500 mt-1">{formErrors.category}</p>}
+              </div>
 
-            <div>
-              <Label htmlFor="edit-image-url">Item Photo</Label>
-              <Input
-                id="edit-image-url"
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                      setFormData({ ...formData, image_url: event.target?.result as string });
-                    };
-                    reader.readAsDataURL(file);
-                  }
-                }}
-              />
-              {formData.image_url && (
-                <div className="mt-2">
-                  <img src={formData.image_url} alt="Preview" className="w-16 h-16 object-cover rounded" />
+              <div>
+                <Label htmlFor="edit-description">Description</Label>
+                <Textarea
+                  id="edit-description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Enter item description"
+                  rows={3}
+                />
+                {formErrors.description && <p className="text-sm text-red-500 mt-1">{formErrors.description}</p>}
+              </div>
+
+              <div>
+                <Label htmlFor="edit-image-url">Item Photo</Label>
+                <Input
+                  id="edit-image-url"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        setFormData({ ...formData, image_url: event.target?.result as string });
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                />
+                {formData.image_url && (
+                  <div className="mt-2">
+                    <img src={formData.image_url} alt="Preview" className="w-16 h-16 object-cover rounded" />
+                  </div>
+                )}
+                {formErrors.image_url && <p className="text-sm text-red-500 mt-1">{formErrors.image_url}</p>}
+              </div>
+
+              <div>
+                <Label htmlFor="edit-storage-temp">Storage Temperature (°C)</Label>
+                <div className="relative">
+                  <Input
+                    id="edit-storage-temp"
+                    type="number"
+                    step="0.1"
+                    value={formData.storage_temperature}
+                    onChange={(e) => setFormData({ ...formData, storage_temperature: e.target.value })}
+                    placeholder="e.g., -18 for frozen"
+                  />
+                  <Thermometer className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
                 </div>
-              )}
-              {formErrors.image_url && <p className="text-sm text-red-500 mt-1">{formErrors.image_url}</p>}
-            </div>
-
-            <div>
-              <Label htmlFor="edit-storage-temp">Storage Temperature (°C)</Label>
-              <div className="relative">
-                <Input
-                  id="edit-storage-temp"
-                  type="number"
-                  step="0.1"
-                  value={formData.storage_temperature}
-                  onChange={(e) => setFormData({ ...formData, storage_temperature: e.target.value })}
-                  placeholder="e.g., -18 for frozen"
-                />
-                <Thermometer className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
-              </div>
-              {formErrors.storage_temperature && <p className="text-sm text-red-500 mt-1">{formErrors.storage_temperature}</p>}
-            </div>
-
-            <div>
-              <Label htmlFor="edit-threshold">Threshold Level *</Label>
-              <div className="relative">
-                <Input
-                  id="edit-threshold"
-                  type="number"
-                  min="1"
-                  value={formData.threshold_level}
-                  onChange={(e) => setFormData({ ...formData, threshold_level: e.target.value })}
-                  placeholder="e.g., 10"
-                />
-                <AlertTriangle className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Alert will be triggered when stock falls below this level
-              </p>
-              {formErrors.threshold_level && <p className="text-sm text-red-500 mt-1">{formErrors.threshold_level}</p>}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit-low-level">Low Level Alert (Optional)</Label>
-                <Input
-                  id="edit-low-level"
-                  type="number"
-                  min="1"
-                  value={formData.low_level}
-                  onChange={(e) => setFormData({ ...formData, low_level: e.target.value })}
-                  placeholder="e.g., 5"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Low stock alert threshold (default: 50% of threshold)
-                </p>
-                {formErrors.low_level && <p className="text-sm text-red-500 mt-1">{formErrors.low_level}</p>}
-              </div>
-
-              <div>
-                <Label htmlFor="edit-critical-level">Critical Level Alert (Optional)</Label>
-                <Input
-                  id="edit-critical-level"
-                  type="number"
-                  min="1"
-                  value={formData.critical_level}
-                  onChange={(e) => setFormData({ ...formData, critical_level: e.target.value })}
-                  placeholder="e.g., 2"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Critical stock alert threshold (default: 20% of threshold)
-                </p>
-                {formErrors.critical_level && <p className="text-sm text-red-500 mt-1">{formErrors.critical_level}</p>}
+                {formErrors.storage_temperature && <p className="text-sm text-red-500 mt-1">{formErrors.storage_temperature}</p>}
               </div>
             </div>
 
             {/* Unit of Measurement Section */}
-            <div className="border-t pt-4 space-y-4">
-              <h3 className="font-semibold text-lg">Unit of Measurement</h3>
+            <div className="space-y-4">
+              <div className="border-b pb-2">
+                <h3 className="font-semibold text-lg flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  Unit of Measurement
+                </h3>
+              </div>
               
               <div>
                 <Label htmlFor="edit-base-unit">Base Unit *</Label>
@@ -903,9 +896,12 @@ const Items = () => {
                   onCheckedChange={(checked) => setFormData({ ...formData, enable_packaging: checked as boolean })}
                 />
                 <Label htmlFor="edit-enable-packaging" className="cursor-pointer">
-                  Track by packages/boxes
+                  Track by packages/boxes (e.g., items that arrive in cartons)
                 </Label>
               </div>
+              <p className="text-xs text-muted-foreground -mt-2 ml-6">
+                Leave unchecked for items counted individually (e.g., single bottles, loose vegetables)
+              </p>
 
               {formData.enable_packaging && (
                 <>
@@ -953,6 +949,72 @@ const Items = () => {
                   )}
                 </>
               )}
+            </div>
+
+            {/* Threshold Details Section */}
+            <div className="space-y-4">
+              <div className="border-b pb-2">
+                <h3 className="font-semibold text-lg flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5" />
+                  Threshold Details
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Set stock levels that trigger automatic alerts
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="edit-threshold">Threshold Level *</Label>
+                <div className="relative">
+                  <Input
+                    id="edit-threshold"
+                    type="number"
+                    min="1"
+                    value={formData.threshold_level}
+                    onChange={(e) => setFormData({ ...formData, threshold_level: e.target.value })}
+                    placeholder="e.g., 10"
+                  />
+                  <AlertTriangle className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Alert will be triggered when stock falls below this level
+                </p>
+                {formErrors.threshold_level && <p className="text-sm text-red-500 mt-1">{formErrors.threshold_level}</p>}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-low-level">Low Level Alert (Optional)</Label>
+                  <Input
+                    id="edit-low-level"
+                    type="number"
+                    min="1"
+                    value={formData.low_level}
+                    onChange={(e) => setFormData({ ...formData, low_level: e.target.value })}
+                    placeholder="e.g., 5"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Low stock alert threshold (default: 50% of threshold)
+                  </p>
+                  {formErrors.low_level && <p className="text-sm text-red-500 mt-1">{formErrors.low_level}</p>}
+                </div>
+
+                <div>
+                  <Label htmlFor="edit-critical-level">Critical Level Alert (Optional)</Label>
+                  <Input
+                    id="edit-critical-level"
+                    type="number"
+                    min="1"
+                    value={formData.critical_level}
+                    onChange={(e) => setFormData({ ...formData, critical_level: e.target.value })}
+                    placeholder="e.g., 2"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Critical stock alert threshold (default: 20% of threshold)
+                  </p>
+                  {formErrors.critical_level && <p className="text-sm text-red-500 mt-1">{formErrors.critical_level}</p>}
+                </div>
+              </div>
             </div>
 
             <div className="flex justify-end space-x-2 pt-4">
