@@ -24,16 +24,20 @@ SET base_unit = 'piece'
 WHERE base_unit IS NULL;
 
 -- Step 4: Add check constraint to ensure units_per_package is positive when set
+-- Drop existing constraint if it exists, then add it
+ALTER TABLE items DROP CONSTRAINT IF EXISTS items_units_per_package_check;
 ALTER TABLE items 
 ADD CONSTRAINT items_units_per_package_check 
 CHECK (units_per_package IS NULL OR units_per_package > 0);
 
 -- Step 5: Add check constraint for valid base units
+ALTER TABLE items DROP CONSTRAINT IF EXISTS items_base_unit_check;
 ALTER TABLE items
 ADD CONSTRAINT items_base_unit_check
 CHECK (base_unit IN ('piece', 'kg', 'gram', 'liter', 'ml'));
 
 -- Step 6: Add check constraint for valid packaging units
+ALTER TABLE items DROP CONSTRAINT IF EXISTS items_packaging_unit_check;
 ALTER TABLE items
 ADD CONSTRAINT items_packaging_unit_check
 CHECK (packaging_unit IS NULL OR packaging_unit IN ('box', 'carton', 'case', 'packet', 'bag', 'crate'));
