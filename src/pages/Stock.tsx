@@ -138,6 +138,40 @@ const Stock = () => {
         quantityInBaseUnits = quantityNum * selectedItem.items.units_per_package;
       }
 
+      // Check if there's enough stock
+      if (quantityInBaseUnits > selectedItem.current_quantity) {
+        const unitLabel = unitType === 'packaging' ? selectedItem.items.packaging_unit : selectedItem.items.base_unit;
+        const baseUnitLabel = selectedItem.items.base_unit || 'piece';
+        const currentStock = selectedItem.current_quantity;
+        
+        let errorMessage = `Insufficient stock! You're trying to remove ${quantityNum} ${unitLabel}${quantityNum !== 1 ? 's' : ''} (${quantityInBaseUnits} ${baseUnitLabel}${quantityInBaseUnits !== 1 ? 's' : ''}), but only ${currentStock} ${baseUnitLabel}${currentStock !== 1 ? 's' : ''} available.`;
+        
+        // If trying to remove by packaging, suggest how many packages can be removed
+        if (unitType === 'packaging' && selectedItem.items.units_per_package) {
+          const maxPackages = Math.floor(currentStock / selectedItem.items.units_per_package);
+          const remainingPieces = currentStock % selectedItem.items.units_per_package;
+          
+          if (maxPackages > 0) {
+            errorMessage += ` You can remove up to ${maxPackages} ${selectedItem.items.packaging_unit}${maxPackages !== 1 ? 's' : ''}`;
+            if (remainingPieces > 0) {
+              errorMessage += ` and ${remainingPieces} ${baseUnitLabel}${remainingPieces !== 1 ? 's' : ''} separately.`;
+            } else {
+              errorMessage += `.`;
+            }
+          } else {
+            errorMessage += ` Please remove by ${baseUnitLabel} instead.`;
+          }
+        }
+        
+        toast({
+          title: "Insufficient Stock",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        setIsRemovingStock(false);
+        return;
+      }
+
       const unitLabel = unitType === 'packaging' ? selectedItem.items.packaging_unit : selectedItem.items.base_unit;
 
       const result = await apiClient.updateStockQuantity(
@@ -215,6 +249,40 @@ const Stock = () => {
       
       if (quickActionUnitType === 'packaging' && item.items.units_per_package) {
         quantityInBaseUnits = quantityNum * item.items.units_per_package;
+      }
+
+      // Check if there's enough stock
+      if (quantityInBaseUnits > item.current_quantity) {
+        const unitLabel = quickActionUnitType === 'packaging' ? item.items.packaging_unit : item.items.base_unit;
+        const baseUnitLabel = item.items.base_unit || 'piece';
+        const currentStock = item.current_quantity;
+        
+        let errorMessage = `Insufficient stock! You're trying to remove ${quantityNum} ${unitLabel}${quantityNum !== 1 ? 's' : ''} (${quantityInBaseUnits} ${baseUnitLabel}${quantityInBaseUnits !== 1 ? 's' : ''}), but only ${currentStock} ${baseUnitLabel}${currentStock !== 1 ? 's' : ''} available.`;
+        
+        // If trying to remove by packaging, suggest how many packages can be removed
+        if (quickActionUnitType === 'packaging' && item.items.units_per_package) {
+          const maxPackages = Math.floor(currentStock / item.items.units_per_package);
+          const remainingPieces = currentStock % item.items.units_per_package;
+          
+          if (maxPackages > 0) {
+            errorMessage += ` You can remove up to ${maxPackages} ${item.items.packaging_unit}${maxPackages !== 1 ? 's' : ''}`;
+            if (remainingPieces > 0) {
+              errorMessage += ` and ${remainingPieces} ${baseUnitLabel}${remainingPieces !== 1 ? 's' : ''} separately.`;
+            } else {
+              errorMessage += `.`;
+            }
+          } else {
+            errorMessage += ` Please remove by ${baseUnitLabel} instead.`;
+          }
+        }
+        
+        toast({
+          title: "Insufficient Stock",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        setIsQuickActionLoading(false);
+        return;
       }
 
       const unitLabel = quickActionUnitType === 'packaging' ? item.items.packaging_unit : item.items.base_unit;

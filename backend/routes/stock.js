@@ -105,7 +105,41 @@ router.post('/movement', authenticateToken, async (req, res) => {
     if (movement_type === 'in') {
       newQuantity = currentQuantity + parseInt(quantity);
     } else {
-      newQuantity = Math.max(0, currentQuantity - parseInt(quantity));
+      // For stock out, check if there's enough stock
+      if (parseInt(quantity) > currentQuantity) {
+        // Get item details for better error message
+        const itemResult = await query(
+          'SELECT i.name, i.base_unit, i.packaging_unit, i.units_per_package FROM items i WHERE i.id = $1',
+          [item_id]
+        );
+        
+        const item = itemResult.rows[0];
+        const baseUnit = item.base_unit || 'piece';
+        let errorMessage = `Insufficient stock! Cannot remove ${quantity} ${baseUnit}${quantity !== 1 ? 's' : ''}. Only ${currentQuantity} ${baseUnit}${currentQuantity !== 1 ? 's' : ''} available.`;
+        
+        // If trying to remove by packaging, suggest alternatives
+        if (unit_type === 'packaging' && item.units_per_package && original_quantity) {
+          const maxPackages = Math.floor(currentQuantity / item.units_per_package);
+          const remainingPieces = currentQuantity % item.units_per_package;
+          
+          if (maxPackages > 0) {
+            errorMessage += ` You can remove up to ${maxPackages} ${item.packaging_unit}${maxPackages !== 1 ? 's' : ''}`;
+            if (remainingPieces > 0) {
+              errorMessage += ` and ${remainingPieces} ${baseUnit}${remainingPieces !== 1 ? 's' : ''} separately.`;
+            } else {
+              errorMessage += `.`;
+            }
+          } else {
+            errorMessage += ` Please remove by ${baseUnit} instead.`;
+          }
+        }
+        
+        return res.status(400).json({
+          success: false,
+          error: errorMessage
+        });
+      }
+      newQuantity = currentQuantity - parseInt(quantity);
     }
 
     // Update stock quantity
