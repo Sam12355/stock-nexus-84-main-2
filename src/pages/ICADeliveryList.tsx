@@ -248,11 +248,11 @@ export function ICADeliveryList() {
       const token = localStorage.getItem('auth_token');
       
       for (const entry of editEntries) {
-        const response = await fetch(\`\${API_BASE_URL}/ica-delivery/\${entry.id}\`, {
+        const response = await fetch(`\${API_BASE_URL}/ica-delivery/\${entry.id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': \`Bearer \${token}\`
+            'Authorization': `Bearer \${token}`
           },
           body: JSON.stringify({ 
             amount: parseInt(entry.amount),
