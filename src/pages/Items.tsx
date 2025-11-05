@@ -155,6 +155,10 @@ const Items = () => {
         threshold_level: validatedData.threshold_level,
         low_level: validatedData.low_level,
         critical_level: validatedData.critical_level,
+        base_unit: formData.base_unit || 'piece',
+        enable_packaging: formData.enable_packaging || false,
+        packaging_unit: formData.enable_packaging ? formData.packaging_unit : null,
+        units_per_package: formData.enable_packaging ? (formData.units_per_package ? parseInt(formData.units_per_package) : null) : null,
         branch_id: profile?.role === 'regional_manager' || profile?.role === 'district_manager' 
           ? (profile?.branch_context || selectedBranchId) 
           : profile?.branch_id,

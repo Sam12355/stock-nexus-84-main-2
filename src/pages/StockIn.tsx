@@ -473,7 +473,7 @@ const StockIn = () => {
     item.items.category.toLowerCase().includes(searchTerm.toLowerCase())
   ).map(item => ({
     value: item.id,
-    label: `${item.items.name} (Current: ${item.current_quantity})`,
+    label: `${item.items.name} (Current: ${item.current_quantity} ${item.items.base_unit || 'piece'}${item.current_quantity !== 1 ? 's' : ''})`,
     item: item
   }));
 
@@ -712,9 +712,9 @@ const StockIn = () => {
                           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                             <div className="flex items-center justify-between sm:justify-start gap-4">
                               <div className="text-right">
-                                <p className="font-medium">Qty: {item.current_quantity}</p>
+                                <p className="font-medium">Qty: {item.current_quantity} {item.items.base_unit || 'piece'}{item.current_quantity !== 1 ? 's' : ''}</p>
                                 <p className="text-xs text-muted-foreground">
-                                  Threshold: {item.items.threshold_level}
+                                  Threshold: {item.items.threshold_level} {item.items.base_unit || 'piece'}{item.items.threshold_level !== 1 ? 's' : ''}
                                 </p>
                               </div>
                               
