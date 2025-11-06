@@ -553,9 +553,7 @@ export function ICADeliveryList() {
     <ICADeliveryModal 
       open={showICADeliveryModal} 
       onOpenChange={setShowICADeliveryModal}
-      onSuccess={() => {
-        fetchRecords();
-      }}
+      onSuccess={fetchRecords}
     />
 
     <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -569,6 +567,7 @@ export function ICADeliveryList() {
         <DialogFooter>
           <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
             Cancel
+          </Button>
           <Button variant="destructive" onClick={handleConfirmDelete} disabled={isDeleting}>
             {isDeleting ? (
               <>
@@ -578,7 +577,6 @@ export function ICADeliveryList() {
             ) : (
               "Delete"
             )}
-          </Button>
           </Button>
         </DialogFooter>
       </DialogContent>
