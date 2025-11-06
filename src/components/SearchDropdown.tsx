@@ -69,11 +69,13 @@ export function SearchDropdown() {
 
       // Get stock data for the current branch using the correct method name
       const stockData = await apiClient.getStockData();
-      const branchStock = stockData.filter(stock => stock.branch_id === branchId);
+      console.log('Stock data sample:', stockData[0]); // Debug
+      const branchStock = stockData.filter(stock => stock.branch_id === branchId || stock.items?.branch_id === branchId);
 
       // Map items with their correct stock quantities
       const itemsWithStock = filteredItems.map((item) => {
         const stockItem = branchStock.find(stock => stock.item_id === item.id);
+        console.log(`Item: ${item.name}, Stock:`, stockItem); // Debug
         return {
           id: item.id,
           name: item.name,
