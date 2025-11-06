@@ -35,6 +35,7 @@ export function ICADeliveryList() {
   // Delete confirmation dialog
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<number[] | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Edit dialog
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -185,9 +186,10 @@ export function ICADeliveryList() {
   };
 
   const handleConfirmDelete = async () => {
-    if (!recordToDelete) return;
+    if (!recordToDelete || isDeleting) return;
 
     try {
+      setIsDeleting(true);
       const token = localStorage.getItem('auth_token');
       
       for (const id of recordToDelete) {
@@ -208,7 +210,6 @@ export function ICADeliveryList() {
         description: "ICA delivery record deleted successfully",
       });
 
-
       // Update state directly instead of refetching
       setRecords(prevRecords => prevRecords.filter(r => !recordToDelete.includes(r.id)));
       
@@ -219,6 +220,12 @@ export function ICADeliveryList() {
       toast({
         title: "Error",
         description: "Failed to delete ICA delivery record",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
         variant: "destructive",
       });
     }
@@ -285,7 +292,6 @@ export function ICADeliveryList() {
       
       setShowEditDialog(false);
       setEditingRecord(null);
-      fetchRecords();
     } catch (error) {
       console.error('Error updating record:', error);
       toast({
@@ -567,9 +573,16 @@ export function ICADeliveryList() {
         <DialogFooter>
           <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
             Cancel
+          <Button variant="destructive" onClick={handleConfirmDelete} disabled={isDeleting}>
+            {isDeleting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Deleting...
+              </>
+            ) : (
+              "Delete"
+            )}
           </Button>
-          <Button variant="destructive" onClick={handleConfirmDelete}>
-            Delete
           </Button>
         </DialogFooter>
       </DialogContent>
