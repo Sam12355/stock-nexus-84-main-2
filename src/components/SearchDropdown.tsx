@@ -67,41 +67,26 @@ export function SearchDropdown() {
         )
         .slice(0, 5);
 
-      // Get stock data for each item
-      const itemsWithStock = await Promise.all(
-        filteredItems.map(async (item) => {
-          try {
-            const stockData = await apiClient.getStock();
-            const stockItem = stockData.find(stock => stock.item_id === item.id);
-            return {
-              id: item.id,
-              name: item.name,
-              category: item.category,
-              description: item.description,
-              threshold_level: item.threshold_level,
-              low_level: item.low_level,
-              critical_level: item.critical_level,
-              storage_temperature: item.storage_temperature,
-              image_url: item.image_url,
-              current_quantity: stockItem?.current_quantity || 0
-            };
-          } catch (error) {
-            console.error(`Error fetching stock for item ${item.id}:`, error);
-            return {
-              id: item.id,
-              name: item.name,
-              category: item.category,
-              description: item.description,
-              threshold_level: item.threshold_level,
-              low_level: item.low_level,
-              critical_level: item.critical_level,
-              storage_temperature: item.storage_temperature,
-              image_url: item.image_url,
-              current_quantity: 0
-            };
-          }
-        })
-      );
+      // Get stock data for the current branch
+      const stockData = await apiClient.getStock();
+      const branchStock = stockData.filter(stock => stock.branch_id === branchId);
+
+      // Map items with their correct stock quantities
+      const itemsWithStock = filteredItems.map((item) => {
+        const stockItem = branchStock.find(stock => stock.item_id === item.id);
+        return {
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          description: item.description,
+          threshold_level: item.threshold_level,
+          low_level: item.low_level,
+          critical_level: item.critical_level,
+          storage_temperature: item.storage_temperature,
+          image_url: item.image_url,
+          current_quantity: stockItem?.current_quantity || 0
+        };
+      });
 
       setSearchResults(itemsWithStock);
     } catch (error) {
