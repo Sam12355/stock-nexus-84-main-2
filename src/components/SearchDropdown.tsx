@@ -18,6 +18,10 @@ interface SearchItem {
   critical_level?: number;
   storage_temperature?: number;
   image_url?: string;
+  base_unit?: string;
+  packaging_unit?: string;
+  units_per_package?: number;
+  enable_packaging?: boolean;
 }
 
 export function SearchDropdown() {
@@ -86,7 +90,11 @@ export function SearchDropdown() {
           critical_level: item.critical_level,
           storage_temperature: item.storage_temperature,
           image_url: item.image_url,
-          current_quantity: stockItem?.current_quantity || 0
+          current_quantity: stockItem?.current_quantity || 0,
+          base_unit: item.base_unit,
+          packaging_unit: item.packaging_unit,
+          units_per_package: item.units_per_package,
+          enable_packaging: item.enable_packaging
         };
       });
 
@@ -109,9 +117,24 @@ export function SearchDropdown() {
     const criticalThreshold = criticalLevel || threshold * 0.5;
     const lowThreshold = lowLevel || threshold;
     
-    if (current <= criticalThreshold) return { status: 'Critical', variant: 'destructive' as const, icon: XCircle };
-    if (current <= lowThreshold) return { status: 'Low', variant: 'secondary' as const, icon: AlertTriangle };
-    return { status: 'Adequate', variant: 'default' as const, icon: CheckCircle };
+    if (current <= criticalThreshold) return { 
+      status: 'Critical', 
+      variant: 'destructive' as const, 
+      icon: XCircle,
+      className: 'bg-red-600 text-white hover:bg-red-700'
+    };
+    if (current <= lowThreshold) return { 
+      status: 'Low', 
+      variant: 'destructive' as const, 
+      icon: AlertTriangle,
+      className: 'bg-yellow-600 text-white hover:bg-yellow-700'
+    };
+    return { 
+      status: 'Adequate', 
+      variant: 'default' as const, 
+      icon: CheckCircle,
+      className: 'bg-green-600 text-white hover:bg-green-700'
+    };
   };
 
   return (
@@ -160,7 +183,7 @@ export function SearchDropdown() {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <IconComponent className="h-3 w-3" />
-                          <Badge variant={stockInfo.variant} className="text-xs">
+                          <Badge className={stockInfo.className}>
                             {stockInfo.status}
                           </Badge>
                           <span className="text-xs text-muted-foreground">
@@ -215,7 +238,24 @@ export function SearchDropdown() {
                 <div className="text-center p-3 bg-muted rounded-lg">
                   <h4 className="font-medium text-sm mb-1">Current Stock</h4>
                   <p className="text-2xl font-bold text-primary">{selectedItem.current_quantity}</p>
+                  <p className="text-xs text-muted-foreground">{selectedItem.base_unit || 'units'}</p>
                 </div>
+                {selectedItem.enable_packaging && selectedItem.units_per_package && selectedItem.units_per_package > 0 && (
+                  <div className="text-center p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <h4 className="font-medium text-sm mb-1 text-blue-800 dark:text-blue-200">Packaging</h4>
+                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                      {Math.floor(selectedItem.current_quantity / selectedItem.units_per_package)}
+                    </p>
+                    <p className="text-xs text-blue-600 dark:text-blue-400">
+                      {selectedItem.packaging_unit || 'packages'}
+                      {selectedItem.current_quantity % selectedItem.units_per_package > 0 && (
+                        <span className="block mt-1">
+                          + {selectedItem.current_quantity % selectedItem.units_per_package} {selectedItem.base_unit || 'units'}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                )}
                 <div className="text-center p-3 bg-muted rounded-lg">
                   <h4 className="font-medium text-sm mb-1">Threshold</h4>
                   <p className="text-2xl font-bold">{selectedItem.threshold_level}</p>
@@ -248,7 +288,7 @@ export function SearchDropdown() {
                   {(() => {
                     const stockInfo = getStockStatus(selectedItem.current_quantity, selectedItem.threshold_level, selectedItem.low_level, selectedItem.critical_level);
                     return (
-                      <Badge variant={stockInfo.variant} className="text-sm px-3 py-1">
+                      <Badge className={stockInfo.className}>
                         {stockInfo.status}
                       </Badge>
                     );
