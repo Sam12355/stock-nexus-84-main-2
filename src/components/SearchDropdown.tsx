@@ -67,8 +67,8 @@ export function SearchDropdown() {
         )
         .slice(0, 5);
 
-      // Get stock data for the current branch
-      const stockData = await apiClient.getStock();
+      // Get stock data for the current branch using the correct method name
+      const stockData = await apiClient.getStockData();
       const branchStock = stockData.filter(stock => stock.branch_id === branchId);
 
       // Map items with their correct stock quantities
