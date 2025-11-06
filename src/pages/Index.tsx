@@ -880,7 +880,7 @@ const Index = () => {
             </p>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Activity className="h-4 w-4" />
+            <Activity className="h-3 w-3 sm:h-4 sm:w-4" />
             Today: {new Date().toLocaleDateString()}
           </div>
         </div>
@@ -921,7 +921,7 @@ const Index = () => {
                           <CalendarIcon className="h-4 w-4 text-blue-500" />
                           <div className="flex-1">
                             <p className="text-sm font-medium">{event.title}</p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-[10px] sm:text-xs text-muted-foreground">
                               {format(new Date(event.event_date), 'MMM dd, yyyy')}
                             </p>
                           </div>
@@ -944,7 +944,7 @@ const Index = () => {
         {/* Generated Moveout Lists Section */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
               <FileText className="h-5 w-5" />
               Generated Moveout Lists
             </CardTitle>
@@ -990,7 +990,7 @@ const Index = () => {
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Activity className="h-4 w-4" />
+            <Activity className="h-3 w-3 sm:h-4 sm:w-4" />
             Today: {new Date().toLocaleDateString()}
           </div>
         </div>
@@ -998,10 +998,10 @@ const Index = () => {
 
       {/* Generate Moveout List Button - Only for staff */}
       {extendedProfile?.role === 'staff' && (
-        <div className="flex justify-center gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 mb-6">
           <Button 
             onClick={() => setShowMoveoutModal(true)}
-            className="px-8 py-3 text-lg"
+            className="px-6 sm:px-8 py-3 text-base sm:text-lg w-full sm:w-auto"
             size="lg"
           >
             <FileText className="h-5 w-5 mr-2" />
@@ -1009,7 +1009,7 @@ const Index = () => {
           </Button>
           <Button 
             onClick={() => setShowICADeliveryModal(true)}
-            className="px-8 py-3 text-lg bg-green-600 hover:bg-green-700"
+            className="px-6 sm:px-8 py-3 text-base sm:text-lg w-full sm:w-auto bg-green-600 hover:bg-green-700"
             size="lg"
           >
             <Package className="h-5 w-5 mr-2" />
@@ -1023,12 +1023,12 @@ const Index = () => {
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Items</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs sm:text-sm font-medium">Total Items</CardTitle>
+            <Package className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalItems}</div>
-            <p className="text-xs text-muted-foreground">Items in inventory</p>
+            <div className="text-xl sm:text-2xl font-bold">{stats.totalItems}</div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Items in inventory</p>
           </CardContent>
         </Card>
 
@@ -1040,12 +1040,12 @@ const Index = () => {
             }}
           >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Below Threshold</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-yellow-500" />
+              <CardTitle className="text-xs sm:text-sm font-medium">Below Threshold</CardTitle>
+              <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">{stats.thresholdStockItems}</div>
-              <p className="text-xs text-muted-foreground">Below threshold level</p>
+              <div className="text-xl sm:text-2xl font-bold text-yellow-600">{stats.thresholdStockItems}</div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Below threshold level</p>
             </CardContent>
           </Card>
 
@@ -1057,12 +1057,12 @@ const Index = () => {
           }}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Low Stock Items</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-orange-500" />
+            <CardTitle className="text-xs sm:text-sm font-medium">Low Stock Items</CardTitle>
+            <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{stats.lowStockItems}</div>
-            <p className="text-xs text-muted-foreground">Requires attention</p>
+            <div className="text-xl sm:text-2xl font-bold text-orange-600">{stats.lowStockItems}</div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Requires attention</p>
           </CardContent>
         </Card>
 
@@ -1074,12 +1074,12 @@ const Index = () => {
           }}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Critical Stock</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-red-500" />
+            <CardTitle className="text-xs sm:text-sm font-medium">Critical Stock</CardTitle>
+            <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.criticalStockItems}</div>
-            <p className="text-xs text-muted-foreground">Urgent attention</p>
+            <div className="text-xl sm:text-2xl font-bold text-red-600">{stats.criticalStockItems}</div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Urgent attention</p>
           </CardContent>
         </Card>
 
@@ -1108,9 +1108,9 @@ const Index = () => {
             )}
           </CardHeader>
           <CardContent>
-            <div className="grid lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               {/* Calendar */}
-              <div className="flex flex-col items-center">
+              <div className="flex flex-col items-center w-full">
                 <Calendar
                   mode="single"
                   selected={selectedCalendarDate}
@@ -1121,20 +1121,20 @@ const Index = () => {
               
               {/* Events List - Show for management roles only */}
               {['manager', 'assistant_manager'].includes(extendedProfile?.role!) && (
-                <div className="space-y-4">
-                  <h4 className="font-semibold">Upcoming Events</h4>
+                <div className="space-y-3 sm:space-y-4">
+                  <h4 className="text-sm sm:text-base font-semibold">Upcoming Events</h4>
                   {events.length > 0 ? (
                     <div className="space-y-3 max-h-64 overflow-y-auto">
                       {events.map((event) => (
                         <div key={event.id} className="flex items-center justify-between p-3 rounded-lg border">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-start sm:items-center gap-2 sm:gap-3 flex-1">
                             <div className="w-2 h-2 rounded-full bg-primary" />
                             <div>
                               <p className="font-medium">{event.title}</p>
                               <p className="text-sm text-muted-foreground">{event.description}</p>
                             </div>
                           </div>
-                          <div className="text-right">
+                          <div className="flex sm:flex-col gap-2 sm:gap-0 sm:text-right w-full sm:w-auto">
                             <p className="text-sm font-medium">
                               {new Date(event.event_date).toLocaleDateString()}
                             </p>
@@ -1159,7 +1159,7 @@ const Index = () => {
         {extendedProfile?.role !== 'staff' && (
         <Card className="lg:col-span-1">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
               <Cloud className="h-5 w-5" />
               {weather?.location ? `Weather in ${weather.location}` : 'Weather'}
             </CardTitle>
@@ -1176,11 +1176,11 @@ const Index = () => {
                   <p className="text-sm text-muted-foreground capitalize">{weather.condition}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-4 pt-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                     <Droplets className="h-4 w-4 text-blue-500" />
                     <span className="text-sm">{weather.humidity}%</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                     <Wind className="h-4 w-4 text-gray-500" />
                     <span className="text-sm">{weather.windSpeed} km/h</span>
                   </div>
@@ -1218,7 +1218,7 @@ const Index = () => {
           {/* Weather Widget */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
                 <Cloud className="h-5 w-5" />
                 {weather?.location ? `Weather in ${weather.location}` : 'Weather'}
               </CardTitle>
@@ -1235,11 +1235,11 @@ const Index = () => {
                     <p className="text-sm text-muted-foreground capitalize">{weather.condition}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-4 pt-2">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                       <Droplets className="h-4 w-4 text-blue-500" />
                       <span className="text-sm">{weather.humidity}%</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                       <Wind className="h-4 w-4 text-gray-500" />
                       <span className="text-sm">{weather.windSpeed} km/h</span>
                     </div>
@@ -1273,7 +1273,7 @@ const Index = () => {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
                     <FileText className="h-5 w-5" />
                     Generated Moveout Lists
                   </CardTitle>
@@ -1319,7 +1319,7 @@ const Index = () => {
                             <AccordionTrigger className="text-left">
                               <div className="flex items-center justify-between w-full mr-4">
                                 <span className="font-semibold">{list.title || `Moveout List #${index + 1}`}</span>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                                   <span className="text-sm text-muted-foreground">
                                     {new Date(list.created_at).toLocaleDateString()}
                                   </span>
@@ -1425,7 +1425,7 @@ const Index = () => {
                               {/* Completion Information */}
                               {list.items && Array.isArray(list.items) && list.items.some((item: any) => item.completed) && (
                                 <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                                     <span className="text-sm font-medium text-green-800">
                                       Completed by {(() => {
@@ -1459,7 +1459,7 @@ const Index = () => {
                                 <AccordionTrigger className="text-left">
                                   <div className="flex items-center justify-between w-full mr-4">
                                     <span className="font-semibold">{list.title || `Moveout List #${index + 1}`}</span>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                                       <span className="text-sm text-muted-foreground">
                                         {new Date(list.created_at).toLocaleDateString()}
                                       </span>
@@ -1565,7 +1565,7 @@ const Index = () => {
                                   {/* Completion Information */}
                                   {list.items && Array.isArray(list.items) && list.items.some((item: any) => item.completed) && (
                                     <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                                         <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                                         <span className="text-sm font-medium text-green-800">
                                           Completed by {(() => {
@@ -1592,7 +1592,7 @@ const Index = () => {
                       
                       return hasMore ? (
                         <div className="text-center pt-4">
-                          <Button
+                          <Button className="w-full sm:w-auto text-sm sm:text-base"
                             variant="outline"
                             onClick={handleLoadHistory}
                             disabled={moveoutListsLoading}
@@ -1630,7 +1630,7 @@ const Index = () => {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
                   <FileText className="h-5 w-5" />
                   Generated Moveout Lists
                 </CardTitle>
@@ -1687,7 +1687,7 @@ const Index = () => {
                           <AccordionTrigger className="text-left">
                             <div className="flex items-center justify-between w-full mr-4">
                               <span className="font-semibold">{list.title || `Moveout List #${index + 1}`}</span>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                                 <span className="text-sm text-muted-foreground">
                                   {new Date(list.created_at).toLocaleDateString()}
                                 </span>
@@ -1794,7 +1794,7 @@ const Index = () => {
                             {/* Completion Information */}
                             {list.items && Array.isArray(list.items) && list.items.some((item: any) => item.completed) && (
                               <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                                   <span className="text-sm font-medium text-green-800">
                                     Completed by {(() => {
@@ -1821,7 +1821,7 @@ const Index = () => {
                     
                     return hasMore ? (
                       <div className="text-center pt-4">
-                        <Button
+                        <Button className="w-full sm:w-auto text-sm sm:text-base"
                           variant="outline"
                           onClick={handleLoadHistory}
                           disabled={moveoutListsLoading}
@@ -1857,7 +1857,7 @@ const Index = () => {
 
       {/* Stock Details Modal */}
       <Dialog open={showStockModal} onOpenChange={setShowStockModal}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl mx-4 mx-4 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {modalStockType === 'threshold' ? 'Below Threshold Items' : 
@@ -1868,7 +1868,7 @@ const Index = () => {
             {(modalStockType === 'threshold' ? stats.thresholdStockDetails : 
               modalStockType === 'low' ? stats.lowStockDetails : stats.criticalStockDetails)?.map((item: any) => (
               <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="flex items-center gap-3">
+                <div className="flex items-start sm:items-center gap-2 sm:gap-3 flex-1">
                   {item.image_url ? (
                     <img 
                       src={item.image_url} 
@@ -1885,7 +1885,7 @@ const Index = () => {
                     <p className="text-sm text-muted-foreground capitalize">{item.category}</p>
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="flex sm:flex-col gap-2 sm:gap-0 sm:text-right w-full sm:w-auto">
                   <p className="font-medium">Current: {item.current_quantity}</p>
                   <p className="text-sm text-muted-foreground">Threshold: {item.threshold_level}</p>
                 </div>
@@ -2046,7 +2046,7 @@ const Index = () => {
           <div className="space-y-4">
             {!extendedProfile?.branch_id && (
               <div>
-                <Label htmlFor="event-branch">Branch *</Label>
+                <Label className="text-sm" htmlFor="event-branch">Branch *</Label>
                 <Select2
                   options={branches.map(branch => ({
                     value: branch.id,
@@ -2102,8 +2102,8 @@ const Index = () => {
               </div>
             )}
             <div>
-              <Label htmlFor="event-title">Title *</Label>
-              <Input
+              <Label className="text-sm" htmlFor="event-title">Title *</Label>
+              <Input className="text-sm sm:text-base"
                 id="event-title"
                 value={newEvent.title}
                 onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
@@ -2111,8 +2111,8 @@ const Index = () => {
               />
             </div>
             <div>
-              <Label htmlFor="event-description">Description</Label>
-              <Input
+              <Label className="text-sm" htmlFor="event-description">Description</Label>
+              <Input className="text-sm sm:text-base"
                 id="event-description"
                 value={newEvent.description}
                 onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
@@ -2120,7 +2120,7 @@ const Index = () => {
               />
             </div>
             <div>
-              <Label htmlFor="event-date">Date *</Label>
+              <Label className="text-sm" htmlFor="event-date">Date *</Label>
               <DateTimePicker
                 value={newEvent.event_date ? new Date(newEvent.event_date) : undefined}
                 onChange={(date) => setNewEvent({ ...newEvent, event_date: date ? date.toISOString() : '' })}
@@ -2129,7 +2129,7 @@ const Index = () => {
               />
             </div>
             <div>
-              <Label htmlFor="event-type">Type</Label>
+              <Label className="text-sm" htmlFor="event-type">Type</Label>
               <Select onValueChange={(value) => setNewEvent({ ...newEvent, event_type: value })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select event type" />
@@ -2144,7 +2144,7 @@ const Index = () => {
               </Select>
             </div>
             <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setShowEventModal(false)}>
+              <Button className="w-full sm:w-auto text-sm sm:text-base" variant="outline" onClick={() => setShowEventModal(false)}>
                 Cancel
               </Button>
               <Button onClick={handleAddEvent} disabled={isAddingEvent}>
@@ -2171,7 +2171,7 @@ const Index = () => {
           <div className="space-y-6">
             {/* Item Selection */}
             <div>
-              <Label htmlFor="item-select">Select Items</Label>
+              <Label className="text-sm" htmlFor="item-select">Select Items</Label>
               <Select2
                 isMulti
                 options={availableItems.map(item => ({
@@ -2298,7 +2298,7 @@ const Index = () => {
 
             {/* Action Buttons */}
             <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setShowMoveoutModal(false)}>
+              <Button className="w-full sm:w-auto text-sm sm:text-base" variant="outline" onClick={() => setShowMoveoutModal(false)}>
                 Cancel
               </Button>
               <Button 
@@ -2314,7 +2314,7 @@ const Index = () => {
 
       {/* Confirmation Modal for Moveout Item */}
       <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md mx-4 mx-4">
           <DialogHeader>
             <DialogTitle>Confirm Moveout</DialogTitle>
           </DialogHeader>
@@ -2329,7 +2329,7 @@ const Index = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={handleCancelMoveout}>
+            <Button className="w-full sm:w-auto text-sm sm:text-base" variant="outline" onClick={handleCancelMoveout}>
               Cancel
             </Button>
             <Button onClick={handleConfirmMoveout} className="bg-red-600 hover:bg-red-700">
@@ -2341,7 +2341,7 @@ const Index = () => {
 
       {/* Confirmation Modal for Generate Moveout List */}
       <Dialog open={showGenerateConfirmModal} onOpenChange={setShowGenerateConfirmModal}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md mx-4 mx-4">
           <DialogHeader>
             <DialogTitle>Confirm Generate Moveout List</DialogTitle>
           </DialogHeader>
@@ -2363,7 +2363,7 @@ const Index = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowGenerateConfirmModal(false)}>
+            <Button className="w-full sm:w-auto text-sm sm:text-base" variant="outline" onClick={() => setShowGenerateConfirmModal(false)}>
               Cancel
             </Button>
             <Button onClick={handleConfirmGenerateMoveoutList} className="bg-blue-600 hover:bg-blue-700">
