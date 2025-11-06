@@ -342,30 +342,31 @@ export function ICADeliveryList() {
           }
         }
       `}</style>
-      <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center no-print">
-        <h1 className="text-3xl font-bold">ICA Delivery Records</h1>
+      <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 no-print">
+        <h1 className="text-2xl sm:text-3xl font-bold">ICA Delivery Records</h1>
         <div className="flex gap-2">
           {profile && ['manager', 'assistant_manager', 'staff'].includes(profile.role) && (
             <Button 
               onClick={() => setShowICADeliveryModal(true)} 
-              className="gap-2 bg-green-600 hover:bg-green-700"
+              className="gap-2 bg-green-600 hover:bg-green-700 flex-1 sm:flex-initial"
             >
               <Plus className="h-4 w-4" />
-              Add ICA Delivery
+              <span className="hidden sm:inline">Add ICA Delivery</span>
+              <span className="sm:hidden">Add</span>
             </Button>
           )}
-          <Button onClick={exportToPDF} variant="outline" className="gap-2">
+          <Button onClick={exportToPDF} variant="outline" className="gap-2 flex-1 sm:flex-initial">
             <Download className="h-4 w-4" />
-            PDF
+            <span className="hidden sm:inline">PDF</span>
           </Button>
-          <Button onClick={exportToExcel} variant="outline" className="gap-2">
+          <Button onClick={exportToExcel} variant="outline" className="gap-2 flex-1 sm:flex-initial">
             <FileSpreadsheet className="h-4 w-4" />
-            Excel
+            <span className="hidden sm:inline">Excel</span>
           </Button>
-          <Button onClick={handlePrint} variant="outline" className="gap-2">
+          <Button onClick={handlePrint} variant="outline" className="gap-2 flex-1 sm:flex-initial">
             <Printer className="h-4 w-4" />
-            Print
+            <span className="hidden sm:inline">Print</span>
           </Button>
         </div>
       </div>
@@ -378,14 +379,14 @@ export function ICADeliveryList() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4 items-end flex-wrap">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-end">
             <div>
               <label className="text-sm font-medium mb-2 block">Start Date</label>
               <Input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="max-w-xs"
+                className="w-full sm:max-w-xs"
               />
             </div>
             <div>
@@ -394,11 +395,11 @@ export function ICADeliveryList() {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="max-w-xs"
+                className="w-full sm:max-w-xs"
               />
             </div>
-            <Button onClick={handleFilter}>Apply Filter</Button>
-            <Button onClick={handleClearFilter} variant="outline">Clear Filter</Button>
+            <Button onClick={handleFilter} className="w-full sm:w-auto">Apply Filter</Button>
+            <Button onClick={handleClearFilter} variant="outline" className="w-full sm:w-auto">Clear Filter</Button>
           </div>
         </CardContent>
       </Card>
@@ -465,8 +466,8 @@ export function ICADeliveryList() {
                     .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
                     .map((group: any, index: number) => (
                     <div key={index} className={index > 0 ? "border-t pt-4" : ""}>
-                      <div className="flex items-baseline gap-3 mb-3">
-                        <span className="text-xl font-bold">
+                      <div className="flex flex-col sm:flex-row sm:items-baseline gap-2 sm:gap-3 mb-3">
+                        <span className="text-lg sm:text-xl font-bold">
                           {new Date(group.submittedAt).toLocaleDateString('en-US', { 
                             weekday: 'short', 
                             month: 'short', 
@@ -488,16 +489,16 @@ export function ICADeliveryList() {
                         </span>
                         
                         {(profile?.role === 'manager' || profile?.role === 'assistant_manager') && (
-                          <div className="ml-auto flex gap-2">
+                          <div className="w-full sm:w-auto sm:ml-auto flex gap-2 mt-2 sm:mt-0">
                             <Button
-                              size="sm"
+                              size="sm" className="flex-1 sm:flex-initial"
                               variant="outline"
                               onClick={() => handleEditClick(group)}
                             >
                               <Edit2 className="h-4 w-4" />
                             </Button>
                             <Button
-                              size="sm"
+                              size="sm" className="flex-1 sm:flex-initial"
                               variant="destructive"
                               onClick={() => handleDeleteClick(group.recordIds)}
                             >
@@ -507,11 +508,11 @@ export function ICADeliveryList() {
                         )}
                       </div>
                       
-                      <div className="grid grid-cols-5 gap-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
                         {['Salmon and Rolls', 'Combo', 'Salmon and Avocado Rolls', 'Vegan Combo', 'Goma Wakame'].map((type) => {
                           const item = group.items.find((i: any) => i.type === type);
                           return (
-                            <div key={type} className="border rounded p-2 text-center">
+                            <div key={type} className="border rounded p-2 text-center min-w-0">
                               <p className="text-xs font-medium text-muted-foreground truncate">{type}</p>
                               <p className="text-xl font-bold">{item ? item.amount : 0}</p>
                             </div>
@@ -526,21 +527,21 @@ export function ICADeliveryList() {
           </div>
           
           {Object.keys(groupedRecords).length > itemsPerPage && (
-            <div className="flex justify-center gap-2 mt-6 no-print">
+            <div className="flex flex-col sm:flex-row justify-center gap-2 mt-6 no-print">
               <Button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                variant="outline"
+                variant="outline" className="w-full sm:w-auto"
               >
                 Previous
               </Button>
-              <span className="flex items-center px-4">
+              <span className="flex items-center justify-center px-4 text-sm sm:text-base">
                 Page {currentPage} of {Math.ceil(Object.keys(groupedRecords).length / itemsPerPage)}
               </span>
               <Button
                 onClick={() => setCurrentPage(p => Math.min(Math.ceil(Object.keys(groupedRecords).length / itemsPerPage), p + 1))}
                 disabled={currentPage >= Math.ceil(Object.keys(groupedRecords).length / itemsPerPage)}
-                variant="outline"
+                variant="outline" className="w-full sm:w-auto"
               >
                 Next
               </Button>
@@ -583,7 +584,7 @@ export function ICADeliveryList() {
     </Dialog>
 
     <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-black/40 backdrop-blur-xl border border-gray-700">
+      <DialogContent className="max-w-2xl mx-4 max-h-[85vh] overflow-y-auto bg-black/40 backdrop-blur-xl border border-gray-700">
         <DialogHeader>
           <DialogTitle>Edit ICA Delivery Record</DialogTitle>
           <DialogDescription>
