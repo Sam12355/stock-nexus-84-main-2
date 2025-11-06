@@ -226,10 +226,6 @@ export function ICADeliveryList() {
       setIsDeleting(false);
     }
   };
-        variant: "destructive",
-      });
-    }
-  };
 
   const handleEditClick = (group: any) => {
     const itemOrder = ['Salmon and Rolls', 'Combo', 'Salmon and Avocado Rolls', 'Vegan Combo', 'Goma Wakame'];
