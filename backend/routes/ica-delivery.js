@@ -65,27 +65,27 @@ router.get('/my-submissions', authenticateToken, async (req, res) => {
 // Create new ICA delivery order
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { userName, entries, submittedAt } = req.body;
+    const { userName, entries, submittedAt, deliveryDate } = req.body;
 
-    console.log('ICA Delivery POST request:', { userName, entries: entries?.length, submittedAt, userId: req.user?.id });
+    console.log('ICA Delivery POST request:', { userName, entries: entries?.length, submittedAt, deliveryDate, userId: req.user?.id });
 
     if (!userName || !entries || entries.length === 0) {
       console.error('Missing required fields:', { userName, entriesLength: entries?.length });
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Check if ANY user already submitted for this time period today (prevent duplicates)
-    const today = new Date(submittedAt).toISOString().split('T')[0];
+    // Use deliveryDate if provided by managers/assistant managers, otherwise use submittedAt date
+    const targetDate = deliveryDate || new Date(submittedAt).toISOString().split('T')[0];
     const timeOfDay = entries[0]?.timeOfDay; // All entries should have same time of day
     
-    console.log('Checking for existing submission:', { today, timeOfDay });
+    console.log('Checking for existing submission:', { targetDate, timeOfDay });
     
     const existingSubmission = await query(`
       SELECT user_name FROM ica_delivery 
       WHERE DATE(submitted_at) = $1
         AND time_of_day = $2
       LIMIT 1
-    `, [today, timeOfDay]);
+    `, [targetDate, timeOfDay]);
     
     if (existingSubmission.rows.length > 0) {
       console.log('Duplicate submission detected - already submitted by:', existingSubmission.rows[0].user_name);
@@ -99,6 +99,12 @@ router.post('/', authenticateToken, async (req, res) => {
     console.log('Inserting entries...');
     for (const entry of entries) {
       console.log('Inserting entry:', { type: entry.type, amount: entry.amount, timeOfDay: entry.timeOfDay });
+      // For managers/assistant managers, use the selected delivery date but keep original submitted_at time
+      // For staff, the delivery date and submitted date are the same
+      const actualSubmittedAt = deliveryDate ? 
+        new Date(targetDate + 'T' + new Date(submittedAt).toTimeString().split(' ')[0]).toISOString() : 
+        submittedAt;
+        
       await query(`
         INSERT INTO ica_delivery (
           user_id,
@@ -108,7 +114,7 @@ router.post('/', authenticateToken, async (req, res) => {
           time_of_day, 
           submitted_at
         ) VALUES ($1, $2, $3, $4, $5, $6)
-      `, [null, userName, entry.type, parseInt(entry.amount), entry.timeOfDay, submittedAt]);
+      `, [null, userName, entry.type, parseInt(entry.amount), entry.timeOfDay, actualSubmittedAt]);
     }
 
     console.log('ICA delivery order submitted successfully');

@@ -3,10 +3,14 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2 } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface ICADeliveryEntry {
   type: string;
@@ -71,6 +75,7 @@ export function ICADeliveryModal({ open, onOpenChange, onSuccess }: ICADeliveryM
   const { profile } = useAuth();
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [entries, setEntries] = useState<ICADeliveryEntry[]>([
     { type: "Salmon and Rolls", amount: "", timeOfDay: "Morning" },
     { type: "Combo", amount: "", timeOfDay: "Morning" },
@@ -82,6 +87,7 @@ export function ICADeliveryModal({ open, onOpenChange, onSuccess }: ICADeliveryM
   // Reset when modal closes
   useEffect(() => {
     if (!open) {
+      setSelectedDate(new Date());
       setEntries([
         { type: "Salmon and Rolls", amount: "", timeOfDay: "Morning" },
         { type: "Combo", amount: "", timeOfDay: "Morning" },
@@ -149,7 +155,8 @@ export function ICADeliveryModal({ open, onOpenChange, onSuccess }: ICADeliveryM
         body: JSON.stringify({
           userName: profile?.name || 'Unknown',
           entries: validEntries,
-          submittedAt: new Date().toISOString()
+          submittedAt: selectedDate.toISOString(),
+          deliveryDate: selectedDate.toISOString().split('T')[0] // Send date in YYYY-MM-DD format
         })
       });
 
@@ -179,6 +186,7 @@ export function ICADeliveryModal({ open, onOpenChange, onSuccess }: ICADeliveryM
       }
         
       // Reset form
+      setSelectedDate(new Date());
       setEntries([
         { type: "Salmon and Rolls", amount: "", timeOfDay: "Morning" },
         { type: "Combo", amount: "", timeOfDay: "Morning" },
@@ -232,6 +240,39 @@ export function ICADeliveryModal({ open, onOpenChange, onSuccess }: ICADeliveryM
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Date Picker - Only for managers and assistant managers */}
+            {profile && ['manager', 'assistant_manager'].includes(profile.role) && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-200">Delivery Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal bg-white/5 backdrop-blur-sm border-white/20 text-white hover:bg-white/10 hover:text-white",
+                        !selectedDate && "text-gray-400"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-gray-900/95 backdrop-blur-md border-white/20" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => date && setSelectedDate(date)}
+                      initialFocus
+                      className="text-white"
+                    />
+                  </PopoverContent>
+                </Popover>
+                <p className="text-xs text-gray-400">
+                  Select the date for this ICA delivery. Defaults to today.
+                </p>
+              </div>
+            )}
+            
             <div className="grid gap-6">
               {entries.map((entry, index) => (
                 <div key={index} className="p-4 border rounded-lg space-y-4 bg-white/5 backdrop-blur-md border-white/10 shadow-lg">
@@ -306,6 +347,11 @@ export function ICADeliveryModal({ open, onOpenChange, onSuccess }: ICADeliveryM
             You are about to submit the following order:
           </p>
           <div className="bg-white/10 border border-white/20 rounded-lg p-4 space-y-2">
+            {profile && ['manager', 'assistant_manager'].includes(profile.role) && (
+              <div className="text-sm text-gray-200 mb-3 pb-2 border-b border-white/20">
+                <strong className="text-white">Delivery Date:</strong> {format(selectedDate, "PPP")}
+              </div>
+            )}
             {entries.filter(e => e.amount && e.amount.trim() !== "").map((entry, index) => (
               <div key={index} className="text-sm text-gray-200">
                 <strong className="text-white">{entry.type}:</strong> {entry.amount} units - {entry.timeOfDay}

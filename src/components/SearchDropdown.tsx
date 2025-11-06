@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
-import { Search, Package, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { apiClient } from '@/lib/api';
-import { useAuth } from '@/hooks/useAuth';
+import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { useAuth } from '@/hooks/useAuth';
+import { apiClient } from '@/lib/api';
+import { AlertTriangle, CheckCircle, Package, Search, XCircle } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 interface SearchItem {
   id: string;
