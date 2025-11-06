@@ -262,6 +262,7 @@ export function ICADeliveryModal({ open, onOpenChange, onSuccess }: ICADeliveryM
                       mode="single"
                       selected={selectedDate}
                       onSelect={(date) => date && setSelectedDate(date)}
+                      disabled={(date) => date > new Date()}
                       initialFocus
                       className="text-white"
                     />
