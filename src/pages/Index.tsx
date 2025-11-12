@@ -484,13 +484,7 @@ const Index = () => {
   };
 
   const handleToggleHistory = () => {
-    if (!showHistory) {
-      handleLoadHistory();
-    } else {
-      setShowHistory(false);
-      setCompletedLists([]);
-      setHistoryLoadedCount(0);
-    }
+    setShowHistory(!showHistory);
   };
 
   useEffect(() => {
@@ -1304,7 +1298,8 @@ const Index = () => {
               ) : (() => {
                 // Always show draft lists at the top (these are the active/generated lists)
                 const activeLists = moveoutList.filter(list => list.status === 'draft');
-                const displayLists = showHistory ? [...activeLists, ...completedLists] : activeLists;
+                const completedListsFromMain = moveoutList.filter(list => list.status === 'completed');
+                const displayLists = showHistory ? [...activeLists, ...completedListsFromMain] : activeLists;
                 
                 return displayLists.length > 0 ? (
                   <div className="space-y-4">
@@ -1446,12 +1441,12 @@ const Index = () => {
                     )}
                     
                     {/* Completed Lists Section */}
-                    {showHistory && completedLists.length > 0 && (
+                    {showHistory && completedListsFromMain.length > 0 && (
                       <>
                         {/* Separator */}
                         <div className="border-t border-gray-200 my-4"></div>
                         
-                        {completedLists.map((list, index) => {
+                        {completedListsFromMain.map((list, index) => {
                           console.log('Rendering completed moveout list:', list); // Debug log
                           return (
                             <Accordion key={list.id || `completed-${index}`} type="single" collapsible className="w-full">
@@ -1672,7 +1667,8 @@ const Index = () => {
             ) : (() => {
               // Always show draft lists at the top (these are the active/generated lists)
               const activeLists = moveoutList.filter(list => list.status === 'draft');
-              const displayLists = showHistory ? [...activeLists, ...completedLists] : activeLists;
+              const completedListsFromMain = moveoutList.filter(list => list.status === 'completed');
+              const displayLists = showHistory ? [...activeLists, ...completedListsFromMain] : activeLists;
               
               return displayLists.length > 0 ? (
                 <div className="space-y-4">
@@ -1814,24 +1810,112 @@ const Index = () => {
                     </>
                   )}
                   
-                  {/* Load More button for history */}
-                  {showHistory && (() => {
-                    const allLists = moveoutList.filter(list => list.status === 'completed');
-                    const hasMore = historyLoadedCount < allLists.length;
-                    
-                    return hasMore ? (
-                      <div className="text-center pt-4">
-                        <Button className="w-full sm:w-auto text-sm sm:text-base"
-                          variant="outline"
-                          onClick={handleLoadHistory}
-                          disabled={moveoutListsLoading}
-                        >
-                          <History className="h-4 w-4 mr-2" />
-                          Load More (5)
-                        </Button>
-                      </div>
-                    ) : null;
-                  })()}
+                  {/* Completed Lists Section */}
+                  {showHistory && completedListsFromMain.length > 0 && (
+                    <>
+                      {/* Separator */}
+                      <div className="border-t border-gray-200 my-4"></div>
+                      
+                      {completedListsFromMain.map((list, index) => {
+                        console.log('Rendering completed moveout list:', list); // Debug log
+                        return (
+                          <Accordion key={list.id || `completed-${index}`} type="single" collapsible className="w-full">
+                            <AccordionItem value={`completed-item-${index}`}>
+                              <AccordionTrigger className="text-left">
+                                <div className="flex items-center justify-between w-full mr-4">
+                                  <span className="font-semibold">{list.title || `Moveout List #${index + 1}`}</span>
+                                  <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                                    <span className="text-sm text-muted-foreground">
+                                      {new Date(list.created_at).toLocaleDateString()}
+                                    </span>
+                                    <Badge variant={list.status === 'active' ? 'default' : list.status === 'completed' ? 'secondary' : 'destructive'}>
+                                      {list.status === 'active' ? 'Active' : list.status === 'completed' ? 'Completed' : list.status}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </AccordionTrigger>
+                              <AccordionContent>
+                                {list.description && (
+                                  <p className="text-sm text-muted-foreground mb-4">{list.description}</p>
+                                )}
+                                
+                                {/* Completion Summary */}
+                                {list.status === 'completed' && list.items && list.items.every((item: any) => item.status === 'completed') && (
+                                  <div className="mb-4">
+                                    <button
+                                      onClick={() => {
+                                        const currentState = expandedSummaries[list.id] || false;
+                                        setExpandedSummaries(prev => ({
+                                          ...prev,
+                                          [list.id]: !currentState
+                                        }));
+                                      }}
+                                      className="flex items-center gap-2 text-sm font-medium text-green-800 hover:text-green-900 transition-colors"
+                                    >
+                                      {expandedSummaries[list.id] ? (
+                                        <>
+                                          <span>▼</span>
+                                          <span>Hide Completion Summary</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <span>▶</span>
+                                          <span>View Completion Summary</span>
+                                        </>
+                                      )}
+                                    </button>
+                                    {expandedSummaries[list.id] && (
+                                      <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                        <h4 className="text-sm font-medium text-green-800 mb-2">✅ Completion Summary</h4>
+                                        <div className="space-y-1">
+                                          {list.items.map((item: any, index: number) => (
+                                            <div key={index} className="text-xs text-green-700">
+                                              <span className="font-medium">{item.item_name}</span> - Completed by <span className="font-semibold">{item.processed_by}</span> on {new Date(item.processed_at).toLocaleDateString()} at {new Date(item.processed_at).toLocaleTimeString()}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-sm">
+                                    <thead>
+                                      <tr className="border-b">
+                                        <th className="text-left p-2">Item Name</th>
+                                        <th className="text-left p-2">Requesting Quantity</th>
+                                        <th className="text-left p-2">Status</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {list.items && Array.isArray(list.items) ? list.items.map((item: any, itemIndex: number) => (
+                                        <tr key={itemIndex} className="border-b">
+                                          <td className="p-2">{item.item_name || item.itemName || 'Unknown Item'}</td>
+                                          <td className="p-2">{item.request_amount || item.requestingQuantity || 0}</td>
+                                          <td className="p-2">
+                                            <span className="text-sm text-green-600 font-medium">
+                                              Completed
+                                            </span>
+                                          </td>
+                                        </tr>
+                                      )) : (
+                                        <tr>
+                                          <td colSpan={3} className="p-4 text-center text-muted-foreground">
+                                            No items in this list
+                                          </td>
+                                        </tr>
+                                      )}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          </Accordion>
+                        );
+                      })}
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
