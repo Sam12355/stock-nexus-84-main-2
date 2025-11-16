@@ -29,6 +29,8 @@ const icaDeliveryRoutes = require('./routes/ica-delivery');
 const schedulerService = require('./services/scheduler');
 const emailService = require('./services/email');
 
+const path = require('path');
+const fs = require('fs');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -86,6 +88,48 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Static files
 app.use('/uploads', express.static('uploads'));
+
+// Serve receipt images with CORS and error handling.
+// This allows mobile apps to load images via: /api/files/receipts/:filename
+app.options('/api/files/receipts/:filename', (req, res) => {
+  // Allow preflight from any origin for this endpoint
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET,OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  return res.sendStatus(204);
+});
+
+app.get('/api/files/receipts/:filename', (req, res) => {
+  try {
+    // Sanitize filename to prevent path traversal
+    const filename = path.basename(req.params.filename);
+    const receiptsDir = path.resolve(__dirname, 'uploads', 'receipts');
+    const filePath = path.join(receiptsDir, filename);
+
+    // Set permissive CORS headers so Android apps can fetch images
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET,OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+
+    // Check file existence
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Use sendFile to stream the file to the client
+    return res.sendFile(filePath, (err) => {
+      if (err) {
+        console.error('Error sending receipt file:', err);
+        if (!res.headersSent) {
+          return res.status(500).json({ error: 'Error serving file' });
+        }
+      }
+    });
+  } catch (err) {
+    console.error('Unexpected error serving receipt file:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
