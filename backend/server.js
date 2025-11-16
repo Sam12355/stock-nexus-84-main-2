@@ -88,20 +88,16 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Static files - use absolute path to ensure it works on Render
 const uploadsPath = path.join(__dirname, 'uploads');
-const receiptsPath = path.join(__dirname, 'uploads', 'receipts');
 
 console.log('📁 Uploads path:', uploadsPath);
-console.log('📁 Receipts path:', receiptsPath);
 
-app.use('/uploads', express.static(uploadsPath));
-
-// Serve receipts directory directly at /uploads/receipts with permissive CORS
-app.use('/uploads/receipts', (req, res, next) => {
+// Serve uploads directory with permissive CORS for all files including receipts
+app.use('/uploads', (req, res, next) => {
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'GET,OPTIONS');
   res.set('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
   next();
-}, express.static(receiptsPath));
+}, express.static(uploadsPath));
 
 // Serve receipt images with CORS and error handling.
 // This allows mobile apps to load images via: /api/files/receipts/:filename
