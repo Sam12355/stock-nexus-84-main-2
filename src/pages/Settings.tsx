@@ -87,6 +87,7 @@ const Settings = () => {
   const [profileInitialized, setProfileInitialized] = useState(false);
   const [hasTouchedNotifications, setHasTouchedNotifications] = useState(false);
   const hasTouchedNotificationsRef = useRef(false);
+  const notificationsInitializedRef = useRef(false);
 
   // Phone collection dialog state
   const [showPhoneDialog, setShowPhoneDialog] = useState(false);
@@ -258,9 +259,9 @@ const Settings = () => {
     }
   }, [notifications, profile?.id]);
 
-  // Hydrate notifications from database when profile changes
+  // Hydrate notifications from database when profile changes (only once)
   useEffect(() => {
-    if (!profile?.id || !profile?.notification_settings) return;
+    if (!profile?.id || !profile?.notification_settings || notificationsInitializedRef.current) return;
     
     const dbSettings = profile.notification_settings;
     
@@ -275,6 +276,7 @@ const Settings = () => {
     
     setNotifications(mappedSettings);
     hasTouchedNotificationsRef.current = false; // Don't trigger save on load
+    notificationsInitializedRef.current = true; // Mark as initialized
     
     // Also save to localStorage for faster access next time
     localStorage.setItem(`notifications_${profile.id}`, JSON.stringify(mappedSettings));
