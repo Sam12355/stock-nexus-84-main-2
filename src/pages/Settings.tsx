@@ -184,8 +184,22 @@ const Settings = () => {
     };
   };
 
-  // Notification settings - initialize from localStorage or defaults
+  // Notification settings - initialize from profile database settings first, then localStorage, then defaults
   const [notifications, setNotifications] = useState(() => {
+    // First, try to get from profile's notification_settings (from database)
+    if (profile?.notification_settings) {
+      const dbSettings = profile.notification_settings;
+      return {
+        email: dbSettings.email ?? false,
+        sms: dbSettings.sms ?? false,
+        whatsapp: dbSettings.whatsapp ?? false,
+        stockAlerts: dbSettings.stockLevelAlerts ?? false,
+        eventReminders: dbSettings.eventReminders ?? false,
+        softdrinkTrends: dbSettings.softdrinkTrends ?? false,
+      };
+    }
+    
+    // Second, try localStorage
     const saved = localStorage.getItem(`notifications_${profile?.id}`);
     if (saved) {
       try {
@@ -201,12 +215,14 @@ const Settings = () => {
         console.error('Error parsing saved notifications:', e);
       }
     }
+    
+    // Finally, use defaults
     return {
-      email: true,
+      email: false,
       sms: false,
       whatsapp: false,
-      stockAlerts: true,
-      eventReminders: true,
+      stockAlerts: false,
+      eventReminders: false,
       softdrinkTrends: false,
     };
   });
@@ -242,74 +258,33 @@ const Settings = () => {
     }
   }, [notifications, profile?.id]);
 
-  // Hydrate notifications from localStorage and database
+  // Hydrate notifications from database when profile changes
   useEffect(() => {
-    if (!profile?.id) return;
+    if (!profile?.id || !profile?.notification_settings) return;
     
-    const loadNotificationSettings = async () => {
-      // First try localStorage
-      const saved = localStorage.getItem(`notifications_${profile.id}`);
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          // Use saved settings as-is, don't override with defaults
-          setNotifications(parsed);
-          hasTouchedNotificationsRef.current = false; // Don't trigger save on load
-          return;
-        } catch (e) {
-          console.error('Error parsing saved notifications on hydrate:', e);
-        }
-      }
-      
-      // If no localStorage, try database
-      try {
-        const profileData = await apiClient.getProfile();
-        
-        if (profileData?.notification_settings) {
-          const dbSettings = profileData.notification_settings;
-          
-          // Set default values based on user role
-          let defaultEmail = true; // Email is always enabled by default for all roles
-          let defaultSms = false;
-          let defaultWhatsapp = false;
-          let defaultStockAlerts = false;
-          let defaultEventReminders = false;
-          
-          // For managers and assistant managers, turn off all notifications by default
-          if (['manager', 'assistant_manager'].includes(profileData.role)) {
-            defaultEmail = false;
-            defaultSms = false;
-            defaultWhatsapp = false;
-            defaultStockAlerts = false;
-            defaultEventReminders = false;
-          }
-          
-          const mappedSettings = {
-            email: dbSettings.email !== undefined ? dbSettings.email : defaultEmail,
-            sms: dbSettings.sms !== undefined ? dbSettings.sms : defaultSms,
-            whatsapp: dbSettings.whatsapp !== undefined ? dbSettings.whatsapp : defaultWhatsapp,
-            stockAlerts: dbSettings.stockLevelAlerts !== undefined ? dbSettings.stockLevelAlerts : defaultStockAlerts,
-            eventReminders: dbSettings.eventReminders !== undefined ? dbSettings.eventReminders : defaultEventReminders,
-            softdrinkTrends: dbSettings.softdrinkTrends !== undefined ? dbSettings.softdrinkTrends : false,
-          };
-          setNotifications(mappedSettings);
-          hasTouchedNotificationsRef.current = false; // Don't trigger save on load
-          // Also save to localStorage for faster access
-          localStorage.setItem(`notifications_${profile.id}`, JSON.stringify(mappedSettings));
-        }
-      } catch (error) {
-        console.error('Error loading notification settings from database:', error);
-      }
+    const dbSettings = profile.notification_settings;
+    
+    const mappedSettings = {
+      email: dbSettings.email ?? false,
+      sms: dbSettings.sms ?? false,
+      whatsapp: dbSettings.whatsapp ?? false,
+      stockAlerts: dbSettings.stockLevelAlerts ?? false,
+      eventReminders: dbSettings.eventReminders ?? false,
+      softdrinkTrends: dbSettings.softdrinkTrends ?? false,
     };
     
-    loadNotificationSettings();
+    setNotifications(mappedSettings);
+    hasTouchedNotificationsRef.current = false; // Don't trigger save on load
     
-  // Initialize permissions for managers
-  if (profile?.role === "manager") {
-    const permissions = profile?.notification_settings?.assistant_manager_stock_in_access || false;
-    setAssistantManagerStockInAccess(permissions);
-  }
-}, [profile?.id, profile?.role, profile?.notification_settings?.assistant_manager_stock_in_access]);
+    // Also save to localStorage for faster access next time
+    localStorage.setItem(`notifications_${profile.id}`, JSON.stringify(mappedSettings));
+    
+    // Initialize permissions for managers
+    if (profile?.role === "manager") {
+      const permissions = profile?.notification_settings?.assistant_manager_stock_in_access || false;
+      setAssistantManagerStockInAccess(permissions);
+    }
+  }, [profile?.id, profile?.notification_settings]);
 
   // Load alert scheduling status
   // Alert schedule data is already loaded from the profile
