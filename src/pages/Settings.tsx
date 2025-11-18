@@ -342,15 +342,8 @@ const Settings = () => {
         // Always update branch data
         setBranch(branchData as Branch);
         
-        // Only initialize notifications if they haven't been touched by user
-        if (!hasTouchedNotificationsRef.current) {
-          setNotifications((prev) => ({
-            ...prev,
-            email: (data as { notification_settings?: ExtendedProfile['notification_settings'] })?.notification_settings?.email ?? true,
-            sms: (data as { notification_settings?: ExtendedProfile['notification_settings'] })?.notification_settings?.sms ?? false,
-            whatsapp: (data as { notification_settings?: ExtendedProfile['notification_settings'] })?.notification_settings?.whatsapp ?? false,
-          }));
-        }
+        // Don't update notifications from branch settings - they should come from user profile only
+        // Branch settings are separate from user notification preferences
         
         // Always update branch settings
         setBranchSettings({});
