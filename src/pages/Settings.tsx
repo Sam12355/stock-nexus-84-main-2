@@ -231,7 +231,7 @@ const Settings = () => {
 
   // Persist notifications to localStorage AND database on change
   useEffect(() => {
-    if (profile?.id) {
+    if (profile?.id && hasTouchedNotificationsRef.current) {
       try {
         localStorage.setItem(`notifications_${profile.id}`, JSON.stringify(notifications));
         // Also save to database for edge functions to access
@@ -252,17 +252,9 @@ const Settings = () => {
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          // Ensure email field is always present
-          const settingsWithEmail = {
-            email: true, // Always default to true
-            sms: false,
-            whatsapp: false,
-            stockAlerts: true,
-            eventReminders: true,
-            ...parsed
-          };
-          setNotifications(settingsWithEmail);
-          hasTouchedNotificationsRef.current = true;
+          // Use saved settings as-is, don't override with defaults
+          setNotifications(parsed);
+          hasTouchedNotificationsRef.current = false; // Don't trigger save on load
           return;
         } catch (e) {
           console.error('Error parsing saved notifications on hydrate:', e);
@@ -301,6 +293,7 @@ const Settings = () => {
             softdrinkTrends: dbSettings.softdrinkTrends !== undefined ? dbSettings.softdrinkTrends : false,
           };
           setNotifications(mappedSettings);
+          hasTouchedNotificationsRef.current = false; // Don't trigger save on load
           // Also save to localStorage for faster access
           localStorage.setItem(`notifications_${profile.id}`, JSON.stringify(mappedSettings));
         }
