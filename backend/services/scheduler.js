@@ -407,11 +407,13 @@ class SchedulerService {
       // Get users with event reminder scheduling enabled
       const usersResult = await query(`
         SELECT u.id, u.name, u.phone, u.email, u.branch_context,
-               b.name as branch_name
+               b.name as branch_name, u.notification_settings,
+               u.event_reminder_frequencies, u.event_daily_schedule_time,
+               u.event_weekly_schedule_day, u.event_weekly_schedule_time,
+               u.event_monthly_schedule_date, u.event_monthly_schedule_time
         FROM users u
         LEFT JOIN branches b ON u.branch_context = b.id
-        WHERE (u.phone IS NOT NULL OR u.email IS NOT NULL)
-        AND u.is_active = true
+        WHERE u.is_active = true
       `);
 
       if (usersResult.rows.length === 0) {
