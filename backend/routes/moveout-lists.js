@@ -467,6 +467,7 @@ router.post('/:id/process-item',
             // Get all users who should receive stock alerts
             const usersResult = await query(`
               SELECT u.id, u.phone, u.email, u.name, u.role, u.branch_context,
+                     u.notification_settings,
                      b.name as branch_name, d.name as district_name, r.name as region_name
               FROM users u
               LEFT JOIN branches b ON u.branch_context = b.id
@@ -476,8 +477,28 @@ router.post('/:id/process-item',
               AND (u.phone IS NOT NULL OR u.email IS NOT NULL)
             `);
 
-            // Since notification_settings column doesn't exist, include all users for now
-            const subscribedUsers = usersResult.rows;
+            // Filter users who have stock alerts enabled in their notification settings
+            const subscribedUsers = usersResult.rows.filter(user => {
+              try {
+                let settings = {};
+                if (typeof user.notification_settings === 'string') {
+                  settings = user.notification_settings ? JSON.parse(user.notification_settings) : {};
+                } else if (typeof user.notification_settings === 'object' && user.notification_settings !== null) {
+                  settings = user.notification_settings;
+                }
+                return settings.stockLevelAlerts === true;
+              } catch (error) {
+                console.error(`Error parsing notification settings for user ${user.name}:`, error);
+                return false;
+              }
+            });
+
+            if (subscribedUsers.length === 0) {
+              console.log('⚠️ No users have stock level alerts enabled, skipping notifications');
+              return;
+            }
+
+            console.log(`📢 Found ${subscribedUsers.length} users with stock alerts enabled`);
 
             // Remove duplicate phone numbers - keep only the first user with each phone number
             const uniqueUsers = [];
@@ -503,9 +524,22 @@ router.post('/:id/process-item',
                 const userName = user.name;
                 const isRegionalManager = user.role === 'regional_manager';
                 
-                // Since notification_settings column doesn't exist, enable notifications for all users
-                const whatsappNotificationsEnabled = true;
-                const emailNotificationsEnabled = true;
+                // Check notification preferences
+                let whatsappNotificationsEnabled = false;
+                let emailNotificationsEnabled = false;
+                
+                try {
+                  let settings = {};
+                  if (typeof user.notification_settings === 'string') {
+                    settings = user.notification_settings ? JSON.parse(user.notification_settings) : {};
+                  } else if (typeof user.notification_settings === 'object' && user.notification_settings !== null) {
+                    settings = user.notification_settings;
+                  }
+                  whatsappNotificationsEnabled = settings.whatsapp === true;
+                  emailNotificationsEnabled = settings.email === true;
+                } catch (error) {
+                  console.error(`Error parsing notification settings for user ${user.name}:`, error);
+                }
 
                 // Create alert message
                 const emoji = alertType === 'critical' ? '🚨' : alertType === 'low' ? '⚠️' : '📉';
