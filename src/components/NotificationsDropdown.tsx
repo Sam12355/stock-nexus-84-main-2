@@ -22,6 +22,8 @@ interface Notification {
   message: string;
   created_at: string;
   is_read?: boolean;
+  title?: string;
+  data?: any;
 }
 
 interface StockAlert {
@@ -34,6 +36,7 @@ interface StockAlert {
 export function NotificationsDropdown() {
   const { profile } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [eventNotifications, setEventNotifications] = useState<Notification[]>([]);
   const [stockAlerts, setStockAlerts] = useState<StockAlert[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -131,9 +134,17 @@ export function NotificationsDropdown() {
     try {
       const data = await apiClient.getNotifications();
       const rows = Array.isArray(data) ? data : [];
-      setNotifications(rows.filter((n: Notification) => !n.is_read));
+      const unreadRows = rows.filter((n: Notification) => !n.is_read);
+      
+      // Separate event notifications from general notifications
+      const events = unreadRows.filter((n: Notification) => n.type === 'event');
+      const general = unreadRows.filter((n: Notification) => n.type !== 'event');
+      
+      setEventNotifications(events);
+      setNotifications(general);
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      setEventNotifications([]);
       setNotifications([]);
     }
   };
@@ -188,8 +199,8 @@ export function NotificationsDropdown() {
   };
 
   useEffect(() => {
-    setTotalCount(notifications.length + stockAlerts.length);
-  }, [notifications, stockAlerts]);
+    setTotalCount(notifications.length + eventNotifications.length + stockAlerts.length);
+  }, [notifications, eventNotifications, stockAlerts]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -276,6 +287,44 @@ export function NotificationsDropdown() {
                         Stock: {alert.current_quantity}/{alert.threshold_level}
                       </p>
                       <Badge variant="outline" className="text-xs">Low Stock</Badge>
+                    </div>
+                  </DropdownMenuItem>
+                ))}
+              </ScrollArea>
+              <DropdownMenuSeparator />
+            </div>
+          )}
+
+          {/* Event Notifications */}
+          {eventNotifications.length > 0 && (
+            <div>
+              <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground px-2 py-1">
+                Event Reminders
+              </DropdownMenuLabel>
+              <ScrollArea className="h-48 pr-2">
+                {eventNotifications.map((notification) => (
+                  <DropdownMenuItem
+                    key={notification.id}
+                    className="flex items-start space-x-2 p-3"
+                    onSelect={(e) => e.preventDefault()}
+                    onClick={async () => {
+                      try {
+                        await apiClient.markNotificationAsRead(notification.id);
+                      } catch (err) {
+                        console.error('Failed to mark notification as read:', err);
+                      }
+                      setEventNotifications(prev => prev.filter(n => n.id !== notification.id));
+                    }}
+                  >
+                    <Calendar className="h-4 w-4 text-blue-500 mt-0.5" />
+                    <div className="flex-1 space-y-1">
+                      {notification.title && (
+                        <p className="text-sm font-medium">{notification.title}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground">{notification.message}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(notification.created_at)}
+                      </p>
                     </div>
                   </DropdownMenuItem>
                 ))}
