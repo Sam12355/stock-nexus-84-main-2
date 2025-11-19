@@ -111,4 +111,76 @@ router.delete('/clear', authenticateToken, async (req, res) => {
   }
 });
 
+// Debug endpoint to check event reminder configuration
+router.get('/debug-reminders', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Get user's event reminder settings
+    const userResult = await query(`
+      SELECT id, name, email, 
+             event_reminder_frequencies,
+             event_daily_schedule_time,
+             event_weekly_schedule_day,
+             event_weekly_schedule_time,
+             event_monthly_schedule_date,
+             event_monthly_schedule_time,
+             notification_settings,
+             branch_context
+      FROM users
+      WHERE id = $1
+    `, [userId]);
+    
+    const user = userResult.rows[0];
+    
+    // Get upcoming events
+    const eventsResult = await query(`
+      SELECT id, title, event_date, branch_id
+      FROM calendar_events
+      WHERE event_date >= CURRENT_DATE
+      AND event_date <= CURRENT_DATE + INTERVAL '30 days'
+      ORDER BY event_date ASC
+    `);
+    
+    // Check if eventReminders is enabled
+    let eventRemindersEnabled = false;
+    if (user.notification_settings) {
+      try {
+        const settings = typeof user.notification_settings === 'string' 
+          ? JSON.parse(user.notification_settings) 
+          : user.notification_settings;
+        eventRemindersEnabled = settings.eventReminders === true;
+      } catch (err) {
+        // ignore
+      }
+    }
+    
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        event_reminder_frequencies: user.event_reminder_frequencies,
+        event_daily_schedule_time: user.event_daily_schedule_time,
+        event_weekly_schedule_day: user.event_weekly_schedule_day,
+        event_weekly_schedule_time: user.event_weekly_schedule_time,
+        event_monthly_schedule_date: user.event_monthly_schedule_date,
+        event_monthly_schedule_time: user.event_monthly_schedule_time,
+        eventRemindersEnabled: eventRemindersEnabled,
+        branch_context: user.branch_context
+      },
+      upcomingEvents: eventsResult.rows,
+      currentTime: new Date().toISOString(),
+      swedenTime: new Date().toLocaleString("en-US", {timeZone: "Europe/Stockholm"})
+    });
+  } catch (error) {
+    console.error('Error debugging event reminders:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
