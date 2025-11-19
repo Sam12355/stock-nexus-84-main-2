@@ -320,6 +320,11 @@ router.get('/event-reminders/:userId', async (req, res) => {
         second: '2-digit',
         hour12: false
       }),
+      schedulerMethod: {
+        swedenTimeObject: new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Stockholm"})),
+        toTimeString: new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Stockholm"})).toTimeString(),
+        sliced: new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Stockholm"})).toTimeString().slice(0, 5)
+      },
       comparisonDebug: {
         userScheduledTime: user.event_daily_schedule_time ? user.event_daily_schedule_time.slice(0, 5) : null,
         currentSwedenTime: new Date().toLocaleString("en-US", {
@@ -328,13 +333,16 @@ router.get('/event-reminders/:userId', async (req, res) => {
           minute: '2-digit',
           hour12: false
         }),
-        doTheyMatch: user.event_daily_schedule_time ? 
+        schedulerCurrentTime: new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Stockholm"})).toTimeString().slice(0, 5),
+        doTheyMatchLocaleString: user.event_daily_schedule_time ? 
           (user.event_daily_schedule_time.slice(0, 5) === new Date().toLocaleString("en-US", {
             timeZone: "Europe/Stockholm",
             hour: '2-digit',
             minute: '2-digit',
             hour12: false
-          })) : false
+          })) : false,
+        doTheyMatchSchedulerMethod: user.event_daily_schedule_time ? 
+          (user.event_daily_schedule_time.slice(0, 5) === new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Stockholm"})).toTimeString().slice(0, 5)) : false
       }
     });
   } catch (error) {
