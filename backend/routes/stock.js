@@ -317,24 +317,43 @@ router.post('/movement', authenticateToken, async (req, res) => {
                     message += `\n\nPlease restock immediately to avoid stockout!\n\nTime: ${new Date().toLocaleString()}`;
 
                     // Create notification record
-                    await query(
-                      'INSERT INTO notifications (user_id, title, message, type, data) VALUES ($1, $2, $3, $4, $5)',
-                      [
-                        user.id,
-                        `Stock Alert: ${item.item_name}`,
-                        message,
-                        'stock_alert',
-                        JSON.stringify({
-                          item_name: item.item_name,
-                          current_quantity: newQuantity,
-                          threshold: threshold,
-                          alert_type: alertType,
-                          source: 'stock_out'
-                        })
-                      ]
-                    );
-                    
-                    console.log(`✅ Created notification record for user ${user.name} (${user.id})`);
+                    try {
+                      console.log(`📝 Attempting to create notification for user ${user.name} (${user.id})`);
+                      console.log(`📝 Notification data:`, {
+                        user_id: user.id,
+                        title: `Stock Alert: ${item.item_name}`,
+                        type: 'stock_alert',
+                        item_name: item.item_name,
+                        current_quantity: newQuantity,
+                        threshold: threshold
+                      });
+                      
+                      const insertResult = await query(
+                        'INSERT INTO notifications (user_id, title, message, type, data) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+                        [
+                          user.id,
+                          `Stock Alert: ${item.item_name}`,
+                          message,
+                          'stock_alert',
+                          JSON.stringify({
+                            item_name: item.item_name,
+                            current_quantity: newQuantity,
+                            threshold: threshold,
+                            alert_type: alertType,
+                            source: 'stock_out'
+                          })
+                        ]
+                      );
+                      
+                      console.log(`✅ Created notification record for user ${user.name} (${user.id}), notification ID: ${insertResult.rows[0].id}`);
+                    } catch (notificationError) {
+                      console.error(`❌ Failed to create notification for user ${user.name} (${user.id}):`, notificationError);
+                      console.error(`❌ Error details:`, {
+                        message: notificationError.message,
+                        code: notificationError.code,
+                        detail: notificationError.detail
+                      });
+                    }
 
                     // Send WhatsApp notification
                     if (phone && whatsappNotificationsEnabled) {
