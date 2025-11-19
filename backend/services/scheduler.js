@@ -42,14 +42,12 @@ class SchedulerService {
       this.checkAndSendScheduledAlerts();
       this.checkAndSendEventReminders();
       this.checkAndSendSoftdrinkTrendsAlerts();
-      this.checkUpcomingEventsForNotifications();
     }, 60000); // 60 seconds
 
     // Run immediately on start
     this.checkAndSendScheduledAlerts();
     this.checkAndSendEventReminders();
     this.checkAndSendSoftdrinkTrendsAlerts();
-    this.checkUpcomingEventsForNotifications();
   }
 
   stop() {
@@ -602,9 +600,8 @@ class SchedulerService {
               minute: '2-digit'
             })}`;
 
-            // Check notification settings
-            let whatsappEnabled = false;
-            let emailEnabled = false;
+            // Check if user has event reminders enabled in notification settings
+            let eventRemindersEnabled = false;
             if (user.notification_settings) {
               try {
                 let settings = {};
@@ -613,60 +610,89 @@ class SchedulerService {
                 } else if (typeof user.notification_settings === 'object' && user.notification_settings !== null) {
                   settings = user.notification_settings;
                 }
-                whatsappEnabled = settings.whatsapp === true;
-                emailEnabled = settings.email === true;
+                eventRemindersEnabled = settings.eventReminders === true;
               } catch (error) {
                 console.error(`❌ Error parsing notification settings for user ${user.name}:`, error);
               }
             }
 
-            let reminderSent = false;
+            // Skip if user doesn't have event reminders enabled
+            if (!eventRemindersEnabled) {
+              continue;
+            }
 
-            // Send WhatsApp reminder
-            if (user.phone && whatsappEnabled) {
-              const whatsappResult = await whatsappService.sendEventReminder(
-                user.phone,
-                message
-              );
-
-              if (whatsappResult.success) {
-                reminderSent = true;
-                if (shouldLog) {
-                  console.log(`✅ WhatsApp event reminder sent to ${user.name} (${frequency})`);
+            // Create database notification for each upcoming event
+            let notificationsCreated = 0;
+            for (const event of upcomingEvents) {
+              try {
+                // Ensure related_id column exists
+                try {
+                  await query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS related_id UUID`);
+                } catch (err) {
+                  // Column might already exist
                 }
-              } else {
-                console.error(`❌ Failed to send WhatsApp event reminder to ${user.name}:`, whatsappResult.error);
+
+                // Check if notification already exists for this event and user
+                const existingNotificationResult = await query(`
+                  SELECT id FROM notifications
+                  WHERE type = 'event'
+                  AND related_id = $1
+                  AND user_id = $2
+                  AND created_at >= NOW() - INTERVAL '24 hours'
+                `, [event.id, user.id]);
+
+                // Only create notification if it doesn't already exist (avoid duplicates within 24 hours)
+                if (existingNotificationResult.rows.length === 0) {
+                  const eventDate = new Date(event.event_date);
+                  const daysUntil = Math.ceil((eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                  const formattedDate = eventDate.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  });
+
+                  const notificationMessage = `Event Reminder: ${event.title} is scheduled for ${formattedDate} (${daysUntil} day${daysUntil !== 1 ? 's' : ''} from now)`;
+                  const notificationTitle = `Upcoming Event: ${event.title}`;
+
+                  await query(`
+                    INSERT INTO notifications (user_id, title, message, type, related_id, is_read, data, created_at)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+                  `, [
+                    user.id,
+                    notificationTitle,
+                    notificationMessage,
+                    'event',
+                    event.id,
+                    false,
+                    JSON.stringify({
+                      event_id: event.id,
+                      event_title: event.title,
+                      event_date: event.event_date,
+                      event_description: event.description,
+                      branch_name: event.branch_name,
+                      days_until: daysUntil,
+                      frequency: frequency
+                    })
+                  ]);
+
+                  notificationsCreated++;
+                }
+              } catch (error) {
+                console.error(`❌ Error creating notification for event ${event.title}:`, error);
               }
             }
 
-            // Send email reminder
-            if (user.email && emailEnabled) {
-              const emailResult = await emailService.sendEventReminder(
-                user.email,
-                user.name,
-                frequency,
-                upcomingEvents,
-                user.branch_name
-              );
-
-              if (emailResult.success) {
-                reminderSent = true;
-                if (shouldLog) {
-                  console.log(`✅ Email event reminder sent to ${user.name} (${frequency})`);
-                }
-              } else {
-                console.error(`❌ Failed to send email event reminder to ${user.name}:`, emailResult.error);
-              }
-            }
-
-            if (reminderSent) {
+            if (notificationsCreated > 0) {
               remindersSent.push({
                 user: user.name,
                 frequency,
-                events: upcomingEvents.length,
-                phone: user.phone,
+                events: notificationsCreated,
                 email: user.email
               });
+              if (shouldLog) {
+                console.log(`✅ Created ${notificationsCreated} event reminder notifications for ${user.name} (${frequency})`);
+              }
             }
           }
 
@@ -985,145 +1011,6 @@ class SchedulerService {
 
     } catch (error) {
       console.error('❌ Error in softdrink trends alerts check:', error);
-    }
-  }
-
-  // Check for upcoming events and create notification records (runs hourly)
-  async checkUpcomingEventsForNotifications() {
-    try {
-      const now = new Date();
-      const swedenTime = new Date(now.toLocaleString("en-US", {timeZone: "Europe/Stockholm"}));
-      const currentMinute = swedenTime.getMinutes();
-      
-      // Only run at the top of each hour (minute 0)
-      if (currentMinute !== 0) {
-        return;
-      }
-
-      console.log('⏰ Checking for upcoming events to create notification records...');
-
-      // Ensure related_id column exists in notifications table
-      try {
-        await query(`
-          ALTER TABLE notifications ADD COLUMN IF NOT EXISTS related_id UUID;
-        `);
-        await query(`
-          CREATE INDEX IF NOT EXISTS idx_notifications_related_id ON notifications(related_id);
-        `);
-      } catch (error) {
-        console.log('⚠️ Column related_id already exists or error adding it:', error.message);
-      }
-
-      // Find events happening in the next 1 hour
-      const upcomingEventsResult = await query(`
-        SELECT ce.*, u.name as creator_name, u.email as creator_email,
-               b.name as branch_name
-        FROM calendar_events ce
-        LEFT JOIN users u ON ce.created_by = u.id
-        LEFT JOIN branches b ON ce.branch_id = b.id
-        WHERE ce.event_date >= NOW()
-        AND ce.event_date <= NOW() + INTERVAL '1 hour'
-      `);
-
-      const upcomingEvents = upcomingEventsResult.rows;
-
-      if (upcomingEvents.length === 0) {
-        console.log('✅ No events in the next hour');
-        return;
-      }
-
-      console.log(`📅 Found ${upcomingEvents.length} events happening in the next hour`);
-
-      let notificationsCreated = 0;
-
-      for (const event of upcomingEvents) {
-        try {
-          // Get all users who should receive event reminder notifications
-          const usersResult = await query(`
-            SELECT id, name, email, notification_settings
-            FROM users
-            WHERE is_active = true
-            AND (branch_context = $1 OR $1 IS NULL)
-          `, [event.branch_id]);
-
-          for (const user of usersResult.rows) {
-            // Check if user has event reminders enabled
-            let eventRemindersEnabled = false;
-            try {
-              if (user.notification_settings && typeof user.notification_settings === 'object') {
-                eventRemindersEnabled = user.notification_settings.eventReminders === true;
-              } else if (typeof user.notification_settings === 'string') {
-                const settings = JSON.parse(user.notification_settings);
-                eventRemindersEnabled = settings.eventReminders === true;
-              }
-            } catch (err) {
-              console.error('Error parsing notification settings:', err);
-            }
-
-            // Skip if user doesn't have event reminders enabled
-            if (!eventRemindersEnabled) {
-              continue;
-            }
-
-            // Check if notification already exists for this event and user
-            const existingNotificationResult = await query(`
-              SELECT id FROM notifications
-              WHERE type = 'event'
-              AND related_id = $1
-              AND user_id = $2
-            `, [event.id, user.id]);
-
-            // Only create notification if it doesn't already exist
-            if (existingNotificationResult.rows.length === 0) {
-              const eventDate = new Date(event.event_date);
-              const formattedDate = eventDate.toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              });
-
-              const message = `Event Reminder: ${event.title} starts in 1 hour on ${formattedDate}`;
-              const title = `Upcoming Event: ${event.title}`;
-
-              await query(`
-                INSERT INTO notifications (user_id, title, message, type, related_id, is_read, data, created_at)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-              `, [
-                user.id,
-                title,
-                message,
-                'event',
-                event.id,
-                false,
-                JSON.stringify({
-                  event_id: event.id,
-                  event_title: event.title,
-                  event_date: event.event_date,
-                  branch_name: event.branch_name
-                })
-              ]);
-
-              notificationsCreated++;
-              console.log(`✅ Created event notification for user ${user.name} (${user.email}) for event "${event.title}"`);
-            }
-          }
-        } catch (error) {
-          console.error(`❌ Error creating notification for event ${event.title}:`, error);
-        }
-      }
-
-      if (notificationsCreated > 0) {
-        console.log(`📬 Created ${notificationsCreated} event reminder notifications`);
-        
-        // Trigger frontend notification update
-        triggerSchedulerNotificationUpdate();
-      }
-
-    } catch (error) {
-      console.error('❌ Error in upcoming events notification check:', error);
     }
   }
 
