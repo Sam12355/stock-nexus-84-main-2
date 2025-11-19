@@ -310,6 +310,8 @@ router.get('/event-reminders/:userId', async (req, res) => {
       },
       upcomingEvents: eventsResult.rows,
       currentTime: new Date().toISOString(),
+      serverTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      serverLocalTime: new Date().toString(),
       swedenTime: new Date().toLocaleString("en-US", {timeZone: "Europe/Stockholm"}),
       swedenTimeFormatted: new Date().toLocaleString("en-US", {
         timeZone: "Europe/Stockholm",
@@ -317,7 +319,23 @@ router.get('/event-reminders/:userId', async (req, res) => {
         minute: '2-digit',
         second: '2-digit',
         hour12: false
-      })
+      }),
+      comparisonDebug: {
+        userScheduledTime: user.event_daily_schedule_time ? user.event_daily_schedule_time.slice(0, 5) : null,
+        currentSwedenTime: new Date().toLocaleString("en-US", {
+          timeZone: "Europe/Stockholm",
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        }),
+        doTheyMatch: user.event_daily_schedule_time ? 
+          (user.event_daily_schedule_time.slice(0, 5) === new Date().toLocaleString("en-US", {
+            timeZone: "Europe/Stockholm",
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+          })) : false
+      }
     });
   } catch (error) {
     console.error('Error debugging event reminders:', error);
