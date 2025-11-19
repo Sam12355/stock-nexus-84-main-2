@@ -77,8 +77,8 @@ router.post('/', authenticateToken, async (req, res) => {
       RETURNING *
     `, [title, description, event_date, event_type || 'general', branch_id, user_id]);
 
-    // Trigger frontend notification update
-    triggerNotificationUpdate(req, req.user.branch_id || req.user.branch_context);
+    // Don't create notification on event creation - only reminder notifications are sent 1 hour before event
+    // triggerNotificationUpdate(req, req.user.branch_id || req.user.branch_context);
 
     res.json({
       success: true,
