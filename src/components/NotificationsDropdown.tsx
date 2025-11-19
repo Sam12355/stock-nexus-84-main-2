@@ -24,13 +24,6 @@ interface Notification {
   is_read?: boolean;
 }
 
-interface CalendarEvent {
-  id: string;
-  title: string;
-  event_date: string;
-  description?: string;
-}
-
 interface StockAlert {
   id: string;
   name: string;
@@ -41,12 +34,11 @@ interface StockAlert {
 export function NotificationsDropdown() {
   const { profile } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [stockAlerts, setStockAlerts] = useState<StockAlert[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const getDismissedIds = (keySuffix: 'stock' | 'events') => {
+  const getDismissedIds = (keySuffix: 'stock') => {
     if (!profile?.id) return new Set<string>();
     try {
       const raw = localStorage.getItem(`dismissed_${keySuffix}_${profile.id}`);
@@ -57,7 +49,7 @@ export function NotificationsDropdown() {
     }
   };
 
-  const addDismissedId = (keySuffix: 'stock' | 'events', id: string) => {
+  const addDismissedId = (keySuffix: 'stock', id: string) => {
     if (!profile?.id) return;
     const key = `dismissed_${keySuffix}_${profile.id}`;
     const set = getDismissedIds(keySuffix);
@@ -68,7 +60,6 @@ export function NotificationsDropdown() {
   useEffect(() => {
     if (profile) {
       fetchNotifications();
-      fetchUpcomingEvents();
       fetchStockAlerts();
       
       // Connect to Socket.IO for real-time updates
@@ -119,7 +110,6 @@ export function NotificationsDropdown() {
 
     const pollInterval = setInterval(() => {
       fetchNotifications();
-      fetchUpcomingEvents();
       fetchStockAlerts();
     }, 30000); // Poll every 30 seconds
 
@@ -148,19 +138,7 @@ export function NotificationsDropdown() {
     }
   };
 
-  const fetchUpcomingEvents = async () => {
-    if (!profile) return;
 
-    try {
-      const data = await apiClient.getCalendarEvents();
-      const rows: CalendarEvent[] = Array.isArray(data) ? data : [];
-      const dismissed = getDismissedIds('events');
-      setEvents(rows.filter((e) => !dismissed.has(e.id)));
-    } catch (error) {
-      console.error('Error fetching events:', error);
-      setEvents([]);
-    }
-  };
 
   const fetchStockAlerts = async () => {
     if (!profile) return;
@@ -193,7 +171,6 @@ export function NotificationsDropdown() {
     try {
       await Promise.all([
         fetchNotifications(),
-        fetchUpcomingEvents(),
         fetchStockAlerts()
       ]);
       console.log('✅ Notifications refreshed successfully');
@@ -211,8 +188,8 @@ export function NotificationsDropdown() {
   };
 
   useEffect(() => {
-    setTotalCount(notifications.length + events.length + stockAlerts.length);
-  }, [notifications, events, stockAlerts]);
+    setTotalCount(notifications.length + stockAlerts.length);
+  }, [notifications, stockAlerts]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -299,40 +276,6 @@ export function NotificationsDropdown() {
                         Stock: {alert.current_quantity}/{alert.threshold_level}
                       </p>
                       <Badge variant="outline" className="text-xs">Low Stock</Badge>
-                    </div>
-                  </DropdownMenuItem>
-                ))}
-              </ScrollArea>
-              <DropdownMenuSeparator />
-            </div>
-          )}
-
-          {/* Upcoming Events */}
-          {events.length > 0 && (
-            <div>
-              <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground px-2 py-1">
-                Upcoming Events
-              </DropdownMenuLabel>
-              <ScrollArea className="h-48 pr-2">
-                {events.map((event) => (
-                  <DropdownMenuItem
-                    key={event.id}
-                    className="flex items-start space-x-2 p-3"
-                    onSelect={(e) => e.preventDefault()}
-                    onClick={() => {
-                      setEvents(prev => prev.filter(e => e.id !== event.id));
-                      addDismissedId('events', event.id);
-                    }}
-                  >
-                    <Calendar className="h-4 w-4 text-primary mt-0.5" />
-                    <div className="flex-1 space-y-1">
-                      <p className="text-sm font-medium">{event.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDate(event.event_date)}
-                      </p>
-                      <Badge variant="secondary" className="text-xs">
-                        Event
-                      </Badge>
                     </div>
                   </DropdownMenuItem>
                 ))}
