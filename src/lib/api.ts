@@ -345,6 +345,17 @@ class ApiClient {
     return response;
   }
 
+  async debugEventReminders() {
+    const response = await this.request<{
+      success: boolean;
+      user: any;
+      upcomingEvents: any[];
+      currentTime: string;
+      swedenTime: string;
+    }>('/calendar-events/debug-reminders');
+    return response;
+  }
+
   // Region Management methods
   async getRegions() {
     const response = await this.request<{
