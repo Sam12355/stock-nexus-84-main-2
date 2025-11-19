@@ -231,6 +231,8 @@ router.post('/movement', authenticateToken, async (req, res) => {
                   AND (u.phone IS NOT NULL OR u.email IS NOT NULL)
                 `);
 
+                console.log(`📊 Total active users with phone/email: ${usersResult.rows.length}`);
+
                 // Filter users who have stock alerts enabled in their notification settings
                 const subscribedUsers = usersResult.rows.filter(user => {
                   try {
@@ -240,7 +242,9 @@ router.post('/movement', authenticateToken, async (req, res) => {
                     } else if (typeof user.notification_settings === 'object' && user.notification_settings !== null) {
                       settings = user.notification_settings;
                     }
-                    return settings.stockLevelAlerts === true;
+                    const hasStockAlerts = settings.stockLevelAlerts === true;
+                    console.log(`👤 User ${user.name} (${user.id}): stockLevelAlerts=${hasStockAlerts}, settings:`, settings);
+                    return hasStockAlerts;
                   } catch (error) {
                     console.error(`Error parsing notification settings for user ${user.name}:`, error);
                     return false;
@@ -252,7 +256,7 @@ router.post('/movement', authenticateToken, async (req, res) => {
                   return;
                 }
 
-                console.log(`📢 Found ${subscribedUsers.length} users with stock alerts enabled`);
+                console.log(`📢 Found ${subscribedUsers.length} users with stock alerts enabled:`, subscribedUsers.map(u => `${u.name} (${u.id})`));
 
                 console.log(`📢 Found ${subscribedUsers.length} users with stock alerts enabled`);
 
@@ -329,6 +333,8 @@ router.post('/movement', authenticateToken, async (req, res) => {
                         })
                       ]
                     );
+                    
+                    console.log(`✅ Created notification record for user ${user.name} (${user.id})`);
 
                     // Send WhatsApp notification
                     if (phone && whatsappNotificationsEnabled) {
