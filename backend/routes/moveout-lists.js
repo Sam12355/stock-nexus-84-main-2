@@ -500,24 +500,13 @@ router.post('/:id/process-item',
 
             console.log(`📢 Found ${subscribedUsers.length} users with stock alerts enabled`);
 
-            // Remove duplicate phone numbers - keep only the first user with each phone number
-            const uniqueUsers = [];
+            console.log(`📢 Sending ${alertType} stock alert for "${stockData.item_name}" to ${subscribedUsers.length} users (triggered by moveout list)`);
+
+            // Send alerts to all subscribed users (create DB notifications for all, but deduplicate WhatsApp/Email)
             const seenPhones = new Set();
-            
+
+            // Send alerts to all subscribed users
             for (const user of subscribedUsers) {
-              if (user.phone && !seenPhones.has(user.phone)) {
-                seenPhones.add(user.phone);
-                uniqueUsers.push(user);
-              } else if (!user.phone) {
-                // Users without phone numbers are still included
-                uniqueUsers.push(user);
-              }
-            }
-
-            console.log(`📢 Sending ${alertType} stock alert for "${stockData.item_name}" to ${uniqueUsers.length} unique users (triggered by moveout list)`);
-
-            // Send alerts to all unique subscribed users
-            for (const user of uniqueUsers) {
               try {
                 const phone = user.phone;
                 const email = user.email;
@@ -575,17 +564,22 @@ router.post('/:id/process-item',
                   ]
                 );
 
-                // Send WhatsApp notification if enabled
+                // Send WhatsApp notification if enabled (only if phone not already sent to)
                 if (whatsappNotificationsEnabled && phone) {
-                  try {
-                    const whatsappResult = await whatsappService.sendMessage(phone, message);
-                    if (whatsappResult.success) {
-                      console.log(`✅ WhatsApp alert sent successfully to ${userName} (${phone})`);
-                    } else {
-                      console.error(`❌ Failed to send WhatsApp alert to ${userName}:`, whatsappResult.error);
+                  if (!seenPhones.has(phone)) {
+                    seenPhones.add(phone);
+                    try {
+                      const whatsappResult = await whatsappService.sendMessage(phone, message);
+                      if (whatsappResult.success) {
+                        console.log(`✅ WhatsApp alert sent successfully to ${userName} (${phone})`);
+                      } else {
+                        console.error(`❌ Failed to send WhatsApp alert to ${userName}:`, whatsappResult.error);
+                      }
+                    } catch (whatsappError) {
+                      console.error(`❌ Failed to send WhatsApp alert to ${userName}:`, whatsappError.message);
                     }
-                  } catch (whatsappError) {
-                    console.error(`❌ Failed to send WhatsApp alert to ${userName}:`, whatsappError.message);
+                  } else {
+                    console.log(`⚠️ WhatsApp already sent to ${phone}, skipping duplicate for ${userName}`);
                   }
                 }
 
