@@ -218,6 +218,15 @@ router.post('/movement', authenticateToken, async (req, res) => {
                   console.log(`⚠️ Alert already sent recently for "${item.item_name}" at ${newQuantity} units, skipping duplicate alert`);
                   return;
                 }
+                
+                // Debug: Check specific user first
+                const debugUserCheck = await query(`
+                  SELECT u.id, u.name, u.email, u.phone, u.is_active, u.notification_settings
+                  FROM users u
+                  WHERE u.id = '09efe509-72b8-4563-8436-615b34f4ef33'
+                `);
+                console.log(`🔍 DEBUG: Checking user 09efe509-72b8-4563-8436-615b34f4ef33:`, debugUserCheck.rows[0] || 'NOT FOUND');
+                
                 // Get all users who have stock alerts enabled
                 const usersResult = await query(`
                   SELECT u.id, u.phone, u.email, u.name, u.role, u.branch_context,
