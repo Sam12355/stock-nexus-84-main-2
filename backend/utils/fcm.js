@@ -29,9 +29,10 @@ async function sendStockAlertNotification(userId, stockAlert) {
     const threshold = stockAlert.threshold || 0;
     let alertType = stockAlert.alert_type?.toUpperCase() || 'LOW';
     if (!stockAlert.alert_type) {
+      const criticalLevel = Math.floor(threshold * 0.2); // Match stock.js calculation
       if (currentQty === 0) {
         alertType = 'OUT OF STOCK';
-      } else if (currentQty < threshold * 0.5) {
+      } else if (currentQty <= criticalLevel) {
         alertType = 'CRITICAL';
       }
     }
