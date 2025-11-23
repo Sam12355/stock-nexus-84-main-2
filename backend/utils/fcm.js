@@ -24,15 +24,29 @@ async function sendStockAlertNotification(userId, stockAlert) {
     const fcmToken = user.fcm_token;
     const userName = user.name || 'User';
 
-    // Determine alert type based on current quantity vs threshold
+    // Use alert type from stock.js if provided, otherwise calculate it
     const currentQty = stockAlert.current_quantity || 0;
     const threshold = stockAlert.threshold || 0;
-    let alertType = 'LOW';
-    if (currentQty === 0) {
-      alertType = 'OUT OF STOCK';
-    } else if (currentQty < threshold * 0.5) {
-      alertType = 'CRITICAL';
+    let alertType = stockAlert.alert_type?.toUpperCase() || 'LOW';
+    if (!stockAlert.alert_type) {
+      if (currentQty === 0) {
+        alertType = 'OUT OF STOCK';
+      } else if (currentQty < threshold * 0.5) {
+        alertType = 'CRITICAL';
+      }
     }
+
+    // Format time for Sweden timezone
+    const swedenTime = new Date().toLocaleString('en-US', {
+      timeZone: 'Europe/Stockholm',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
 
     // Create detailed message matching the format used in notifications
     let body = `📉 STOCK ALERT - ${alertType} LEVEL\n\n`;
@@ -41,7 +55,7 @@ async function sendStockAlertNotification(userId, stockAlert) {
     body += `🎯 Threshold: ${threshold}\n`;
     body += `📱 Alert Type: ${alertType}`;
     body += `\n\nPlease restock immediately to avoid stockout!\n\n`;
-    body += `Time: ${new Date().toLocaleString()}`;
+    body += `Time: ${swedenTime}`;
 
     // Prepare notification message (DATA-ONLY so FCMService handles it in background)
     const message = {

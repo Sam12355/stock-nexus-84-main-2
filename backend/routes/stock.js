@@ -349,7 +349,8 @@ router.post('/movement', authenticateToken, async (req, res) => {
                         item_id: item_id,
                         item_name: item.item_name,
                         current_quantity: newQuantity,
-                        threshold: threshold
+                        threshold: threshold,
+                        alert_type: alertType
                       });
                       
                     } catch (notificationError) {
