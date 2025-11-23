@@ -635,66 +635,54 @@ class SchedulerService {
                   // Column might already exist
                 }
 
-                // Check if notification already exists for this event and user (within 10 minutes to avoid rapid duplicates)
-                const existingNotificationResult = await query(`
-                  SELECT id FROM notifications
-                  WHERE type = 'event'
-                  AND related_id = $1
-                  AND user_id = $2
-                  AND created_at >= NOW() - INTERVAL '10 minutes'
-                `, [event.id, user.id]);
+                const eventDate = new Date(event.event_date);
+                const daysUntil = Math.ceil((eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                const formattedDate = eventDate.toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                });
 
-                // Only create notification if it doesn't already exist (avoid duplicates within 10 minutes)
-                if (existingNotificationResult.rows.length === 0) {
-                  const eventDate = new Date(event.event_date);
-                  const daysUntil = Math.ceil((eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                  const formattedDate = eventDate.toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
+                const notificationMessage = `Event Reminder: ${event.title} is scheduled for ${formattedDate} (${daysUntil} day${daysUntil !== 1 ? 's' : ''} from now)`;
+                const notificationTitle = `Upcoming Event: ${event.title}`;
+
+                const notificationResult = await query(`
+                  INSERT INTO notifications (user_id, title, message, type, related_id, is_read, data, created_at)
+                  VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+                  RETURNING id
+                `, [
+                  user.id,
+                  notificationTitle,
+                  notificationMessage,
+                  'event',
+                  event.id,
+                  false,
+                  JSON.stringify({
+                    event_id: event.id,
+                    event_title: event.title,
+                    event_date: event.event_date,
+                    event_description: event.description,
+                    branch_name: event.branch_name,
+                    days_until: daysUntil,
+                    frequency: frequency
+                  })
+                ]);
+
+                notificationsCreated++;
+                
+                // Send FCM push notification for event reminder
+                try {
+                  await sendEventReminderNotification(user.id, {
+                    id: notificationResult.rows[0].id,
+                    event_id: event.id,
+                    event_title: event.title,
+                    event_date: formattedDate,
+                    days_until: daysUntil,
+                    message: notificationMessage
                   });
-
-                  const notificationMessage = `Event Reminder: ${event.title} is scheduled for ${formattedDate} (${daysUntil} day${daysUntil !== 1 ? 's' : ''} from now)`;
-                  const notificationTitle = `Upcoming Event: ${event.title}`;
-
-                  const notificationResult = await query(`
-                    INSERT INTO notifications (user_id, title, message, type, related_id, is_read, data, created_at)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-                    RETURNING id
-                  `, [
-                    user.id,
-                    notificationTitle,
-                    notificationMessage,
-                    'event',
-                    event.id,
-                    false,
-                    JSON.stringify({
-                      event_id: event.id,
-                      event_title: event.title,
-                      event_date: event.event_date,
-                      event_description: event.description,
-                      branch_name: event.branch_name,
-                      days_until: daysUntil,
-                      frequency: frequency
-                    })
-                  ]);
-
-                  notificationsCreated++;
-                  
-                  // Send FCM push notification for event reminder
-                  try {
-                    await sendEventReminderNotification(user.id, {
-                      id: notificationResult.rows[0].id,
-                      event_id: event.id,
-                      event_title: event.title,
-                      event_date: formattedDate,
-                      days_until: daysUntil,
-                      message: notificationMessage
-                    });
-                  } catch (fcmError) {
-                    console.error(`❌ Error sending FCM event reminder to user ${user.id}:`, fcmError);
-                  }
+                } catch (fcmError) {
+                  console.error(`❌ Error sending FCM event reminder to user ${user.id}:`, fcmError);
                 }
               } catch (error) {
                 console.error(`❌ Error creating notification for event ${event.title}:`, error);
