@@ -5,6 +5,7 @@ const { authenticateToken, authorize } = require('../middleware/auth');
 const whatsappService = require('../services/whatsapp');
 const emailService = require('../services/email');
 const { triggerNotificationUpdate } = require('./notifications');
+const { sendStockAlertNotification } = require('../utils/fcm');
 
 const router = express.Router();
 
@@ -547,8 +548,8 @@ router.post('/:id/process-item',
                 message += `\n\nPlease restock immediately to avoid stockout!\n\nTime: ${new Date().toLocaleString()}`;
 
                 // Create notification record
-                await query(
-                  'INSERT INTO notifications (user_id, title, message, type, data) VALUES ($1, $2, $3, $4, $5)',
+                const notificationResult = await query(
+                  'INSERT INTO notifications (user_id, title, message, type, data) VALUES ($1, $2, $3, $4, $5) RETURNING id',
                   [
                     user.id,
                     `Stock Alert: ${stockData.item_name}`,
@@ -563,6 +564,15 @@ router.post('/:id/process-item',
                     })
                   ]
                 );
+
+                // Send FCM push notification immediately for instant delivery
+                await sendStockAlertNotification(user.id, {
+                  id: notificationResult.rows[0].id,
+                  item_id: stockData.item_id,
+                  item_name: stockData.item_name,
+                  current_quantity: newQuantity,
+                  threshold: threshold
+                });
 
                 // Send WhatsApp notification if enabled (only if phone not already sent to)
                 if (whatsappNotificationsEnabled && phone) {

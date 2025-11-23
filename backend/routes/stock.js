@@ -4,6 +4,7 @@ const { query } = require('../config/database');
 const whatsappService = require('../services/whatsapp');
 const emailService = require('../services/email');
 const { triggerNotificationUpdate } = require('./notifications');
+const { sendStockAlertNotification } = require('../utils/fcm');
 
 const router = express.Router();
 
@@ -341,6 +342,16 @@ router.post('/movement', authenticateToken, async (req, res) => {
                       );
                       
                       console.log(`✅ Created notification record for user ${user.name} (${user.id}), notification ID: ${insertResult.rows[0].id}`);
+                      
+                      // Send FCM push notification immediately for instant delivery
+                      await sendStockAlertNotification(user.id, {
+                        id: insertResult.rows[0].id,
+                        item_id: item_id,
+                        item_name: item.item_name,
+                        current_quantity: newQuantity,
+                        threshold: threshold
+                      });
+                      
                     } catch (notificationError) {
                       console.error(`❌ Failed to create notification for user ${user.name} (${user.id}):`, notificationError);
                       console.error(`❌ Error details:`, {

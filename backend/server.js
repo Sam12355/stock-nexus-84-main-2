@@ -26,8 +26,12 @@ const softdrinkTrendsRoutes = require('./routes/softdrink-trends');
 const debugRoutes = require('./routes/debug');
 const weatherRoutes = require('./routes/weather'); // Weather API routes
 const icaDeliveryRoutes = require('./routes/ica-delivery');
+const fcmRoutes = require('./routes/fcm'); // FCM push notifications
 const schedulerService = require('./services/scheduler');
 const emailService = require('./services/email');
+
+// Initialize Firebase Admin SDK
+require('./config/firebase');
 
 const path = require('path');
 const fs = require('fs');
@@ -221,6 +225,7 @@ app.use('/api/softdrink-trends', softdrinkTrendsRoutes);
 app.use('/api/ica-delivery', icaDeliveryRoutes);
 app.use('/api/debug', debugRoutes);
 app.use('/api/weather', weatherRoutes);
+app.use('/api/fcm', fcmRoutes);
 
 // Health check endpoint for Render
 app.get('/api/health', (req, res) => {
