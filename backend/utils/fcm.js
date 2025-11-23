@@ -24,14 +24,12 @@ async function sendStockAlertNotification(userId, stockAlert) {
     const fcmToken = user.fcm_token;
     const userName = user.name || 'User';
 
-    // Prepare notification message
+    // Prepare notification message (DATA-ONLY so FCMService handles it in background)
     const message = {
       token: fcmToken,
-      notification: {
+      data: {
         title: '⚠️ Stock Alert',
         body: `${stockAlert.item_name} is below threshold (${stockAlert.current_quantity} remaining)`,
-      },
-      data: {
         type: 'stock_alert',
         notification_id: String(stockAlert.id || ''),
         item_id: String(stockAlert.item_id || ''),
@@ -42,12 +40,6 @@ async function sendStockAlertNotification(userId, stockAlert) {
       },
       android: {
         priority: 'high',
-        notification: {
-          channelId: 'stock_alerts',
-          sound: 'default',
-          color: '#FF6B35',
-          tag: `stock_${stockAlert.item_id}`, // Replaces old notification for same item
-        },
       },
     };
 
@@ -93,14 +85,12 @@ async function sendEventReminderNotification(userId, eventReminder) {
     const fcmToken = user.fcm_token;
     const userName = user.name || 'User';
 
-    // Prepare notification message
+    // Prepare notification message (DATA-ONLY so FCMService handles it in background)
     const message = {
       token: fcmToken,
-      notification: {
+      data: {
         title: '📅 Event Reminder',
         body: eventReminder.message || `Upcoming event: ${eventReminder.event_title}`,
-      },
-      data: {
         type: 'event_reminder',
         notification_id: String(eventReminder.id || ''),
         event_id: String(eventReminder.event_id || ''),
@@ -110,11 +100,6 @@ async function sendEventReminderNotification(userId, eventReminder) {
       },
       android: {
         priority: 'high',
-        notification: {
-          channelId: 'event_reminders',
-          sound: 'default',
-          color: '#4A90E2',
-        },
       },
     };
 
@@ -160,14 +145,12 @@ async function sendGenericNotification(userId, notification) {
     const fcmToken = user.fcm_token;
     const userName = user.name || 'User';
 
-    // Prepare notification message
+    // Prepare notification message (DATA-ONLY so FCMService handles it in background)
     const message = {
       token: fcmToken,
-      notification: {
+      data: {
         title: notification.title || 'Notification',
         body: notification.message || notification.body || '',
-      },
-      data: {
         type: notification.type || 'general',
         notification_id: String(notification.id || ''),
         timestamp: new Date().toISOString(),
@@ -175,10 +158,6 @@ async function sendGenericNotification(userId, notification) {
       },
       android: {
         priority: 'high',
-        notification: {
-          channelId: 'general_notifications',
-          sound: 'default',
-        },
       },
     };
 
