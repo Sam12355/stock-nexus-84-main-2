@@ -24,18 +24,37 @@ async function sendStockAlertNotification(userId, stockAlert) {
     const fcmToken = user.fcm_token;
     const userName = user.name || 'User';
 
+    // Determine alert type based on current quantity vs threshold
+    const currentQty = stockAlert.current_quantity || 0;
+    const threshold = stockAlert.threshold || 0;
+    let alertType = 'LOW';
+    if (currentQty === 0) {
+      alertType = 'OUT OF STOCK';
+    } else if (currentQty < threshold * 0.5) {
+      alertType = 'CRITICAL';
+    }
+
+    // Create detailed message matching the format used in notifications
+    let body = `📉 STOCK ALERT - ${alertType} LEVEL\n\n`;
+    body += `📦 Item: ${stockAlert.item_name}\n`;
+    body += `📊 Current Stock: ${currentQty}\n`;
+    body += `🎯 Threshold: ${threshold}\n`;
+    body += `📱 Alert Type: ${alertType}`;
+    body += `\n\nPlease restock immediately to avoid stockout!\n\n`;
+    body += `Time: ${new Date().toLocaleString()}`;
+
     // Prepare notification message (DATA-ONLY so FCMService handles it in background)
     const message = {
       token: fcmToken,
       data: {
         title: '⚠️ Stock Alert',
-        body: `${stockAlert.item_name} is below threshold (${stockAlert.current_quantity} remaining)`,
+        body: body,
         type: 'stock_alert',
         notification_id: String(stockAlert.id || ''),
         item_id: String(stockAlert.item_id || ''),
         item_name: String(stockAlert.item_name || ''),
-        current_quantity: String(stockAlert.current_quantity || 0),
-        threshold: String(stockAlert.threshold || 0),
+        current_quantity: String(currentQty),
+        threshold: String(threshold),
         timestamp: new Date().toISOString(),
       },
       android: {

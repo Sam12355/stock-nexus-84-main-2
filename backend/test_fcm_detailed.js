@@ -19,9 +19,13 @@ async function testFCMNotificationDetailed() {
   const message = {
     token: testToken,
     data: {  // DATA ONLY - no notification field so FCMService handles it!
-      title: '🔔 Test Notification',
-      body: 'Testing FCM push notification delivery',
-      type: 'test',
+      title: '⚠️ Stock Alert',
+      body: `📉 STOCK ALERT - LOW LEVEL\n\n📦 Item: Guruka\n📊 Current Stock: 4\n🎯 Threshold: 10\n📱 Alert Type: LOW\n\nPlease restock immediately to avoid stockout!\n\nTime: ${new Date().toLocaleString()}`,
+      type: 'stock_alert',
+      notification_id: '123',
+      item_name: 'Guruka',
+      current_quantity: '4',
+      threshold: '10',
       timestamp: new Date().toISOString(),
     },
     android: {
