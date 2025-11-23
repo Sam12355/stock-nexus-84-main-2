@@ -263,6 +263,9 @@ io.on('connection', (socket) => {
 // Make io available to other modules
 app.set('io', io);
 
+// Store io instance globally for use in background tasks
+global.socketIO = io;
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);

@@ -10,11 +10,9 @@ const router = express.Router();
 const triggerNotificationUpdate = (req, branchId = null) => {
   console.log('📢 Backend: Triggering notification update for all connected clients');
   console.log('📢 Branch ID:', branchId);
-  console.log('📢 Request object available:', !!req);
-  console.log('📢 Request app available:', !!req?.app);
   
-  // Get the Socket.IO instance from the app
-  const io = req.app.get('io');
+  // Try to get Socket.IO from global or req.app
+  const io = global.socketIO || req?.app?.get('io');
   console.log('📢 Socket.IO instance:', !!io);
   
   if (io) {
