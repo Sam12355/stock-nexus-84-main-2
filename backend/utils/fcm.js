@@ -24,18 +24,10 @@ async function sendStockAlertNotification(userId, stockAlert) {
     const fcmToken = user.fcm_token;
     const userName = user.name || 'User';
 
-    // Use alert type from stock.js if provided, otherwise calculate it
+    // Use alert type passed from stock.js (already calculated based on item's threshold)
     const currentQty = stockAlert.current_quantity || 0;
     const threshold = stockAlert.threshold || 0;
-    let alertType = stockAlert.alert_type?.toUpperCase() || 'LOW';
-    if (!stockAlert.alert_type) {
-      const criticalLevel = Math.floor(threshold * 0.2); // Match stock.js calculation
-      if (currentQty === 0) {
-        alertType = 'OUT OF STOCK';
-      } else if (currentQty <= criticalLevel) {
-        alertType = 'CRITICAL';
-      }
-    }
+    const alertType = (stockAlert.alert_type || 'low').toUpperCase();
 
     // Format time for Sweden timezone
     const swedenTime = new Date().toLocaleString('en-US', {
