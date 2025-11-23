@@ -635,16 +635,16 @@ class SchedulerService {
                   // Column might already exist
                 }
 
-                // Check if notification already exists for this event and user
+                // Check if notification already exists for this event and user (within 10 minutes to avoid rapid duplicates)
                 const existingNotificationResult = await query(`
                   SELECT id FROM notifications
                   WHERE type = 'event'
                   AND related_id = $1
                   AND user_id = $2
-                  AND created_at >= NOW() - INTERVAL '24 hours'
+                  AND created_at >= NOW() - INTERVAL '10 minutes'
                 `, [event.id, user.id]);
 
-                // Only create notification if it doesn't already exist (avoid duplicates within 24 hours)
+                // Only create notification if it doesn't already exist (avoid duplicates within 10 minutes)
                 if (existingNotificationResult.rows.length === 0) {
                   const eventDate = new Date(event.event_date);
                   const daysUntil = Math.ceil((eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
