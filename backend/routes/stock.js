@@ -344,8 +344,28 @@ router.post('/movement', authenticateToken, async (req, res) => {
                       
                       console.log(`✅ Created notification record for user ${user.name} (${user.id}), notification ID: ${insertResult.rows[0].id}`);
                       
-                      // Trigger real-time Socket.IO update for this user immediately
-                      triggerNotificationUpdate(req, user.branch_id || user.branch_context || req.user.branch_id);
+                      // Trigger real-time Socket.IO update immediately using global socketIO
+                      const io = global.socketIO;
+                      if (io) {
+                        const branchId = user.branch_id || user.branch_context || req.user.branch_id;
+                        if (branchId) {
+                          io.to(`branch-${branchId}`).emit('notification-update', {
+                            type: 'notification-update',
+                            message: 'New notifications available',
+                            timestamp: new Date().toISOString()
+                          });
+                          console.log(`📢 Socket.IO: Sent notification update to branch-${branchId}`);
+                        } else {
+                          io.emit('notification-update', {
+                            type: 'notification-update',
+                            message: 'New notifications available',
+                            timestamp: new Date().toISOString()
+                          });
+                          console.log(`📢 Socket.IO: Sent notification update to all clients`);
+                        }
+                      } else {
+                        console.log(`⚠️ Socket.IO not available`);
+                      }
                       
                       // Send FCM push notification immediately for instant delivery
                       await sendStockAlertNotification(user.id, {
