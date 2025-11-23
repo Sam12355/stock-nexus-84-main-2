@@ -344,6 +344,9 @@ router.post('/movement', authenticateToken, async (req, res) => {
                       
                       console.log(`✅ Created notification record for user ${user.name} (${user.id}), notification ID: ${insertResult.rows[0].id}`);
                       
+                      // Trigger real-time Socket.IO update for this user immediately
+                      triggerNotificationUpdate(req, user.branch_id || user.branch_context || req.user.branch_id);
+                      
                       // Send FCM push notification immediately for instant delivery
                       await sendStockAlertNotification(user.id, {
                         id: insertResult.rows[0].id,
