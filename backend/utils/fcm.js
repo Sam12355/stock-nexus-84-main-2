@@ -111,17 +111,42 @@ async function sendEventReminderNotification(userId, eventReminder) {
     const fcmToken = user.fcm_token;
     const userName = user.name || 'User';
 
+    // Create detailed event reminder message
+    const eventTitle = eventReminder.event_title || 'Event';
+    const eventDate = eventReminder.event_date || 'Soon';
+    const daysUntil = eventReminder.days_until || 0;
+    
+    // Format time for Sweden timezone
+    const swedenTime = new Date().toLocaleString('en-US', {
+      timeZone: 'Europe/Stockholm',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+
+    let body = `📅 EVENT REMINDER\n\n`;
+    body += `📌 Event: ${eventTitle}\n`;
+    body += `📆 Date: ${eventDate}\n`;
+    body += `⏰ ${daysUntil} day${daysUntil !== 1 ? 's' : ''} from now\n\n`;
+    body += `Don't forget to prepare!\n\n`;
+    body += `Time: ${swedenTime}`;
+
     // Prepare notification message (DATA-ONLY so FCMService handles it in background)
     const message = {
       token: fcmToken,
       data: {
         title: '📅 Event Reminder',
-        body: eventReminder.message || `Upcoming event: ${eventReminder.event_title}`,
+        body: body,
         type: 'event_reminder',
         notification_id: String(eventReminder.id || ''),
         event_id: String(eventReminder.event_id || ''),
-        event_title: String(eventReminder.event_title || ''),
-        event_date: String(eventReminder.event_date || ''),
+        event_title: String(eventTitle),
+        event_date: String(eventDate),
+        days_until: String(daysUntil),
         timestamp: new Date().toISOString(),
       },
       android: {
