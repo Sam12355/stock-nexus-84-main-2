@@ -1,6 +1,7 @@
 const whatsappService = require('./whatsapp');
 const emailService = require('./email');
 const { query } = require('../config/database');
+const { sendEventReminderNotification } = require('../utils/fcm');
 
 // Global notification trigger for scheduler (no req object available)
 const triggerSchedulerNotificationUpdate = () => {
@@ -657,9 +658,10 @@ class SchedulerService {
                   const notificationMessage = `Event Reminder: ${event.title} is scheduled for ${formattedDate} (${daysUntil} day${daysUntil !== 1 ? 's' : ''} from now)`;
                   const notificationTitle = `Upcoming Event: ${event.title}`;
 
-                  await query(`
+                  const notificationResult = await query(`
                     INSERT INTO notifications (user_id, title, message, type, related_id, is_read, data, created_at)
                     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+                    RETURNING id
                   `, [
                     user.id,
                     notificationTitle,
@@ -679,6 +681,20 @@ class SchedulerService {
                   ]);
 
                   notificationsCreated++;
+                  
+                  // Send FCM push notification for event reminder
+                  try {
+                    await sendEventReminderNotification(user.id, {
+                      id: notificationResult.rows[0].id,
+                      event_id: event.id,
+                      event_title: event.title,
+                      event_date: formattedDate,
+                      days_until: daysUntil,
+                      message: notificationMessage
+                    });
+                  } catch (fcmError) {
+                    console.error(`❌ Error sending FCM event reminder to user ${user.id}:`, fcmError);
+                  }
                 }
               } catch (error) {
                 console.error(`❌ Error creating notification for event ${event.title}:`, error);
