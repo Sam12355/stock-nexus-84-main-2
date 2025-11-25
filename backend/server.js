@@ -5,6 +5,8 @@ const rateLimit = require('express-rate-limit');
 const http = require('http');
 const { Server } = require('socket.io');
 require('dotenv').config();
+const jwt = require('jsonwebtoken');
+const presence = require('./utils/presence');
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
@@ -27,6 +29,7 @@ const debugRoutes = require('./routes/debug');
 const weatherRoutes = require('./routes/weather'); // Weather API routes
 const icaDeliveryRoutes = require('./routes/ica-delivery');
 const fcmRoutes = require('./routes/fcm'); // FCM push notifications
+const presenceRoutes = require('./routes/presence');
 const schedulerService = require('./services/scheduler');
 const emailService = require('./services/email');
 
@@ -46,6 +49,38 @@ const io = new Server(server, {
     ].filter(Boolean),
     methods: ['GET', 'POST'],
     credentials: true
+  }
+});
+
+// Initialize presence subsystem (Redis or in-memory)
+presence.init().catch(err => console.warn('Presence init error:', err?.message || err));
+
+// Relay presence events to socket.io (handles cross-instance via Redis pub/sub)
+presence.on('user-online', (data) => {
+  try {
+    const branchRoom = `branch-${data.branchId}`;
+    io.to(branchRoom).emit('user-online', data);
+  } catch (e) {
+    console.error('Presence relay error (user-online):', e?.message || e);
+  }
+});
+presence.on('user-offline', (data) => {
+  try {
+    const branchRoom = `branch-${data.branchId}`;
+    io.to(branchRoom).emit('user-offline', data);
+  } catch (e) {
+    console.error('Presence relay error (user-offline):', e?.message || e);
+  }
+});
+presence.on('online-members', (data) => {
+  try {
+    // data should be an array of members; include branchId if present
+    const branchId = Array.isArray(data) && data.length > 0 ? data[0].branchId : data.branchId || null;
+    if (branchId) {
+      io.to(`branch-${branchId}`).emit('online-members', data);
+    }
+  } catch (e) {
+    console.error('Presence relay error (online-members):', e?.message || e);
   }
 });
 
@@ -226,6 +261,7 @@ app.use('/api/ica-delivery', icaDeliveryRoutes);
 app.use('/api/debug', debugRoutes);
 app.use('/api/weather', weatherRoutes);
 app.use('/api/fcm', fcmRoutes);
+app.use('/api/presence', presenceRoutes);
 
 // Health check endpoint for Render
 app.get('/api/health', (req, res) => {
@@ -245,18 +281,78 @@ app.get('/', (req, res) => {
   });
 });
 
+// Authenticate sockets using JWT in handshake (require token in socket.auth)
+io.use(async (socket, next) => {
+  try {
+    const token = socket.handshake.auth?.token || (socket.handshake.headers && socket.handshake.headers.authorization && socket.handshake.headers.authorization.split(' ')[1]);
+    if (!token) return next(new Error('Authentication error - token required'));
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // Fetch user record to confirm active + get branch
+    const { query } = require('./config/database');
+    const result = await query('SELECT id, name, email, role, branch_id, branch_context, photo_url FROM users WHERE id = $1', [decoded.userId]);
+    if (result.rows.length === 0) return next(new Error('Authentication error - user not found'));
+
+    const user = result.rows[0];
+    if (!user) return next(new Error('Authentication error - invalid user'));
+    socket.user = user;
+    return next();
+  } catch (err) {
+    console.error('Socket auth failed:', err?.message || err);
+    return next(new Error('Authentication error'));
+  }
+});
+
 // Socket.IO connection handling
-io.on('connection', (socket) => {
-  console.log('🔌 Client connected:', socket.id);
-  
-  // Join user to their branch room for notifications
-  socket.on('join-branch', (branchId) => {
-    socket.join(`branch-${branchId}`);
-    console.log(`👥 User ${socket.id} joined branch room: branch-${branchId}`);
+io.on('connection', async (socket) => {
+  console.log('🔌 Client connected (authenticated):', socket.id, 'user:', socket.user?.id);
+
+  // Determine primary branch for this user
+  const branchId = socket.user?.branch_context || socket.user?.branch_id;
+
+  // Auto-join branch room
+  if (branchId) {
+    const room = `branch-${branchId}`;
+    socket.join(room);
+    // Add presence
+    try {
+      await presence.addSocket({ branchId, userId: socket.user.id, socketId: socket.id, meta: { name: socket.user.name, photoUrl: socket.user.photo_url, role: socket.user.role } });
+    } catch (e) {
+      console.error('Error adding socket to presence:', e?.message || e);
+    }
+  }
+
+  // Admins can subscribe to admin-overview room to get cross-branch presence
+  if (socket.user && socket.user.role === 'admin') {
+    socket.join('admins-overview');
+  }
+
+  // If client explicitly asks to join other branch (admin or allowed user), handle securely
+  socket.on('join-branch', async (requestedBranchId, ack) => {
+    try {
+      // authorization: admins can join anywhere, others only their own branch
+      if (socket.user.role !== 'admin' && (requestedBranchId !== socket.user.branch_id && requestedBranchId !== socket.user.branch_context)) {
+        if (typeof ack === 'function') ack({ success: false, error: 'Not authorized for branch' });
+        return;
+      }
+      socket.join(`branch-${requestedBranchId}`);
+      // add presence for requested branch
+      await presence.addSocket({ branchId: requestedBranchId, userId: socket.user.id, socketId: socket.id, meta: { name: socket.user.name, photoUrl: socket.user.photo_url, role: socket.user.role } });
+      if (typeof ack === 'function') ack({ success: true });
+    } catch (err) {
+      console.error('join-branch error:', err?.message || err);
+      if (typeof ack === 'function') ack({ success: false, error: err?.message || 'error' });
+    }
   });
-  
-  socket.on('disconnect', () => {
-    console.log('🔌 Client disconnected:', socket.id);
+
+  socket.on('disconnect', async (reason) => {
+    try {
+      console.log('🔌 Client disconnected:', socket.id, 'reason:', reason);
+      // Remove presence mapping
+      await presence.removeSocket(socket.id);
+    } catch (e) {
+      console.error('Error removing socket presence:', e?.message || e);
+    }
   });
 });
 
