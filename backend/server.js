@@ -42,47 +42,22 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: [
-      process.env.FRONTEND_URL || 'http://localhost:8081',
-      'https://stock-nexus-84-main-2-kmth.vercel.app',
-      'https://ims-sy.vercel.app'
-    ].filter(Boolean),
-    methods: ['GET', 'POST'],
-    credentials: true
-  }
+    origin: '*',  // Allow all origins for mobile app support
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization']
+  },
+  // Allow mobile clients to connect
+  allowEIO3: true,
+  transports: ['websocket', 'polling']
 });
 
 // Initialize presence subsystem (Redis or in-memory)
 presence.init().catch(err => console.warn('Presence init error:', err?.message || err));
 
-// Relay presence events to socket.io (handles cross-instance via Redis pub/sub)
-presence.on('user-online', (data) => {
-  try {
-    const branchRoom = `branch-${data.branchId}`;
-    io.to(branchRoom).emit('user-online', data);
-  } catch (e) {
-    console.error('Presence relay error (user-online):', e?.message || e);
-  }
-});
-presence.on('user-offline', (data) => {
-  try {
-    const branchRoom = `branch-${data.branchId}`;
-    io.to(branchRoom).emit('user-offline', data);
-  } catch (e) {
-    console.error('Presence relay error (user-offline):', e?.message || e);
-  }
-});
-presence.on('online-members', (data) => {
-  try {
-    // data should be an array of members; include branchId if present
-    const branchId = Array.isArray(data) && data.length > 0 ? data[0].branchId : data.branchId || null;
-    if (branchId) {
-      io.to(`branch-${branchId}`).emit('online-members', data);
-    }
-  } catch (e) {
-    console.error('Presence relay error (online-members):', e?.message || e);
-  }
-});
+// NOTE: Presence events (user-online, user-offline, online-members) are handled directly
+// in the io.on('connection') handler to properly exclude the sender using socket.to()
+// The presence module's EventEmitter is only used for Redis cross-instance pub/sub
 
 const PORT = process.env.PORT || 5000;
 
@@ -187,6 +162,27 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });
+});
+
+// Socket.IO status debug endpoint
+app.get('/api/socket-status', async (req, res) => {
+  try {
+    const sockets = await io.fetchSockets();
+    const allOnline = await presence.getAllOnline();
+    res.json({
+      status: 'ok',
+      connectedSockets: sockets.length,
+      socketIds: sockets.map(s => ({ id: s.id, userId: s.user?.id, name: s.user?.name })),
+      onlineByBranch: allOnline,
+      timestamp: new Date().toISOString()
+    });
+  } catch (e) {
+    res.json({
+      status: 'ok',
+      error: e?.message || 'Could not fetch socket details',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // Debug endpoint to check receipts directory
@@ -305,7 +301,7 @@ io.use(async (socket, next) => {
 
 // Socket.IO connection handling
 io.on('connection', async (socket) => {
-  console.log('🔌 Client connected (authenticated):', socket.id, 'user:', socket.user?.id);
+  console.log('🔌 Client connected (authenticated):', socket.id, 'user:', socket.user?.id, 'name:', socket.user?.name);
 
   // Determine primary branch for this user
   const branchId = socket.user?.branch_context || socket.user?.branch_id;
@@ -314,9 +310,37 @@ io.on('connection', async (socket) => {
   if (branchId) {
     const room = `branch-${branchId}`;
     socket.join(room);
-    // Add presence
+    
+    // Add presence and emit user-online to OTHER users in the branch
     try {
-      await presence.addSocket({ branchId, userId: socket.user.id, socketId: socket.id, meta: { name: socket.user.name, photoUrl: socket.user.photo_url, role: socket.user.role } });
+      const result = await presence.addSocket({ 
+        branchId, 
+        userId: socket.user.id, 
+        socketId: socket.id, 
+        meta: { 
+          name: socket.user.name, 
+          photoUrl: socket.user.photo_url, 
+          role: socket.user.role 
+        } 
+      });
+      
+      // If this is user's first connection (not a reconnect with existing tabs)
+      if (result && result.firstConnection) {
+        // Emit user-online to OTHER users in the branch (not to the connecting user)
+        socket.to(room).emit('user-online', {
+          id: socket.user.id,
+          userId: socket.user.id,
+          name: socket.user.name,
+          photoUrl: socket.user.photo_url || null
+        });
+        console.log(`👤 User ${socket.user.name} (${socket.user.id}) is now ONLINE in branch ${branchId}`);
+      }
+      
+      // Send initial online-members list directly to the connecting socket
+      if (result && result.members) {
+        socket.emit('online-members', result.members);
+        console.log(`📋 Sent ${result.members.length} online members to ${socket.user.name}`);
+      }
     } catch (e) {
       console.error('Error adding socket to presence:', e?.message || e);
     }
@@ -335,10 +359,38 @@ io.on('connection', async (socket) => {
         if (typeof ack === 'function') ack({ success: false, error: 'Not authorized for branch' });
         return;
       }
-      socket.join(`branch-${requestedBranchId}`);
+      const room = `branch-${requestedBranchId}`;
+      socket.join(room);
+      
       // add presence for requested branch
-      await presence.addSocket({ branchId: requestedBranchId, userId: socket.user.id, socketId: socket.id, meta: { name: socket.user.name, photoUrl: socket.user.photo_url, role: socket.user.role } });
-      if (typeof ack === 'function') ack({ success: true });
+      const result = await presence.addSocket({ 
+        branchId: requestedBranchId, 
+        userId: socket.user.id, 
+        socketId: socket.id, 
+        meta: { 
+          name: socket.user.name, 
+          photoUrl: socket.user.photo_url, 
+          role: socket.user.role 
+        } 
+      });
+      
+      // Emit user-online to OTHER users in the branch
+      if (result && result.firstConnection) {
+        socket.to(room).emit('user-online', {
+          id: socket.user.id,
+          userId: socket.user.id,
+          name: socket.user.name,
+          photoUrl: socket.user.photo_url || null
+        });
+        console.log(`👤 User ${socket.user.name} joined branch ${requestedBranchId} - now ONLINE`);
+      }
+      
+      // Send online members list to the joining user
+      if (result && result.members) {
+        socket.emit('online-members', result.members);
+      }
+      
+      if (typeof ack === 'function') ack({ success: true, members: result?.members || [] });
     } catch (err) {
       console.error('join-branch error:', err?.message || err);
       if (typeof ack === 'function') ack({ success: false, error: err?.message || 'error' });
@@ -347,11 +399,56 @@ io.on('connection', async (socket) => {
 
   socket.on('disconnect', async (reason) => {
     try {
-      console.log('🔌 Client disconnected:', socket.id, 'reason:', reason);
+      console.log('🔌 Client disconnected:', socket.id, 'reason:', reason, 'user:', socket.user?.name);
+      
+      // Get branch before removing socket
+      const userBranchId = socket.user?.branch_context || socket.user?.branch_id;
+      
       // Remove presence mapping
-      await presence.removeSocket(socket.id);
+      const result = await presence.removeSocket(socket.id);
+      
+      // If user went offline (no more connections), notify other users
+      if (result && result.wentOffline && userBranchId) {
+        const room = `branch-${userBranchId}`;
+        io.to(room).emit('user-offline', socket.user.id);
+        console.log(`👤 User ${socket.user.name} (${socket.user.id}) went OFFLINE from branch ${userBranchId}`);
+        
+        // Also send updated members list to remaining users
+        if (result.members) {
+          io.to(room).emit('online-members', result.members);
+        }
+      }
     } catch (e) {
       console.error('Error removing socket presence:', e?.message || e);
+    }
+  });
+
+  // Ping-pong for connection testing
+  socket.on('ping', (callback) => {
+    if (typeof callback === 'function') {
+      callback({ status: 'ok', timestamp: Date.now() });
+    } else {
+      socket.emit('pong', { status: 'ok', timestamp: Date.now() });
+    }
+  });
+
+  // Get current online members on demand
+  socket.on('get-online-members', async (callback) => {
+    try {
+      const userBranchId = socket.user?.branch_context || socket.user?.branch_id;
+      if (userBranchId) {
+        const members = await presence.getMembers(userBranchId);
+        if (typeof callback === 'function') {
+          callback({ success: true, members });
+        } else {
+          socket.emit('online-members', members);
+        }
+      }
+    } catch (e) {
+      console.error('get-online-members error:', e?.message || e);
+      if (typeof callback === 'function') {
+        callback({ success: false, error: e?.message || 'error' });
+      }
     }
   });
 });

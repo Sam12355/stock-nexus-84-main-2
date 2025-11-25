@@ -59,15 +59,16 @@ class Presence extends EventEmitter {
   }
 
   // helper: emit and publish (when redis enabled)
-  async _announce(channel, event, data) {
+  // Note: We only publish to Redis for cross-instance sync
+  // Local socket.io events are handled directly in server.js to properly use socket.to()
+  async _publish(channel, event, data) {
     try {
-      this.emit(event, data);
       if (this.useRedis && this.redis) {
         const payload = { event, data };
         await this.redis.publish(channel, JSON.stringify(payload));
       }
     } catch (e) {
-      console.error('Presence announce failed', e?.message || e);
+      console.error('Presence publish failed', e?.message || e);
     }
   }
 
@@ -106,9 +107,9 @@ class Presence extends EventEmitter {
 
       // publish
       if (firstConnection) {
-        await this._announce(`presence:branch:${branchId}`, 'user-online', { id: userId, ...meta, branchId, connectedAt: new Date().toISOString() });
+        await this._publish(`presence:branch:${branchId}`, 'user-online', { id: userId, ...meta, branchId, connectedAt: new Date().toISOString() });
       }
-      await this._announce(`presence:branch:${branchId}`, 'online-members', members);
+      await this._publish(`presence:branch:${branchId}`, 'online-members', members);
 
       // store a mapping of socket->user in redis (for cross-instance removal). Keep as set for socket presence
       await this.redis.set(`presence:socket:${socketId}`, JSON.stringify({ userId, branchId, serverId: this.serverId }));
@@ -135,10 +136,10 @@ class Presence extends EventEmitter {
     const members = await this.getMembers(branchId);
 
     if (firstConnection) {
-      await this._announce(`presence:branch:${branchId}`, 'user-online', { id: userId, ...userState.meta, connectedAt: new Date().toISOString() });
+      await this._publish(`presence:branch:${branchId}`, 'user-online', { id: userId, ...userState.meta, connectedAt: new Date().toISOString() });
     }
 
-    await this._announce(`presence:branch:${branchId}`, 'online-members', members);
+    await this._publish(`presence:branch:${branchId}`, 'online-members', members);
 
     return { firstConnection, members };
   }
@@ -172,9 +173,9 @@ class Presence extends EventEmitter {
       const members = await this.getMembers(branchId);
 
       if (wentOffline) {
-        await this._announce(`presence:branch:${branchId}`, 'user-offline', { id: userId, branchId, wentOfflineAt: new Date().toISOString() });
+        await this._publish(`presence:branch:${branchId}`, 'user-offline', { id: userId, branchId, wentOfflineAt: new Date().toISOString() });
       }
-      await this._announce(`presence:branch:${branchId}`, 'online-members', members);
+      await this._publish(`presence:branch:${branchId}`, 'online-members', members);
       return { wentOffline, members };
     }
 
@@ -199,9 +200,9 @@ class Presence extends EventEmitter {
     const members = await this.getMembers(branchId);
 
     if (wentOffline) {
-      await this._announce(`presence:branch:${branchId}`, 'user-offline', { id: userId, branchId, wentOfflineAt: new Date().toISOString() });
+      await this._publish(`presence:branch:${branchId}`, 'user-offline', { id: userId, branchId, wentOfflineAt: new Date().toISOString() });
     }
-    await this._announce(`presence:branch:${branchId}`, 'online-members', members);
+    await this._publish(`presence:branch:${branchId}`, 'online-members', members);
 
     return { wentOffline, members };
   }

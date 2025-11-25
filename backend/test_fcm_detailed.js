@@ -12,7 +12,7 @@ async function testFCMNotificationDetailed() {
     return;
   }
 
-  const testToken = 'c_oap6V6RumOfoH0MAALlY:APA91bF_cC20D8vzLDd2OWV6L_a5TIPC8Cw8_yU729gyR5t49xafacGYyfp3YuIfxCAyAsga7mA0w69qBAK-w_sVbJ9-zZvs35xq1oZ1IIWk05NKlvs3udU';
+  const testToken = 'fBRKoQheSDeu_9Fb1XDFb9:APA91bH78DsSNj96wCi2USg0ssrObkLCCzu-u-3Bw-38fM68zKTzZvWt2HmWPcuafM51S3CoQflcwr36QJlDdqe5sj1PaBUEZVCKh9nAtehXqQYYlgCoE1Q';
   
   console.log('📱 Testing with token:', testToken.substring(0, 30) + '...\n');
 
