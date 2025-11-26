@@ -301,15 +301,26 @@ io.use(async (socket, next) => {
 
 // Socket.IO connection handling
 io.on('connection', async (socket) => {
-  console.log('🔌 Client connected (authenticated):', socket.id, 'user:', socket.user?.id, 'name:', socket.user?.name);
+  console.log('\n========== SOCKET CONNECTION ==========');
+  console.log('🔌 Client connected (authenticated):', socket.id);
+  console.log('👤 User ID:', socket.user?.id);
+  console.log('👤 User Name:', socket.user?.name);
+  console.log('🏢 User branch_id:', socket.user?.branch_id);
+  console.log('🏢 User branch_context:', socket.user?.branch_context);
 
   // Determine primary branch for this user
   const branchId = socket.user?.branch_context || socket.user?.branch_id;
+  console.log('🎯 Using branchId:', branchId);
 
   // Auto-join branch room
   if (branchId) {
     const room = `branch-${branchId}`;
     socket.join(room);
+    
+    // Log room membership
+    const roomSize = io.sockets.adapter.rooms.get(room)?.size || 0;
+    console.log(`✅ User ${socket.user.name} joined room: ${room}`);
+    console.log(`📊 Room ${room} now has ${roomSize} socket(s)`);
     
     // Add presence and emit user-online to OTHER users in the branch
     try {
@@ -324,31 +335,40 @@ io.on('connection', async (socket) => {
         } 
       });
       
+      console.log('📦 Presence result:', JSON.stringify({ firstConnection: result?.firstConnection, memberCount: result?.members?.length }));
+      
       // If this is user's first connection (not a reconnect with existing tabs)
       if (result && result.firstConnection) {
         // Emit user-online to OTHER users in the branch (not to the connecting user)
-        socket.to(room).emit('user-online', {
+        const userOnlinePayload = {
           id: socket.user.id,
           userId: socket.user.id,
           name: socket.user.name,
           photoUrl: socket.user.photo_url || null
-        });
+        };
+        socket.to(room).emit('user-online', userOnlinePayload);
+        console.log(`📤 Emitted 'user-online' to OTHER users in ${room}:`, JSON.stringify(userOnlinePayload));
         console.log(`👤 User ${socket.user.name} (${socket.user.id}) is now ONLINE in branch ${branchId}`);
         
         // Broadcast updated online-members to ALL users in the branch (including the new user)
         if (result.members) {
+          console.log(`📤 Broadcasting 'online-members' to room ${room}:`, JSON.stringify(result.members));
           io.to(room).emit('online-members', result.members);
-          console.log(`📋 Broadcast ${result.members.length} online members to ALL users in branch ${branchId}`);
+          console.log(`✅ Broadcast ${result.members.length} online members to ALL users in branch ${branchId}`);
         }
       } else if (result && result.members) {
         // User already online (reconnect/new tab) - just send to this socket
+        console.log(`📤 Sending 'online-members' to ONLY ${socket.user.name} (reconnect):`, JSON.stringify(result.members));
         socket.emit('online-members', result.members);
         console.log(`📋 Sent ${result.members.length} online members to ${socket.user.name} (reconnect)`);
       }
     } catch (e) {
-      console.error('Error adding socket to presence:', e?.message || e);
+      console.error('❌ Error adding socket to presence:', e?.message || e);
     }
+  } else {
+    console.log('⚠️ No branchId found for user - not joining any room!');
   }
+  console.log('========================================\n');
 
   // Admins can subscribe to admin-overview room to get cross-branch presence
   if (socket.user && socket.user.role === 'admin') {
@@ -357,14 +377,27 @@ io.on('connection', async (socket) => {
 
   // If client explicitly asks to join other branch (admin or allowed user), handle securely
   socket.on('join-branch', async (requestedBranchId, ack) => {
+    console.log('\n========== JOIN-BRANCH EVENT ==========');
+    console.log('🔌 Socket:', socket.id);
+    console.log('👤 User:', socket.user?.name, '(', socket.user?.id, ')');
+    console.log('🎯 Requested branchId:', requestedBranchId);
+    console.log('🏢 User branch_id:', socket.user?.branch_id);
+    console.log('🏢 User branch_context:', socket.user?.branch_context);
+    
     try {
       // authorization: admins can join anywhere, others only their own branch
       if (socket.user.role !== 'admin' && (requestedBranchId !== socket.user.branch_id && requestedBranchId !== socket.user.branch_context)) {
+        console.log('❌ NOT AUTHORIZED for branch', requestedBranchId);
         if (typeof ack === 'function') ack({ success: false, error: 'Not authorized for branch' });
         return;
       }
       const room = `branch-${requestedBranchId}`;
       socket.join(room);
+      
+      // Log room membership
+      const roomSize = io.sockets.adapter.rooms.get(room)?.size || 0;
+      console.log(`✅ User ${socket.user.name} joined room: ${room}`);
+      console.log(`📊 Room ${room} now has ${roomSize} socket(s)`);
       
       // add presence for requested branch
       const result = await presence.addSocket({ 
@@ -378,26 +411,33 @@ io.on('connection', async (socket) => {
         } 
       });
       
+      console.log('📦 Presence result:', JSON.stringify({ firstConnection: result?.firstConnection, memberCount: result?.members?.length }));
+      
       // Emit user-online to OTHER users in the branch
       if (result && result.firstConnection) {
-        socket.to(room).emit('user-online', {
+        const userOnlinePayload = {
           id: socket.user.id,
           userId: socket.user.id,
           name: socket.user.name,
           photoUrl: socket.user.photo_url || null
-        });
+        };
+        socket.to(room).emit('user-online', userOnlinePayload);
+        console.log(`📤 Emitted 'user-online' to OTHER users in ${room}:`, JSON.stringify(userOnlinePayload));
         console.log(`👤 User ${socket.user.name} joined branch ${requestedBranchId} - now ONLINE`);
         
         // Broadcast updated online-members to ALL users in the branch
         if (result.members) {
+          console.log(`📤 Broadcasting 'online-members' to room ${room}:`, JSON.stringify(result.members));
           io.to(room).emit('online-members', result.members);
-          console.log(`📋 Broadcast ${result.members.length} online members to ALL users in branch ${requestedBranchId}`);
+          console.log(`✅ Broadcast ${result.members.length} online members to ALL users in branch ${requestedBranchId}`);
         }
       } else if (result && result.members) {
         // Already online - just send to this socket
+        console.log(`📤 Sending 'online-members' to ONLY ${socket.user.name} (already online):`, JSON.stringify(result.members));
         socket.emit('online-members', result.members);
       }
       
+      console.log('========================================\n');
       if (typeof ack === 'function') ack({ success: true, members: result?.members || [] });
     } catch (err) {
       console.error('join-branch error:', err?.message || err);
@@ -406,28 +446,43 @@ io.on('connection', async (socket) => {
   });
 
   socket.on('disconnect', async (reason) => {
+    console.log('\n========== SOCKET DISCONNECT ==========');
+    console.log('🔌 Socket disconnected:', socket.id);
+    console.log('👤 User:', socket.user?.name, '(', socket.user?.id, ')');
+    console.log('📝 Reason:', reason);
+    
     try {
-      console.log('🔌 Client disconnected:', socket.id, 'reason:', reason, 'user:', socket.user?.name);
-      
       // Get branch before removing socket
       const userBranchId = socket.user?.branch_context || socket.user?.branch_id;
+      console.log('🏢 User branchId:', userBranchId);
       
       // Remove presence mapping
       const result = await presence.removeSocket(socket.id);
+      console.log('📦 Presence removal result:', JSON.stringify({ wentOffline: result?.wentOffline, memberCount: result?.members?.length }));
       
       // If user went offline (no more connections), notify other users
       if (result && result.wentOffline && userBranchId) {
         const room = `branch-${userBranchId}`;
+        const roomSize = io.sockets.adapter.rooms.get(room)?.size || 0;
+        console.log(`📊 Room ${room} now has ${roomSize} socket(s) remaining`);
+        
+        console.log(`📤 Emitting 'user-offline' to room ${room}:`, socket.user.id);
         io.to(room).emit('user-offline', socket.user.id);
         console.log(`👤 User ${socket.user.name} (${socket.user.id}) went OFFLINE from branch ${userBranchId}`);
         
         // Also send updated members list to remaining users
         if (result.members) {
+          console.log(`📤 Broadcasting 'online-members' to room ${room}:`, JSON.stringify(result.members));
           io.to(room).emit('online-members', result.members);
+          console.log(`✅ Broadcast ${result.members.length} online members to remaining users`);
         }
+      } else {
+        console.log('ℹ️ User still has other connections or no branchId - not broadcasting offline');
       }
+      console.log('========================================\n');
     } catch (e) {
-      console.error('Error removing socket presence:', e?.message || e);
+      console.error('❌ Error removing socket presence:', e?.message || e);
+      console.log('========================================\n');
     }
   });
 
