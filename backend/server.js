@@ -334,12 +334,16 @@ io.on('connection', async (socket) => {
           photoUrl: socket.user.photo_url || null
         });
         console.log(`👤 User ${socket.user.name} (${socket.user.id}) is now ONLINE in branch ${branchId}`);
-      }
-      
-      // Send initial online-members list directly to the connecting socket
-      if (result && result.members) {
+        
+        // Broadcast updated online-members to ALL users in the branch (including the new user)
+        if (result.members) {
+          io.to(room).emit('online-members', result.members);
+          console.log(`📋 Broadcast ${result.members.length} online members to ALL users in branch ${branchId}`);
+        }
+      } else if (result && result.members) {
+        // User already online (reconnect/new tab) - just send to this socket
         socket.emit('online-members', result.members);
-        console.log(`📋 Sent ${result.members.length} online members to ${socket.user.name}`);
+        console.log(`📋 Sent ${result.members.length} online members to ${socket.user.name} (reconnect)`);
       }
     } catch (e) {
       console.error('Error adding socket to presence:', e?.message || e);
@@ -383,10 +387,14 @@ io.on('connection', async (socket) => {
           photoUrl: socket.user.photo_url || null
         });
         console.log(`👤 User ${socket.user.name} joined branch ${requestedBranchId} - now ONLINE`);
-      }
-      
-      // Send online members list to the joining user
-      if (result && result.members) {
+        
+        // Broadcast updated online-members to ALL users in the branch
+        if (result.members) {
+          io.to(room).emit('online-members', result.members);
+          console.log(`📋 Broadcast ${result.members.length} online members to ALL users in branch ${requestedBranchId}`);
+        }
+      } else if (result && result.members) {
+        // Already online - just send to this socket
         socket.emit('online-members', result.members);
       }
       
