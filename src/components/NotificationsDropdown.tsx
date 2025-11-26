@@ -342,7 +342,7 @@ export function NotificationsDropdown() {
                       {notification.title && (
                         <p className="text-sm font-medium">{notification.title}</p>
                       )}
-                      <p className="text-xs text-muted-foreground">{notification.message}</p>
+                      <div dangerouslySetInnerHTML={{ __html: notification.message }} />
                       <p className="text-xs text-muted-foreground">
                         {formatDate(notification.created_at)}
                       </p>
@@ -377,7 +377,7 @@ export function NotificationsDropdown() {
                   >
                     <Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
                     <div className="flex-1 space-y-1">
-                      <p className="text-sm">{notification.message}</p>
+                      <div dangerouslySetInnerHTML={{ __html: notification.message }} />
                       <p className="text-xs text-muted-foreground">
                         {formatDate(notification.created_at)}
                       </p>
