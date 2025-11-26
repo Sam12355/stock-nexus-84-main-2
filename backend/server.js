@@ -299,6 +299,28 @@ io.use(async (socket, next) => {
   }
 });
 
+// Helper function to broadcast all online users to admins
+async function broadcastToAdmins(io) {
+  try {
+    const allOnline = await presence.getAllOnline();
+    // Flatten all branches into single array (deduplicate by id)
+    const seenIds = new Set();
+    const members = [];
+    for (const branchMembers of Object.values(allOnline)) {
+      for (const member of branchMembers) {
+        if (!seenIds.has(member.id)) {
+          seenIds.add(member.id);
+          members.push(member);
+        }
+      }
+    }
+    io.to('admins-overview').emit('online-members', members);
+    console.log(`📤 Broadcast ${members.length} total online users to admins-overview room`);
+  } catch (e) {
+    console.error('Error broadcasting to admins:', e?.message || e);
+  }
+}
+
 // Socket.IO connection handling
 io.on('connection', async (socket) => {
   console.log('\n========== SOCKET CONNECTION ==========');
@@ -350,11 +372,18 @@ io.on('connection', async (socket) => {
         console.log(`📤 Emitted 'user-online' to OTHER users in ${room}:`, JSON.stringify(userOnlinePayload));
         console.log(`👤 User ${socket.user.name} (${socket.user.id}) is now ONLINE in branch ${branchId}`);
         
+        // Also notify admins about this user coming online
+        io.to('admins-overview').emit('user-online', userOnlinePayload);
+        console.log(`📤 Emitted 'user-online' to admins-overview room`);
+        
         // Broadcast updated online-members to ALL users in the branch (including the new user)
         if (result.members) {
           console.log(`📤 Broadcasting 'online-members' to room ${room}:`, JSON.stringify(result.members));
           io.to(room).emit('online-members', result.members);
           console.log(`✅ Broadcast ${result.members.length} online members to ALL users in branch ${branchId}`);
+          
+          // Also broadcast updated all-online to admins
+          broadcastToAdmins(io);
         }
       } else if (result && result.members) {
         // User already online (reconnect/new tab) - just send to this socket
@@ -383,8 +412,40 @@ io.on('connection', async (socket) => {
     console.log('🎯 Requested branchId:', requestedBranchId);
     console.log('🏢 User branch_id:', socket.user?.branch_id);
     console.log('🏢 User branch_context:', socket.user?.branch_context);
+    console.log('👔 User role:', socket.user?.role);
     
     try {
+      // Special handling for admin users requesting 'admin' room
+      if (requestedBranchId === 'admin' && socket.user.role === 'admin') {
+        console.log('👑 Admin user joining admin room - will see ALL online users');
+        const room = 'branch-admin';
+        socket.join(room);
+        
+        // For admins, get ALL online users from ALL branches
+        const allOnline = await presence.getAllOnline();
+        const allMembers = [];
+        for (const branchId in allOnline) {
+          allMembers.push(...allOnline[branchId]);
+        }
+        
+        // Deduplicate by user ID (in case user is in multiple branches)
+        const uniqueMembers = [];
+        const seenIds = new Set();
+        for (const member of allMembers) {
+          if (!seenIds.has(member.id)) {
+            seenIds.add(member.id);
+            uniqueMembers.push(member);
+          }
+        }
+        
+        console.log(`📤 Sending ${uniqueMembers.length} total online members to admin`);
+        socket.emit('online-members', uniqueMembers);
+        
+        console.log('========================================\n');
+        if (typeof ack === 'function') ack({ success: true, members: uniqueMembers });
+        return;
+      }
+      
       // authorization: admins can join anywhere, others only their own branch
       if (socket.user.role !== 'admin' && (requestedBranchId !== socket.user.branch_id && requestedBranchId !== socket.user.branch_context)) {
         console.log('❌ NOT AUTHORIZED for branch', requestedBranchId);
@@ -470,11 +531,18 @@ io.on('connection', async (socket) => {
         io.to(room).emit('user-offline', socket.user.id);
         console.log(`👤 User ${socket.user.name} (${socket.user.id}) went OFFLINE from branch ${userBranchId}`);
         
+        // Also notify admins about this user going offline
+        io.to('admins-overview').emit('user-offline', socket.user.id);
+        console.log(`📤 Emitted 'user-offline' to admins-overview room`);
+        
         // Also send updated members list to remaining users
         if (result.members) {
           console.log(`📤 Broadcasting 'online-members' to room ${room}:`, JSON.stringify(result.members));
           io.to(room).emit('online-members', result.members);
           console.log(`✅ Broadcast ${result.members.length} online members to remaining users`);
+          
+          // Also broadcast updated all-online to admins
+          broadcastToAdmins(io);
         }
       } else {
         console.log('ℹ️ User still has other connections or no branchId - not broadcasting offline');
@@ -499,13 +567,32 @@ io.on('connection', async (socket) => {
   socket.on('get-online-members', async (callback) => {
     try {
       const userBranchId = socket.user?.branch_context || socket.user?.branch_id;
-      if (userBranchId) {
-        const members = await presence.getMembers(userBranchId);
-        if (typeof callback === 'function') {
-          callback({ success: true, members });
-        } else {
-          socket.emit('online-members', members);
+      const isAdmin = socket.user?.role === 'admin';
+      
+      let members = [];
+      
+      if (isAdmin) {
+        // Admin gets ALL online users from ALL branches
+        const allOnline = await presence.getAllOnline();
+        // Flatten all branches into single array (deduplicate by id)
+        const seenIds = new Set();
+        for (const branchMembers of Object.values(allOnline)) {
+          for (const member of branchMembers) {
+            if (!seenIds.has(member.id)) {
+              seenIds.add(member.id);
+              members.push(member);
+            }
+          }
         }
+        console.log(`📊 Admin requested online members: ${members.length} users from all branches`);
+      } else if (userBranchId) {
+        members = await presence.getMembers(userBranchId);
+      }
+      
+      if (typeof callback === 'function') {
+        callback({ success: true, members });
+      } else {
+        socket.emit('online-members', members);
       }
     } catch (e) {
       console.error('get-online-members error:', e?.message || e);
@@ -539,10 +626,14 @@ io.on('connection', async (socket) => {
         console.log(`📤 Broadcasting 'online-members' to room ${room} (excluding away):`, JSON.stringify(result.members));
         io.to(room).emit('online-members', result.members);
         console.log(`✅ Broadcast ${result.members.length} active members (user ${socket.user.name} is now away)`);
+        
+        // Also broadcast to admins
+        broadcastToAdmins(io);
       }
       
       // Also emit user-away event so clients can show "away" status if needed
       socket.to(room).emit('user-away', { userId: socket.user.id, name: socket.user.name });
+      io.to('admins-overview').emit('user-away', { userId: socket.user.id, name: socket.user.name });
       
       console.log('===============================\n');
     } catch (e) {
@@ -575,10 +666,14 @@ io.on('connection', async (socket) => {
         console.log(`📤 Broadcasting 'online-members' to room ${room} (including returned user):`, JSON.stringify(result.members));
         io.to(room).emit('online-members', result.members);
         console.log(`✅ Broadcast ${result.members.length} active members (user ${socket.user.name} is back)`);
+        
+        // Also broadcast to admins
+        broadcastToAdmins(io);
       }
       
       // Also emit user-back event so clients can update status if needed
       socket.to(room).emit('user-back', { userId: socket.user.id, name: socket.user.name });
+      io.to('admins-overview').emit('user-back', { userId: socket.user.id, name: socket.user.name });
       
       console.log('===============================\n');
     } catch (e) {

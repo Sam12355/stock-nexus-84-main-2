@@ -69,14 +69,18 @@ export function NotificationsDropdown() {
       const token = localStorage.getItem('auth_token');
       const branchId = profile.branch_id || profile.branch_context;
       
-      if (token && branchId) {
+      // Allow admins to connect even without a branchId - they use 'admin' room
+      const socketBranchId = branchId || (profile.role === 'admin' ? 'admin' : null);
+      
+      if (token && socketBranchId) {
         console.log('🔌 Connecting to Socket.IO for real-time notifications...');
         console.log('🔌 Profile ID:', profile.id);
-        console.log('🔌 Branch ID:', branchId);
+        console.log('🔌 Profile Role:', profile.role);
+        console.log('🔌 Branch ID:', socketBranchId);
         
         // Force fresh connection
         socketService.disconnect();
-        const socket = socketService.connect(token, branchId);
+        const socket = socketService.connect(token, socketBranchId);
         
         // Listen for real-time notification updates
         socketService.onNotificationUpdate((data) => {
