@@ -57,14 +57,10 @@ export function OnlineUsersIndicator() {
       .slice(0, 2);
   };
 
-  // Don't render anything if no other users online
-  if (otherOnlineMembers.length === 0) {
-    return null;
-  }
-
   // Show max 5 avatars, with a +N indicator for more
   const displayedMembers = otherOnlineMembers.slice(0, 5);
-  const remainingCount = otherOnlineMembers.length - 5;
+  const remainingCount = Math.max(0, otherOnlineMembers.length - 5);
+  const showPlaceholder = otherOnlineMembers.length === 0;
 
   return (
     <TooltipProvider>
@@ -79,7 +75,24 @@ export function OnlineUsersIndicator() {
 
         {/* Stacked avatars */}
         <div className="flex -space-x-2">
-          {displayedMembers.map((member) => (
+          {showPlaceholder ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="relative">
+                  <Avatar className="h-8 w-8 border-2 border-background bg-muted cursor-pointer hover:z-10 hover:scale-110 transition-transform">
+                    <AvatarFallback className="text-xs bg-destructive text-destructive-foreground">—</AvatarFallback>
+                  </Avatar>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="bg-background border shadow-lg">
+                <div className="text-sm">
+                  <p className="font-medium">No users online</p>
+                  <p className="text-xs text-muted-foreground">Placeholders for testing</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            displayedMembers.map((member) => (
             <Tooltip key={member.id}>
               <TooltipTrigger asChild>
                 <div className="relative">
@@ -103,10 +116,11 @@ export function OnlineUsersIndicator() {
                 </div>
               </TooltipContent>
             </Tooltip>
-          ))}
+            ))
+          )}
 
           {/* +N indicator for remaining members */}
-          {remainingCount > 0 && (
+          {remainingCount > 0 && !showPlaceholder && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="relative">
