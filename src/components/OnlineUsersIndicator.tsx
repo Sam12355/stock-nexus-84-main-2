@@ -72,7 +72,7 @@ export function OnlineUsersIndicator() {
           {displayedMembers.map((member) => (
             <Tooltip key={member.id}>
               <TooltipTrigger asChild>
-                <div className="relative">
+                <div className="relative" title={member.name}>
                   <Avatar className="h-8 w-8 border-2 border-background ring-2 ring-green-500/50 cursor-pointer hover:z-10 hover:scale-110 transition-transform">
                     <AvatarImage src={member.photoUrl || undefined} alt={member.name} />
                     <AvatarFallback className="text-xs bg-primary text-primary-foreground">
