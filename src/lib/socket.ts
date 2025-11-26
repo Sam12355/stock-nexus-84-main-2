@@ -79,13 +79,20 @@ class SocketService {
   }
 
   disconnect() {
+    console.log('🔌 [SOCKET SERVICE] disconnect() called at:', new Date().toISOString());
+    console.log('🔌 [SOCKET SERVICE] Socket exists:', !!this.socket);
+    console.log('🔌 [SOCKET SERVICE] Socket connected:', this.socket?.connected);
+    
     if (this.socket) {
-      console.log('🔌 Disconnecting from Socket.IO server...');
+      console.log('🔌 [SOCKET SERVICE] Calling socket.disconnect()...');
       this.socket.disconnect();
+      console.log('🔌 [SOCKET SERVICE] socket.disconnect() completed');
       this.socket = null;
       this.isConnected = false;
       this.currentToken = null;
       this.currentBranchId = null;
+    } else {
+      console.log('🔌 [SOCKET SERVICE] No socket to disconnect');
     }
   }
 
