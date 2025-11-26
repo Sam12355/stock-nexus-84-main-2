@@ -9,6 +9,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { NotificationsDropdown } from '@/components/NotificationsDropdown';
 import { SearchDropdown } from '@/components/SearchDropdown';
 import { PendingAccess } from '@/components/PendingAccess';
+import { OnlineUsersIndicator } from '@/components/OnlineUsersIndicator';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -68,6 +69,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
             
             <div className="flex items-center gap-2 md:gap-4">
+              {/* Online Users Indicator - shows who else is online */}
+              <div className="hidden md:block">
+                <OnlineUsersIndicator />
+              </div>
+              
               <div className="hidden lg:block">
                 <SearchDropdown />
               </div>
