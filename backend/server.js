@@ -336,6 +336,10 @@ io.on('connection', async (socket) => {
   const branchId = socket.user?.branch_context || socket.user?.branch_id;
   console.log('🎯 Using branchId:', branchId);
 
+  // Join user's personal room for direct messaging (e.g., typing indicators, DMs)
+  socket.join(socket.user.id);
+  console.log(`✅ User ${socket.user.name} joined personal room: ${socket.user.id}`);
+
   // Auto-join branch room
   if (branchId) {
     const room = `branch-${branchId}`;
@@ -682,6 +686,38 @@ io.on('connection', async (socket) => {
       console.error('❌ Error handling user-back:', e?.message || e);
       console.log('===============================\n');
     }
+  });
+
+  // Handle personal room joining for direct messages
+  socket.on('join-room', (userId) => {
+    socket.join(userId);
+    console.log(`✅ User ${socket.user?.id} joined personal room: ${userId}`);
+  });
+
+  // Handle typing indicators
+  socket.on('typing', (data) => {
+    const senderId = socket.user?.id; // from socket auth
+    const receiverId = data.receiverId;
+    
+    console.log(`⌨️ ${senderId} typing to ${receiverId}`);
+    
+    // Send to receiver's personal room
+    io.to(receiverId).emit('user_typing', {
+      userId: senderId
+    });
+  });
+
+  // Handle stop typing indicators
+  socket.on('stop_typing', (data) => {
+    const senderId = socket.user?.id;
+    const receiverId = data.receiverId;
+    
+    console.log(`⏸️ ${senderId} stopped typing to ${receiverId}`);
+    
+    // Send to receiver's personal room
+    io.to(receiverId).emit('user_stop_typing', {
+      userId: senderId
+    });
   });
 });
 
