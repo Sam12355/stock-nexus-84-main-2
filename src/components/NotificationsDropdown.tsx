@@ -84,6 +84,21 @@ export function NotificationsDropdown() {
           refreshNotifications();
         });
         
+        // Listen for presence updates (online/offline users)
+        socketService.onOnlineMembers((members) => {
+          console.log('👥 Online members updated:', members.length, 'users');
+          // This ensures the frontend receives real-time presence updates
+          // when users connect/disconnect (including logout)
+        });
+        
+        socketService.onUserOnline((user) => {
+          console.log('👤 User came online:', user.name);
+        });
+        
+        socketService.onUserOffline((userId) => {
+          console.log('👤 User went offline:', userId);
+        });
+        
         // Add connection status check
         const checkConnection = () => {
           if (!socketService.isSocketConnected()) {
@@ -97,13 +112,15 @@ export function NotificationsDropdown() {
         
         return () => {
           clearInterval(connectionCheckInterval);
+          // Clean up presence listeners on unmount
+          socketService.offPresenceListeners();
         };
       }
     }
     
     return () => {
-      // Don't disconnect here as it might be used by other components
-      // socketService.disconnect();
+      // Clean up presence listeners when profile changes or component unmounts
+      socketService.offPresenceListeners();
     };
   }, [profile]);
 
