@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
 import { apiClient } from '@/lib/api';
+import { socketService } from '@/lib/socket';
 import { useToast } from '@/hooks/use-toast';
 
 interface Profile {
@@ -143,6 +144,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
+      // Disconnect socket BEFORE clearing auth to properly notify other users
+      console.log('🔌 Disconnecting socket before logout...');
+      socketService.disconnect();
+      
       // Call logout API to log the activity
       await apiClient.logout();
       
@@ -157,6 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error: any) {
       console.error('Error signing out:', error);
       // Even if API call fails, still clear local state
+      socketService.disconnect(); // Ensure socket is disconnected even on error
       apiClient.setToken(null);
       setUser(null);
       setProfile(null);

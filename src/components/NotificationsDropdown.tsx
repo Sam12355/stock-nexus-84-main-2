@@ -74,7 +74,8 @@ export function NotificationsDropdown() {
         console.log('🔌 Profile ID:', profile.id);
         console.log('🔌 Branch ID:', branchId);
         
-        // Connect (will reuse existing connection if same branch/token)
+        // Force fresh connection
+        socketService.disconnect();
         const socket = socketService.connect(token, branchId);
         
         // Listen for real-time notification updates
