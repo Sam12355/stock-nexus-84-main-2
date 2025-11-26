@@ -99,8 +99,7 @@ export function OnlineUsersIndicator() {
                 </div>
               </TooltipContent>
             </Tooltip>
-            ))
-          )}
+          ))}
 
           
         </div>
