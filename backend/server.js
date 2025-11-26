@@ -30,6 +30,7 @@ const weatherRoutes = require('./routes/weather'); // Weather API routes
 const icaDeliveryRoutes = require('./routes/ica-delivery');
 const fcmRoutes = require('./routes/fcm'); // FCM push notifications
 const presenceRoutes = require('./routes/presence');
+const messagesRoutes = require('./routes/messages');
 const schedulerService = require('./services/scheduler');
 const emailService = require('./services/email');
 
@@ -258,6 +259,7 @@ app.use('/api/debug', debugRoutes);
 app.use('/api/weather', weatherRoutes);
 app.use('/api/fcm', fcmRoutes);
 app.use('/api/presence', presenceRoutes);
+app.use('/api/messages', messagesRoutes);
 
 // Health check endpoint for Render
 app.get('/api/health', (req, res) => {
