@@ -366,6 +366,39 @@ class SchedulerService {
                 whatsapp: remindersSent.whatsapp,
                 email: remindersSent.email
               });
+
+              // Create a notification record in the database for this scheduled alert
+              try {
+                const notificationTitle = `${frequencyText} Stock Report: ${lowStockItems.length} items`;
+                // Use the same message that was sent via WhatsApp/Email
+                const notificationMessage = message;
+                const notificationData = {
+                  frequency,
+                  items: lowStockItems.map(i => ({
+                    item_id: i.item_id || null,
+                    name: i.name,
+                    current_quantity: i.current_quantity,
+                    threshold: i.threshold_level
+                  }))
+                };
+
+                await query(
+                  'INSERT INTO notifications (user_id, title, message, type, data) VALUES ($1, $2, $3, $4, $5)',
+                  [
+                    user.id,
+                    notificationTitle,
+                    notificationMessage,
+                    'stock_alert',
+                    JSON.stringify(notificationData)
+                  ]
+                );
+
+                if (shouldLog) {
+                  console.log(`💾 Created DB notification for user ${user.name} (${user.id}) - ${notificationTitle}`);
+                }
+              } catch (err) {
+                console.error(`❌ Failed to insert scheduled notification for user ${user.name} (${user.id}):`, err);
+              }
             }
           }
 
