@@ -17,6 +17,10 @@ class SocketService {
   private currentToken: string | null = null;
   private currentBranchId: string | null = null;
   private visibilityListenerAdded = false;
+  // Queued callbacks for presence events (in case listeners are registered before connect())
+  private queuedOnlineMembersCallbacks: Array<(members: OnlineMember[]) => void> = [];
+  private queuedUserOnlineCallbacks: Array<(user: OnlineMember) => void> = [];
+  private queuedUserOfflineCallbacks: Array<(userId: string) => void> = [];
 
   connect(token: string, branchId: string) {
     // Always disconnect and reconnect to ensure fresh connection
@@ -56,6 +60,17 @@ class SocketService {
       
       // Set up visibility change listeners (only once)
       this.setupVisibilityListeners();
+
+      // Attach any queued presence listeners that were registered before connection
+      if (this.queuedOnlineMembersCallbacks.length > 0) {
+        this.queuedOnlineMembersCallbacks.forEach(cb => this.socket?.on('online-members', (members: OnlineMember[]) => { console.log('👥 [queued] Received online members:', members.length); cb(members); }));
+      }
+      if (this.queuedUserOnlineCallbacks.length > 0) {
+        this.queuedUserOnlineCallbacks.forEach(cb => this.socket?.on('user-online', (user: OnlineMember) => { console.log('👤 [queued] User came online:', user.name); cb(user); }));
+      }
+      if (this.queuedUserOfflineCallbacks.length > 0) {
+        this.queuedUserOfflineCallbacks.forEach(cb => this.socket?.on('user-offline', (userId: string) => { console.log('👤 [queued] User went offline:', userId); cb(userId); }));
+      }
     });
 
     this.socket.on('disconnect', (reason) => {
@@ -172,6 +187,10 @@ class SocketService {
         console.log('👥 Received online members:', members.length, 'users');
         callback(members);
       });
+    } else {
+      // Queue callback until socket connects
+      console.log('👥 Queuing onOnlineMembers callback until socket connects');
+      this.queuedOnlineMembersCallbacks.push(callback);
     }
   }
 
@@ -182,6 +201,9 @@ class SocketService {
         console.log('👤 User came online:', user.name);
         callback(user);
       });
+    } else {
+      console.log('👤 Queuing onUserOnline callback until socket connects');
+      this.queuedUserOnlineCallbacks.push(callback);
     }
   }
 
@@ -192,6 +214,9 @@ class SocketService {
         console.log('👤 User went offline:', userId);
         callback(userId);
       });
+    } else {
+      console.log('👤 Queuing onUserOffline callback until socket connects');
+      this.queuedUserOfflineCallbacks.push(callback);
     }
   }
 
@@ -209,6 +234,10 @@ class SocketService {
       this.socket.off('user-online');
       this.socket.off('user-offline');
     }
+    // Clear queued callbacks as well
+    this.queuedOnlineMembersCallbacks = [];
+    this.queuedUserOnlineCallbacks = [];
+    this.queuedUserOfflineCallbacks = [];
   }
 
   isSocketConnected(): boolean {
