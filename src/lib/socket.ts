@@ -18,11 +18,15 @@ class SocketService {
   private currentBranchId: string | null = null;
 
   connect(token: string, branchId: string) {
-    // If already connected to the same branch with same token, don't reconnect
-    if (this.socket?.connected && 
+    // If socket exists for the same branch/token, reuse it (whether connected or still connecting)
+    if (this.socket && 
         this.currentToken === token && 
         this.currentBranchId === branchId) {
-      console.log('🔌 Already connected to branch:', branchId, '- skipping reconnect');
+      if (this.socket.connected) {
+        console.log('🔌 Already connected to branch:', branchId, '- skipping reconnect');
+      } else {
+        console.log('🔌 Connection already in progress for branch:', branchId, '- waiting...');
+      }
       return this.socket;
     }
 
@@ -30,12 +34,6 @@ class SocketService {
     if (this.socket && (this.currentBranchId !== branchId || this.currentToken !== token)) {
       console.log('🔌 Switching connection to new branch/token...');
       this.disconnect();
-    }
-
-    // If already connecting, don't create a new connection
-    if (this.socket && !this.socket.connected) {
-      console.log('🔌 Connection already in progress, waiting...');
-      return this.socket;
     }
 
     console.log('🔌 Connecting to Socket.IO server...');
