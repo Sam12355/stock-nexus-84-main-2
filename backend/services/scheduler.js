@@ -283,39 +283,42 @@ class SchedulerService {
             const urgencyIcon = '📊';
             const urgencyText = `${frequencyText.toUpperCase()} STOCK REPORT`;
             
-            let message = `${urgencyIcon} *${urgencyText}*\n\n`;
-            message += `Hello *${user.name}*,\n\n`;
-            message += `Here's your ${frequencyText.toLowerCase()} stock level report for *${user.branch_name || 'All Branches'}*.\n\n`;
-            message += `📊 *SUMMARY STATISTICS*\n`;
-            message += `• Items Needing Attention: *${lowStockItems.length}*\n`;
-            message += `• Critical Level: *${lowStockItems.filter(item => item.current_quantity <= (item.critical_level || Math.floor(item.threshold_level * 0.2))).length}*\n`;
-            message += `• Low Level: *${lowStockItems.filter(item => item.current_quantity > (item.critical_level || Math.floor(item.threshold_level * 0.2)) && item.current_quantity <= (item.low_level || Math.floor(item.threshold_level * 0.5))).length}*\n\n`;
-            message += `📦 *ITEMS REQUIRING ATTENTION*\n\n`;
+
+            // Format message for web display (with <br> line breaks)
+            let message = `${urgencyIcon} <b>${urgencyText}</b><br><br>`;
+            message += `Hello <b>${user.name}</b>,<br><br>`;
+            message += `Here's your ${frequencyText.toLowerCase()} stock level report for <b>${user.branch_name || 'All Branches'}</b>.<br><br>`;
+            message += `<b>📊 SUMMARY STATISTICS</b><br>`;
+            message += `• Items Needing Attention: <b>${lowStockItems.length}</b><br>`;
+            message += `• Critical Level: <b>${lowStockItems.filter(item => item.current_quantity <= (item.critical_level || Math.floor(item.threshold_level * 0.2))).length}</b><br>`;
+            message += `• Low Level: <b>${lowStockItems.filter(item => item.current_quantity > (item.critical_level || Math.floor(item.threshold_level * 0.2)) && item.current_quantity <= (item.low_level || Math.floor(item.threshold_level * 0.5))).length}</b><br><br>`;
+            message += `<b>📦 ITEMS REQUIRING ATTENTION</b><br><br>`;
 
             lowStockItems.forEach((item, index) => {
               const isCritical = item.current_quantity <= (item.critical_level || Math.floor(item.threshold_level * 0.2));
               const isLow = item.current_quantity <= (item.low_level || Math.floor(item.threshold_level * 0.5));
               const statusColor = isCritical ? '🔴' : isLow ? '🟠' : '🟡';
               const statusText = isCritical ? 'CRITICAL' : isLow ? 'LOW' : 'BELOW THRESHOLD';
-              
-              message += `*${index + 1}. ${item.name}*\n`;
-              message += `   📊 Current Stock: *${item.current_quantity}*\n`;
-              message += `   🎯 Threshold Level: *${item.threshold_level}*\n`;
-              message += `   ${statusColor} Status: *${statusText}*\n`;
+              message += `<b>${index + 1}. ${item.name}</b><br>`;
+              message += `&nbsp;&nbsp;📊 Current Stock: <b>${item.current_quantity}</b><br>`;
+              message += `&nbsp;&nbsp;🎯 Threshold Level: <b>${item.threshold_level}</b><br>`;
+              message += `&nbsp;&nbsp;${statusColor} Status: <b>${statusText}</b><br>`;
               if (item.category) {
-                message += `   📂 Category: ${item.category}\n`;
+                message += `&nbsp;&nbsp;📂 Category: ${item.category}<br>`;
               }
-              message += `\n`;
+              message += `<br>`;
             });
 
-            message += `💡 *RECOMMENDED ACTIONS:*\n`;
-            message += `• Review critical items and place urgent orders\n`;
-            message += `• Update reorder points for frequently low items\n`;
-            message += `• Consider increasing order quantities for high-demand items\n`;
-            message += `• Schedule regular inventory reviews to prevent future shortages\n\n`;
-            
-            message += `*IMMEDIATE ACTION REQUIRED*\n\n`;
-            message += `Report generated: ${now.toLocaleString('en-US', {
+            message += `<b>💡 RECOMMENDED ACTIONS:</b><br>`;
+            message += `• Review critical items and place urgent orders<br>`;
+            message += `• Update reorder points for frequently low items<br>`;
+            message += `• Consider increasing order quantities for high-demand items<br>`;
+            message += `• Schedule regular inventory reviews to prevent future shortages<br><br>`;
+            message += `<b>IMMEDIATE ACTION REQUIRED</b><br><br>`;
+
+            // Use Sweden time for timestamp
+            const swedenTime = new Date(now.toLocaleString("en-US", {timeZone: "Europe/Stockholm"}));
+            message += `Report generated: ${swedenTime.toLocaleString('en-US', {
               weekday: 'long',
               year: 'numeric',
               month: 'long',
