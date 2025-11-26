@@ -68,7 +68,7 @@ export function OnlineUsersIndicator() {
 
   return (
     <TooltipProvider>
-      <div className="flex items-center">
+      <div className="flex items-center bg-red-500/80 rounded px-2 py-1" style={{ minWidth: 180, maxWidth: 220 }}>
         {/* Online indicator dot */}
         <div className="flex items-center mr-2">
           <span className="relative flex h-2 w-2">
