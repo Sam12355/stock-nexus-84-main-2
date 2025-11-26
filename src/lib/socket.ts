@@ -16,6 +16,7 @@ class SocketService {
   private isConnected = false;
   private currentToken: string | null = null;
   private currentBranchId: string | null = null;
+  private isConnecting = false; // Track connection in progress
 
   connect(token: string, branchId: string) {
     // If socket exists for the same branch/token, reuse it (whether connected or still connecting)
@@ -30,18 +31,26 @@ class SocketService {
       return this.socket;
     }
 
+    // If we're in the middle of connecting (even if socket object doesn't exist yet), wait
+    if (this.isConnecting && this.currentToken === token && this.currentBranchId === branchId) {
+      console.log('🔌 Connection already being established for branch:', branchId, '- waiting...');
+      return this.socket;
+    }
+
     // Only disconnect if connecting to a DIFFERENT branch or with different token
     if (this.socket && (this.currentBranchId !== branchId || this.currentToken !== token)) {
       console.log('🔌 Switching connection to new branch/token...');
       this.disconnect();
     }
 
+    // Mark as connecting immediately before any async operations
+    this.isConnecting = true;
+    this.currentToken = token;
+    this.currentBranchId = branchId;
+    
     console.log('🔌 Connecting to Socket.IO server...');
     console.log('🔌 Token:', token ? 'Present' : 'Missing');
     console.log('🔌 Branch ID:', branchId);
-    
-    this.currentToken = token;
-    this.currentBranchId = branchId;
     
     // Use Render backend URL - must match where Android connects
     const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://stock-nexus-84-main-2-1.onrender.com';
@@ -61,6 +70,7 @@ class SocketService {
     this.socket.on('connect', () => {
       console.log('✅ Connected to Socket.IO server:', this.socket?.id);
       this.isConnected = true;
+      this.isConnecting = false; // Connection complete
       
       // Join the user's branch room
       if (branchId) {
@@ -72,11 +82,13 @@ class SocketService {
     this.socket.on('disconnect', (reason) => {
       console.log('❌ Disconnected from Socket.IO server:', reason);
       this.isConnected = false;
+      // Don't reset isConnecting here - let the reconnect logic handle it
     });
 
     this.socket.on('connect_error', (error) => {
       console.error('❌ Socket.IO connection error:', error);
       this.isConnected = false;
+      this.isConnecting = false; // Connection failed, allow retry
     });
 
     this.socket.on('reconnect', (attemptNumber) => {
@@ -99,6 +111,7 @@ class SocketService {
       this.socket.disconnect();
       this.socket = null;
       this.isConnected = false;
+      this.isConnecting = false;
       this.currentToken = null;
       this.currentBranchId = null;
     }
@@ -164,6 +177,12 @@ class SocketService {
   }
 
   forceReconnect() {
+    // Only force reconnect if we're not already connected or connecting
+    if (this.isConnected || this.isConnecting) {
+      console.log('🔌 Socket already connected or connecting, skipping force reconnect');
+      return;
+    }
+    
     console.log('🔄 Forcing Socket.IO reconnection...');
     if (this.currentToken && this.currentBranchId) {
       this.connect(this.currentToken, this.currentBranchId);
