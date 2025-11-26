@@ -385,8 +385,8 @@ class SchedulerService {
                   }))
                 };
 
-                await query(
-                  'INSERT INTO notifications (user_id, title, message, type, data) VALUES ($1, $2, $3, $4, $5)',
+                const dbResult = await query(
+                  'INSERT INTO notifications (user_id, title, message, type, data) VALUES ($1, $2, $3, $4, $5) RETURNING id',
                   [
                     user.id,
                     notificationTitle,
@@ -398,6 +398,20 @@ class SchedulerService {
 
                 if (shouldLog) {
                   console.log(`💾 Created DB notification for user ${user.name} (${user.id}) - ${notificationTitle}`);
+                }
+
+                // Send FCM push notification for scheduled stock alert
+                try {
+                  const { sendStockAlertNotification } = require('../utils/fcm');
+                  await sendStockAlertNotification(user.id, {
+                    id: dbResult.rows[0].id,
+                    item_name: lowStockItems[0]?.name || '',
+                    current_quantity: lowStockItems[0]?.current_quantity || '',
+                    threshold: lowStockItems[0]?.threshold_level || '',
+                    alert_type: lowStockItems[0]?.current_quantity <= (lowStockItems[0]?.critical_level || Math.floor(lowStockItems[0]?.threshold_level * 0.2)) ? 'critical' : 'low'
+                  });
+                } catch (fcmError) {
+                  console.error(`❌ Error sending FCM stock alert to user ${user.id}:`, fcmError);
                 }
               } catch (err) {
                 console.error(`❌ Failed to insert scheduled notification for user ${user.name} (${user.id}):`, err);
