@@ -144,7 +144,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
-      // Disconnect socket BEFORE clearing auth to properly notify other users
+      // CRITICAL: Disconnect socket BEFORE clearing auth to properly notify other users
+      // This triggers the server's disconnect handler which broadcasts user-offline
       console.log('🔌 Disconnecting socket before logout...');
       socketService.disconnect();
       
