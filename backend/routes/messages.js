@@ -83,22 +83,69 @@ router.post('/send', authenticateToken, async (req, res) => {
     );
     const message = result.rows[0];
     
-    // Get sender name for FCM
-    const senderResult = await query('SELECT name FROM users WHERE id = $1', [sender_id]);
-    const senderName = senderResult.rows[0]?.name || 'Someone';
+    // Get sender info for FCM (name and photo)
+    const senderResult = await query('SELECT name, photo_url FROM users WHERE id = $1', [sender_id]);
+    const sender = senderResult.rows[0] || {};
+    const senderName = sender.name || 'Someone';
+    const senderPhoto = sender.photo_url || '';
     
-    // Trigger FCM push to receiver with sender name
-    await sendGenericNotification(receiver_id, {
-      title: `New message from ${senderName}`,
-      message: content,
-      type: 'message',
-      message_id: message.id,
-      sender_id,
-      receiver_id,
-      data: { message_id: message.id, sender_id, receiver_id, sender_name: senderName }
-    });
+    // Get receiver's FCM token
+    const receiverResult = await query('SELECT fcm_token FROM users WHERE id = $1', [receiver_id]);
+    const receiverToken = receiverResult.rows[0]?.fcm_token;
+    
+    // Send FCM push notification with data-only payload
+    if (receiverToken) {
+      try {
+        const admin = require('../config/firebase');
+        const fcmMessage = {
+          token: receiverToken,
+          data: {
+            type: 'new_message',
+            sender_id: String(sender_id),
+            sender_name: String(senderName),
+            sender_photo: String(senderPhoto),
+            content: String(content),
+            message_id: String(message.id),
+            id: String(message.id)
+          },
+          android: {
+            priority: 'high'
+          }
+        };
+        
+        await admin.messaging().send(fcmMessage);
+        console.log(`✅ FCM new_message notification sent to ${receiver_id}`);
+      } catch (fcmError) {
+        console.error(`❌ FCM error for user ${receiver_id}:`, fcmError.message);
+        // Don't fail the request if FCM fails
+      }
+    } else {
+      console.log(`⚠️ No FCM token for receiver: ${receiver_id}`);
+    }
+    
+    // Emit Socket.IO event for real-time delivery
+    try {
+      const app = require('../server');
+      const io = app.get('io');
+      if (io) {
+        io.to(receiver_id).emit('new_message', {
+          sender_id,
+          sender_name: senderName,
+          sender_photo: senderPhoto,
+          content,
+          message_id: message.id,
+          id: message.id,
+          timestamp: message.timestamp
+        });
+        console.log(`📡 Socket.IO new_message event sent to ${receiver_id}`);
+      }
+    } catch (socketError) {
+      console.error('❌ Socket.IO error:', socketError.message);
+    }
+    
     res.json({ success: true, message });
   } catch (error) {
+    console.error('❌ Error sending message:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
