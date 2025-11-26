@@ -514,6 +514,78 @@ io.on('connection', async (socket) => {
       }
     }
   });
+
+  // Handle user going away (app minimized / browser tab unfocused)
+  socket.on('user-away', async () => {
+    console.log('\n========== USER AWAY ==========');
+    console.log('😴 User went away:', socket.user?.name, '(', socket.user?.id, ')');
+    
+    try {
+      const userBranchId = socket.user?.branch_context || socket.user?.branch_id;
+      if (!userBranchId || !socket.user?.id) {
+        console.log('❌ No branchId or userId - ignoring away event');
+        console.log('===============================\n');
+        return;
+      }
+
+      const room = `branch-${userBranchId}`;
+      console.log('🏢 Branch:', userBranchId);
+
+      // Mark user as away in presence system
+      const result = await presence.setUserAway(socket.user.id, userBranchId, true);
+      
+      // Broadcast updated online members (excluding away users)
+      if (result && result.members) {
+        console.log(`📤 Broadcasting 'online-members' to room ${room} (excluding away):`, JSON.stringify(result.members));
+        io.to(room).emit('online-members', result.members);
+        console.log(`✅ Broadcast ${result.members.length} active members (user ${socket.user.name} is now away)`);
+      }
+      
+      // Also emit user-away event so clients can show "away" status if needed
+      socket.to(room).emit('user-away', { userId: socket.user.id, name: socket.user.name });
+      
+      console.log('===============================\n');
+    } catch (e) {
+      console.error('❌ Error handling user-away:', e?.message || e);
+      console.log('===============================\n');
+    }
+  });
+
+  // Handle user coming back (app foregrounded / browser tab focused)
+  socket.on('user-back', async () => {
+    console.log('\n========== USER BACK ==========');
+    console.log('👋 User is back:', socket.user?.name, '(', socket.user?.id, ')');
+    
+    try {
+      const userBranchId = socket.user?.branch_context || socket.user?.branch_id;
+      if (!userBranchId || !socket.user?.id) {
+        console.log('❌ No branchId or userId - ignoring back event');
+        console.log('===============================\n');
+        return;
+      }
+
+      const room = `branch-${userBranchId}`;
+      console.log('🏢 Branch:', userBranchId);
+
+      // Mark user as NOT away in presence system
+      const result = await presence.setUserAway(socket.user.id, userBranchId, false);
+      
+      // Broadcast updated online members (now including this user again)
+      if (result && result.members) {
+        console.log(`📤 Broadcasting 'online-members' to room ${room} (including returned user):`, JSON.stringify(result.members));
+        io.to(room).emit('online-members', result.members);
+        console.log(`✅ Broadcast ${result.members.length} active members (user ${socket.user.name} is back)`);
+      }
+      
+      // Also emit user-back event so clients can update status if needed
+      socket.to(room).emit('user-back', { userId: socket.user.id, name: socket.user.name });
+      
+      console.log('===============================\n');
+    } catch (e) {
+      console.error('❌ Error handling user-back:', e?.message || e);
+      console.log('===============================\n');
+    }
+  });
 });
 
 // Make io available to other modules

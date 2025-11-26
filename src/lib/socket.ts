@@ -16,6 +16,7 @@ class SocketService {
   private isConnected = false;
   private currentToken: string | null = null;
   private currentBranchId: string | null = null;
+  private visibilityListenerAdded = false;
 
   connect(token: string, branchId: string) {
     // Always disconnect and reconnect to ensure fresh connection
@@ -52,6 +53,9 @@ class SocketService {
         this.socket?.emit('join-branch', branchId);
         console.log(`👥 Joined branch room: branch-${branchId}`);
       }
+      
+      // Set up visibility change listeners (only once)
+      this.setupVisibilityListeners();
     });
 
     this.socket.on('disconnect', (reason) => {
@@ -78,6 +82,61 @@ class SocketService {
     return this.socket;
   }
 
+  // Set up visibility change listeners to track when user is away/back
+  private setupVisibilityListeners() {
+    if (this.visibilityListenerAdded) return;
+    this.visibilityListenerAdded = true;
+
+    // Detect browser tab visibility change
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
+    
+    // Also handle window blur/focus for more coverage
+    window.addEventListener('blur', this.handleWindowBlur);
+    window.addEventListener('focus', this.handleWindowFocus);
+
+    console.log('👁️ Visibility listeners set up for away/back detection');
+  }
+
+  // Remove visibility listeners
+  private removeVisibilityListeners() {
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    window.removeEventListener('blur', this.handleWindowBlur);
+    window.removeEventListener('focus', this.handleWindowFocus);
+    this.visibilityListenerAdded = false;
+    console.log('👁️ Visibility listeners removed');
+  }
+
+  // Handler for visibility change (tab hidden/visible)
+  private handleVisibilityChange = () => {
+    if (!this.socket || !this.socket.connected) return;
+    
+    if (document.hidden) {
+      // User switched to another tab or minimized browser
+      console.log('😴 Tab hidden - emitting user-away');
+      this.socket.emit('user-away');
+    } else {
+      // User came back to this tab
+      console.log('👋 Tab visible - emitting user-back');
+      this.socket.emit('user-back');
+    }
+  };
+
+  // Handler for window blur (window lost focus)
+  private handleWindowBlur = () => {
+    if (this.socket?.connected) {
+      console.log('😴 Window blur - emitting user-away');
+      this.socket.emit('user-away');
+    }
+  };
+
+  // Handler for window focus (window gained focus)
+  private handleWindowFocus = () => {
+    if (this.socket?.connected) {
+      console.log('👋 Window focus - emitting user-back');
+      this.socket.emit('user-back');
+    }
+  };
+
   disconnect() {
     console.log('🔌 [SOCKET SERVICE] disconnect() called at:', new Date().toISOString());
     console.log('🔌 [SOCKET SERVICE] Socket exists:', !!this.socket);
@@ -85,6 +144,7 @@ class SocketService {
     
     if (this.socket) {
       console.log('🔌 [SOCKET SERVICE] Calling socket.disconnect()...');
+      this.removeVisibilityListeners();
       this.socket.disconnect();
       console.log('🔌 [SOCKET SERVICE] socket.disconnect() completed');
       this.socket = null;

@@ -9,8 +9,9 @@ class Presence extends EventEmitter {
     this.serverId = process.env.INSTANCE_ID || (Math.random() + '').slice(2, 10);
 
     // In-memory fallback structures
-    this.branches = new Map(); // branchId -> Map(userId -> {meta, sockets:Set, connectedAt})
+    this.branches = new Map(); // branchId -> Map(userId -> {meta, sockets:Set, connectedAt, isAway})
     this.socketToUser = new Map(); // socketId -> { userId, branchId }
+    this.awayUsers = new Set(); // Set of userIds who are away (app minimized / tab unfocused)
 
     // Redis placeholders
     this.redis = null;
@@ -125,9 +126,11 @@ class Presence extends EventEmitter {
     let firstConnection = false;
 
     if (!userState) {
-      userState = { meta: { id: userId, ...meta, branchId }, sockets: new Set(), connectedAt: new Date().toISOString() };
+      userState = { meta: { id: userId, ...meta, branchId }, sockets: new Set(), connectedAt: new Date().toISOString(), isAway: false };
       usersMap.set(userId, userState);
       firstConnection = true;
+      // Remove from away set when newly connected
+      this.awayUsers.delete(userId);
     }
 
     userState.sockets.add(socketId);
@@ -207,8 +210,8 @@ class Presence extends EventEmitter {
     return { wentOffline, members };
   }
 
-  // Return members list for branch
-  async getMembers(branchId) {
+  // Return members list for branch (optionally excluding away users)
+  async getMembers(branchId, excludeAway = true) {
     if (!this.initialized) await this.init();
     branchId = String(branchId);
 
@@ -217,6 +220,12 @@ class Presence extends EventEmitter {
       const memberIds = await this.redis.smembers(branchKey);
       const res = [];
       for (const userId of memberIds) {
+        // Skip away users if excludeAway is true
+        if (excludeAway) {
+          const isAway = await this.redis.get(`presence:user:${userId}:away`);
+          if (isAway === 'true') continue;
+        }
+        
         const userMetaKey = `presence:user:${userId}:meta`;
         const meta = await this.redis.hgetall(userMetaKey);
         if (meta && Object.keys(meta).length > 0) {
@@ -238,6 +247,11 @@ class Presence extends EventEmitter {
 
     const res = [];
     for (const [id, userState] of usersMap.entries()) {
+      // Skip away users if excludeAway is true
+      if (excludeAway && (userState.isAway || this.awayUsers.has(id))) {
+        continue;
+      }
+      
       res.push({
         id,
         name: userState.meta.name || '',
@@ -248,6 +262,58 @@ class Presence extends EventEmitter {
       });
     }
     return res;
+  }
+
+  // Mark user as away (app minimized / tab unfocused)
+  async setUserAway(userId, branchId, isAway = true) {
+    if (!this.initialized) await this.init();
+    branchId = String(branchId);
+
+    if (this.useRedis && this.redis) {
+      // Store away status in Redis
+      if (isAway) {
+        await this.redis.set(`presence:user:${userId}:away`, 'true');
+      } else {
+        await this.redis.del(`presence:user:${userId}:away`);
+      }
+      
+      const members = await this.getMembers(branchId);
+      await this._publish(`presence:branch:${branchId}`, 'online-members', members);
+      return { members };
+    }
+
+    // In-memory mode
+    if (isAway) {
+      this.awayUsers.add(userId);
+    } else {
+      this.awayUsers.delete(userId);
+    }
+
+    // Also update user state if exists
+    const usersMap = this.branches.get(branchId);
+    if (usersMap) {
+      const userState = usersMap.get(userId);
+      if (userState) {
+        userState.isAway = isAway;
+      }
+    }
+
+    const members = await this.getMembers(branchId);
+    await this._publish(`presence:branch:${branchId}`, 'online-members', members);
+    
+    return { members };
+  }
+
+  // Check if user is away
+  async isUserAway(userId) {
+    if (!this.initialized) await this.init();
+
+    if (this.useRedis && this.redis) {
+      const isAway = await this.redis.get(`presence:user:${userId}:away`);
+      return isAway === 'true';
+    }
+
+    return this.awayUsers.has(userId);
   }
 
   // Return online user ids across all branches (for debug/admin)
