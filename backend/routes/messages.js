@@ -53,14 +53,14 @@ router.get('/inbox', authenticateToken, async (req, res) => {
   }
 });
 
-// 3. GET /messages/thread?user1_id=:id1&user2_id=:id2
+// 3. GET /messages/thread?user1=:id1&user2=:id2
 router.get('/thread', authenticateToken, async (req, res) => {
-  const { user1_id, user2_id } = req.query;
-  if (!user1_id || !user2_id) return res.status(400).json({ success: false, error: 'Missing user ids' });
+  const { user1, user2 } = req.query;
+  if (!user1 || !user2) return res.status(400).json({ success: false, error: 'Missing user1 or user2 query params' });
   try {
     const result = await query(
-      'SELECT * FROM messages WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1) ORDER BY created_at ASC',
-      [user1_id, user2_id]
+      'SELECT id, sender_id, receiver_id, content, is_read, created_at as timestamp FROM messages WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1) ORDER BY created_at ASC',
+      [user1, user2]
     );
     res.json({ success: true, messages: result.rows });
   } catch (error) {
