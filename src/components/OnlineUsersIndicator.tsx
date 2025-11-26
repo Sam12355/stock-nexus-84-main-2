@@ -57,14 +57,14 @@ export function OnlineUsersIndicator() {
       .slice(0, 2);
   };
 
-  // Show max 5 avatars, with a +N indicator for more
+  if (otherOnlineMembers.length === 0) return null;
+
+  // Show max 5 avatars
   const displayedMembers = otherOnlineMembers.slice(0, 5);
-  const remainingCount = Math.max(0, otherOnlineMembers.length - 5);
-  const showPlaceholder = otherOnlineMembers.length === 0;
 
   return (
     <TooltipProvider>
-      <div className="flex items-center bg-red-500/80 rounded px-2 py-1" style={{ minWidth: 180, maxWidth: 220 }}>
+      <div className="flex items-center">
         {/* Online indicator dot */}
         <div className="flex items-center mr-2">
           <span className="relative flex h-2 w-2">
@@ -75,24 +75,7 @@ export function OnlineUsersIndicator() {
 
         {/* Stacked avatars */}
         <div className="flex -space-x-2">
-          {showPlaceholder ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="relative">
-                  <Avatar className="h-8 w-8 border-2 border-background bg-muted cursor-pointer hover:z-10 hover:scale-110 transition-transform">
-                    <AvatarFallback className="text-xs bg-destructive text-destructive-foreground">—</AvatarFallback>
-                  </Avatar>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="bg-background border shadow-lg">
-                <div className="text-sm">
-                  <p className="font-medium">No users online</p>
-                  <p className="text-xs text-muted-foreground">Placeholders for testing</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          ) : (
-            displayedMembers.map((member) => (
+          {displayedMembers.map((member) => (
             <Tooltip key={member.id}>
               <TooltipTrigger asChild>
                 <div className="relative">
@@ -119,34 +102,10 @@ export function OnlineUsersIndicator() {
             ))
           )}
 
-          {/* +N indicator for remaining members */}
-          {remainingCount > 0 && !showPlaceholder && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="relative">
-                  <Avatar className="h-8 w-8 border-2 border-background bg-muted cursor-pointer hover:z-10 hover:scale-110 transition-transform">
-                    <AvatarFallback className="text-xs bg-muted text-muted-foreground">
-                      +{remainingCount}
-                    </AvatarFallback>
-                  </Avatar>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="bg-background border shadow-lg">
-                <div className="text-sm">
-                  <p className="font-medium">{remainingCount} more online</p>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {otherOnlineMembers.slice(5).map(m => m.name).join(', ')}
-                  </div>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          )}
+          
         </div>
 
-        {/* Total count label */}
-        <span className="ml-2 text-xs text-muted-foreground hidden sm:inline">
-          {otherOnlineMembers.length} online
-        </span>
+        
       </div>
     </TooltipProvider>
   );
