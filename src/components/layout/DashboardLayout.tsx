@@ -70,9 +70,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             
             <div className="flex items-center gap-2 md:gap-4">
               {/* Online Users Indicator - shows who else is online */}
-              <div className="hidden md:block">
-                <OnlineUsersIndicator />
-              </div>
+              <OnlineUsersIndicator />
               
               <div className="hidden lg:block">
                 <SearchDropdown />
