@@ -5,6 +5,68 @@ const { sendGenericNotification } = require('../utils/fcm');
 
 const router = express.Router();
 
+// GET /api/messages - Fetch all messages for authenticated user
+router.get('/', authenticateToken, async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT 
+        m.id,
+        m.sender_id,
+        m.receiver_id,
+        m.content,
+        m.created_at,
+        m.is_read as read_at,
+        m.thread_id,
+        sender.name as sender_name,
+        sender.photo_url as sender_photo,
+        receiver.name as receiver_name,
+        receiver.photo_url as receiver_photo
+      FROM messages m
+      LEFT JOIN users sender ON sender.id = m.sender_id
+      LEFT JOIN users receiver ON receiver.id = m.receiver_id
+      WHERE m.sender_id = $1 OR m.receiver_id = $1
+      ORDER BY m.created_at DESC`,
+      [req.user.id]
+    );
+    res.json({ success: true, messages: result.rows });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/threads - Fetch all message threads for authenticated user
+router.get('/threads', authenticateToken, async (req, res) => {
+  try {
+    // Group messages into threads with user info
+    const result = await query(
+      `SELECT DISTINCT ON (other_user_id)
+        other_user_id as id,
+        $1 as user1_id,
+        other_user_id as user2_id,
+        m.id as last_message_id,
+        m.content as last_message_content,
+        m.created_at as updated_at,
+        m.created_at,
+        u.name as other_user_name,
+        u.photo_url as other_user_photo,
+        u.role as other_user_role
+      FROM (
+        SELECT 
+          CASE WHEN sender_id = $1 THEN receiver_id ELSE sender_id END AS other_user_id,
+          *
+        FROM messages
+        WHERE sender_id = $1 OR receiver_id = $1
+      ) m
+      LEFT JOIN users u ON u.id = m.other_user_id
+      ORDER BY other_user_id, created_at DESC`,
+      [req.user.id]
+    );
+    res.json({ success: true, threads: result.rows });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // 1. POST /messages/send
 router.post('/send', authenticateToken, async (req, res) => {
   const { sender_id, receiver_id, content } = req.body;
