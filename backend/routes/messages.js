@@ -143,8 +143,8 @@ router.post('/send', authenticateToken, async (req, res) => {
     const receiverResult = await query('SELECT fcm_token FROM users WHERE id = $1', [receiver_id]);
     const receiverToken = receiverResult.rows[0]?.fcm_token;
     
-    // Send FCM push notification with data-only payload
-    if (receiverToken) {
+    // Send FCM push notification ONLY if receiver is offline
+    if (receiverToken && !isReceiverOnline) {
       try {
         const admin = require('../config/firebase');
         const fcmMessage = {
@@ -164,11 +164,13 @@ router.post('/send', authenticateToken, async (req, res) => {
         };
         
         await admin.messaging().send(fcmMessage);
-        console.log(`✅ FCM new_message notification sent to ${receiver_id}`);
+        console.log(`✅ FCM new_message notification sent to ${receiver_id} (offline)`);
       } catch (fcmError) {
         console.error(`❌ FCM error for user ${receiver_id}:`, fcmError.message);
         // Don't fail the request if FCM fails
       }
+    } else if (isReceiverOnline) {
+      console.log(`⏩ Skipping FCM - receiver ${receiver_id} is online via Socket.IO`);
     } else {
       console.log(`⚠️ No FCM token for receiver: ${receiver_id}`);
     }
