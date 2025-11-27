@@ -597,9 +597,15 @@ io.on('connection', async (socket) => {
 
   // Get current online members on demand
   socket.on('get-online-members', async (callback) => {
+    console.log('\n========== GET ONLINE MEMBERS ==========');
+    console.log('👤 Requested by:', socket.user?.name, '(', socket.user?.id, ')');
+    
     try {
       const userBranchId = socket.user?.branch_context || socket.user?.branch_id;
       const isAdmin = socket.user?.role === 'admin';
+      
+      console.log('🏢 User branch:', userBranchId);
+      console.log('👔 Is admin:', isAdmin);
       
       let members = [];
       
@@ -619,18 +625,25 @@ io.on('connection', async (socket) => {
         console.log(`📊 Admin requested online members: ${members.length} users from all branches`);
       } else if (userBranchId) {
         members = await presence.getMembers(userBranchId);
+        console.log(`📊 Retrieved ${members.length} online members from branch ${userBranchId}`);
+        console.log(`📋 Members list:`, JSON.stringify(members.map(m => ({ id: m.id, name: m.name }))));
+      } else {
+        console.log('⚠️ No branch ID found for user - returning empty list');
       }
       
       // Filter out the current user from their own list
       const membersForUser = members.filter(m => m.id !== socket.user?.id);
+      console.log(`✅ Sending ${membersForUser.length} members to ${socket.user?.name} (excluding self)`);
       
       if (typeof callback === 'function') {
         callback({ success: true, members: membersForUser });
       } else {
         socket.emit('online-members', membersForUser);
       }
+      console.log('=========================================\n');
     } catch (e) {
-      console.error('get-online-members error:', e?.message || e);
+      console.error('❌ get-online-members error:', e?.message || e);
+      console.log('=========================================\n');
       if (typeof callback === 'function') {
         callback({ success: false, error: e?.message || 'error' });
       }
