@@ -39,7 +39,6 @@ router.get('/staff', authenticateToken, async (req, res) => {
       LEFT JOIN districts d ON b.district_id = d.id
       LEFT JOIN regions r ON d.region_id = r.id
       WHERE u.role IN ('staff', 'assistant_manager', 'manager')
-      AND u.is_active = true
     `;
     let params = [];
 
