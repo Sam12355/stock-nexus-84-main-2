@@ -172,8 +172,8 @@ router.post('/send', authenticateToken, async (req, res) => {
       }
     }
     
-    // Get sender info for FCM (name and photo)
-    const senderResult = await query('SELECT name, photo_url FROM users WHERE id = $1', [sender_id]);
+    // Get sender info for FCM (name, photo and fcm_token)
+    const senderResult = await query('SELECT name, photo_url, fcm_token FROM users WHERE id = $1', [sender_id]);
     const sender = senderResult.rows[0] || {};
     const senderName = sender.name || 'Someone';
     const senderPhoto = sender.photo_url || '';
@@ -183,7 +183,9 @@ router.post('/send', authenticateToken, async (req, res) => {
     const receiverToken = receiverResult.rows[0]?.fcm_token;
     
     // Send FCM push notification ONLY if receiver is offline
-    if (receiverToken && !isReceiverOnline) {
+    // and the receiver is not the same user as the sender and the token doesn't match sender's token
+    const senderFcmToken = sender.fcm_token || null;
+    if (receiverToken && !isReceiverOnline && receiver_id !== sender_id && receiverToken !== senderFcmToken) {
       try {
         const admin = require('../config/firebase');
         const fcmMessage = {
@@ -210,6 +212,8 @@ router.post('/send', authenticateToken, async (req, res) => {
       }
     } else if (isReceiverOnline) {
       console.log(`⏩ Skipping FCM - receiver ${receiver_id} is online via Socket.IO`);
+    } else if (receiver_id === sender_id || receiverToken === senderFcmToken) {
+      console.log(`⏩ Skipping FCM - receiver token matches sender or message sent to self (sender=${sender_id}, receiver=${receiver_id})`);
     } else {
       console.log(`⚠️ No FCM token for receiver: ${receiver_id}`);
     }
