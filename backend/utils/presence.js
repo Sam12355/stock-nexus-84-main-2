@@ -143,6 +143,12 @@ class Presence extends EventEmitter {
       this.awayUsers.delete(userId);
     } else {
       console.log(`   ♻️ EXISTING user - adding socket to existing userState`);
+      // CRITICAL FIX: Clear away status when user reconnects!
+      if (userState.isAway) {
+        console.log(`   🔄 User was away - marking as BACK now`);
+        userState.isAway = false;
+        this.awayUsers.delete(userId);
+      }
     }
 
     userState.sockets.add(socketId);
