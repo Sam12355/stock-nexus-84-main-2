@@ -78,6 +78,13 @@ class Presence extends EventEmitter {
     if (!this.initialized) await this.init();
 
     branchId = String(branchId);
+    
+    console.log(`\n🔷 [PRESENCE] addSocket called:`);
+    console.log(`   branchId: ${branchId}`);
+    console.log(`   userId: ${userId}`);
+    console.log(`   socketId: ${socketId}`);
+    console.log(`   meta:`, meta);
+    console.log(`   useRedis: ${this.useRedis}`);
 
     if (this.useRedis && this.redis) {
       // update Redis state
@@ -119,30 +126,39 @@ class Presence extends EventEmitter {
     }
 
     // In-memory mode
+    console.log(`   📝 Using IN-MEMORY mode`);
     if (!this.branches.has(branchId)) this.branches.set(branchId, new Map());
     const usersMap = this.branches.get(branchId);
+    console.log(`   📊 Current users in branch ${branchId}:`, usersMap.size);
 
     let userState = usersMap.get(userId);
     let firstConnection = false;
 
     if (!userState) {
+      console.log(`   ✨ NEW user - creating userState`);
       userState = { meta: { id: userId, ...meta, branchId }, sockets: new Set(), connectedAt: new Date().toISOString(), isAway: false };
       usersMap.set(userId, userState);
       firstConnection = true;
       // Remove from away set when newly connected
       this.awayUsers.delete(userId);
+    } else {
+      console.log(`   ♻️ EXISTING user - adding socket to existing userState`);
     }
 
     userState.sockets.add(socketId);
     this.socketToUser.set(socketId, { userId, branchId });
+    console.log(`   🔌 User now has ${userState.sockets.size} socket(s)`);
 
     const members = await this.getMembers(branchId);
+    console.log(`   👥 getMembers returned ${members.length} members:`, members.map(m => ({ id: m.id, name: m.name })));
 
     if (firstConnection) {
       await this._publish(`presence:branch:${branchId}`, 'user-online', { id: userId, ...userState.meta, connectedAt: new Date().toISOString() });
     }
 
     await this._publish(`presence:branch:${branchId}`, 'online-members', members);
+    
+    console.log(`   ✅ addSocket complete - returning { firstConnection: ${firstConnection}, members: ${members.length} }\n`);
 
     return { firstConnection, members };
   }
@@ -214,6 +230,8 @@ class Presence extends EventEmitter {
   async getMembers(branchId, excludeAway = true) {
     if (!this.initialized) await this.init();
     branchId = String(branchId);
+    
+    console.log(`\n🔍 [PRESENCE] getMembers called for branch: ${branchId}, excludeAway: ${excludeAway}`);
 
     if (this.useRedis && this.redis) {
       const branchKey = `presence:branch:${branchId}:users`;
@@ -243,12 +261,21 @@ class Presence extends EventEmitter {
     }
 
     const usersMap = this.branches.get(branchId);
-    if (!usersMap) return [];
+    console.log(`   📊 branches.has(${branchId}): ${this.branches.has(branchId)}`);
+    console.log(`   📊 usersMap size: ${usersMap ? usersMap.size : 0}`);
+    
+    if (!usersMap) {
+      console.log(`   ⚠️ No usersMap for branch ${branchId} - returning empty array\n`);
+      return [];
+    }
 
     const res = [];
     for (const [id, userState] of usersMap.entries()) {
+      console.log(`   👤 Checking user ${id}: isAway=${userState.isAway}, in awayUsers=${this.awayUsers.has(id)}`);
+      
       // Skip away users if excludeAway is true
       if (excludeAway && (userState.isAway || this.awayUsers.has(id))) {
+        console.log(`   ⏭️ Skipping away user ${id}`);
         continue;
       }
       
@@ -261,6 +288,7 @@ class Presence extends EventEmitter {
         lastActiveAt: userState.connectedAt || null
       });
     }
+    console.log(`   ✅ getMembers returning ${res.length} members\n`);
     return res;
   }
 
