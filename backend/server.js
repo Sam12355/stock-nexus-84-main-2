@@ -791,18 +791,30 @@ io.on('connection', async (socket) => {
     try {
       const { query } = require('./config/database');
       
-      // Update all unread messages from the conversation partner
-      const result = await query(
-        `UPDATE messages 
-         SET is_read = true, read_at = NOW() 
-         WHERE receiver_id = $1 AND sender_id = $2 AND is_read = false 
-         RETURNING id, read_at`,
-        [userId, conversationPartnerId]
-      );
+      let result;
+      try {
+        // Try with read_at column if it exists
+        result = await query(
+          `UPDATE messages 
+           SET is_read = true, read_at = NOW() 
+           WHERE receiver_id = $1 AND sender_id = $2 AND is_read = false 
+           RETURNING id, read_at`,
+          [userId, conversationPartnerId]
+        );
+      } catch (updateError) {
+        // Fallback to old schema without read_at
+        result = await query(
+          `UPDATE messages 
+           SET is_read = true 
+           WHERE receiver_id = $1 AND sender_id = $2 AND is_read = false 
+           RETURNING id`,
+          [userId, conversationPartnerId]
+        );
+      }
 
       if (result.rows.length > 0) {
         const messageIds = result.rows.map(r => r.id);
-        const readAt = new Date().toISOString();
+        const readAt = result.rows[0].read_at || new Date().toISOString();
         
         console.log(`✅ Marked ${result.rows.length} messages as read`);
         

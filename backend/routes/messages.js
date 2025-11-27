@@ -16,8 +16,6 @@ router.get('/', authenticateToken, async (req, res) => {
         m.content,
         m.created_at,
         m.is_read,
-        m.delivered_at,
-        m.read_at,
         m.thread_id,
         sender.name as sender_name,
         sender.photo_url as sender_photo,
@@ -86,14 +84,26 @@ router.post('/send', authenticateToken, async (req, res) => {
       isReceiverOnline = receiverSockets && receiverSockets.size > 0;
     }
     
-    // Insert message - set delivered_at NOW if receiver is online
-    const deliveredValue = isReceiverOnline ? 'NOW()' : 'NULL';
-    const result = await query(
-      `INSERT INTO messages (sender_id, receiver_id, content, created_at, is_read, delivered_at, read_at) 
-       VALUES ($1, $2, $3, NOW(), false, ${deliveredValue}, NULL) 
-       RETURNING id, sender_id, receiver_id, content, is_read, created_at as timestamp, delivered_at, read_at`,
-      [sender_id, receiver_id, content]
-    );
+    // Insert message - handle both old and new schema
+    let result;
+    try {
+      // Try new schema with delivered_at and read_at
+      const deliveredValue = isReceiverOnline ? 'NOW()' : 'NULL';
+      result = await query(
+        `INSERT INTO messages (sender_id, receiver_id, content, created_at, is_read, delivered_at, read_at) 
+         VALUES ($1, $2, $3, NOW(), false, ${deliveredValue}, NULL) 
+         RETURNING id, sender_id, receiver_id, content, is_read, created_at as timestamp, delivered_at, read_at`,
+        [sender_id, receiver_id, content]
+      );
+    } catch (insertError) {
+      // Fallback to old schema if new columns don't exist
+      result = await query(
+        `INSERT INTO messages (sender_id, receiver_id, content, created_at, is_read) 
+         VALUES ($1, $2, $3, NOW(), false) 
+         RETURNING id, sender_id, receiver_id, content, is_read, created_at as timestamp`,
+        [sender_id, receiver_id, content]
+      );
+    }
     const message = result.rows[0];
     
     // Get sender info for FCM (name and photo)
@@ -191,8 +201,6 @@ router.get('/inbox', authenticateToken, async (req, res) => {
         m.receiver_id,
         m.content,
         m.is_read,
-        m.delivered_at,
-        m.read_at,
         m.created_at
       FROM (
         SELECT 
@@ -222,8 +230,6 @@ router.get('/thread', authenticateToken, async (req, res) => {
         m.receiver_id, 
         m.content, 
         m.is_read,
-        m.delivered_at,
-        m.read_at, 
         m.created_at as timestamp,
         sender.name as sender_name,
         sender.photo_url as sender_photo,
@@ -247,10 +253,20 @@ router.post('/read', authenticateToken, async (req, res) => {
   const { message_id } = req.body;
   if (!message_id) return res.status(400).json({ success: false, error: 'Missing message_id' });
   try {
-    const result = await query(
-      'UPDATE messages SET is_read = true, read_at = NOW() WHERE id = $1 RETURNING id, sender_id, read_at', 
-      [message_id]
-    );
+    let result;
+    try {
+      // Try with read_at column if it exists
+      result = await query(
+        'UPDATE messages SET is_read = true, read_at = NOW() WHERE id = $1 RETURNING id, sender_id, read_at', 
+        [message_id]
+      );
+    } catch (updateError) {
+      // Fallback to old schema
+      result = await query(
+        'UPDATE messages SET is_read = true WHERE id = $1 RETURNING id, sender_id', 
+        [message_id]
+      );
+    }
     
     if (result.rows.length > 0) {
       const msg = result.rows[0];
@@ -262,7 +278,7 @@ router.post('/read', authenticateToken, async (req, res) => {
         if (io) {
           io.to(msg.sender_id).emit('messagesRead', {
             messageIds: [msg.id],
-            readAt: msg.read_at,
+            readAt: msg.read_at || new Date().toISOString(),
             readBy: req.user.id
           });
         }
