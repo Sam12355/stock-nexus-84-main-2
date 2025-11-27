@@ -382,20 +382,29 @@ io.on('connection', async (socket) => {
         io.to('admins-overview').emit('user-online', userOnlinePayload);
         console.log(`📤 Emitted 'user-online' to admins-overview room`);
         
-        // Broadcast updated online-members to ALL users in the branch (including the new user)
+        // Send personalized online-members to each user in the branch
         if (result.members) {
           console.log(`📤 Broadcasting 'online-members' to room ${room}:`, JSON.stringify(result.members));
-          io.to(room).emit('online-members', result.members);
-          console.log(`✅ Broadcast ${result.members.length} online members to ALL users in branch ${branchId}`);
+          
+          // Get all sockets in this branch room
+          const socketsInRoom = await io.in(room).fetchSockets();
+          for (const recipientSocket of socketsInRoom) {
+            // Filter out the recipient from the members list
+            const membersForRecipient = result.members.filter(m => m.id !== recipientSocket.user?.id);
+            recipientSocket.emit('online-members', membersForRecipient);
+            console.log(`📤 Sent ${membersForRecipient.length} members to ${recipientSocket.user?.name} (excluding self)`);
+          }
           
           // Also broadcast updated all-online to admins
           broadcastToAdmins(io);
         }
       } else if (result && result.members) {
         // User already online (reconnect/new tab) - just send to this socket
-        console.log(`📤 Sending 'online-members' to ONLY ${socket.user.name} (reconnect):`, JSON.stringify(result.members));
-        socket.emit('online-members', result.members);
-        console.log(`📋 Sent ${result.members.length} online members to ${socket.user.name} (reconnect)`);
+        // Filter out the current user from their own list
+        const membersForUser = result.members.filter(m => m.id !== socket.user.id);
+        console.log(`📤 Sending 'online-members' to ONLY ${socket.user.name} (reconnect):`, JSON.stringify(membersForUser));
+        socket.emit('online-members', membersForUser);
+        console.log(`📋 Sent ${membersForUser.length} online members to ${socket.user.name} (reconnect, excluding self)`);
       }
     } catch (e) {
       console.error('❌ Error adding socket to presence:', e?.message || e);
@@ -492,16 +501,24 @@ io.on('connection', async (socket) => {
         console.log(`📤 Emitted 'user-online' to OTHER users in ${room}:`, JSON.stringify(userOnlinePayload));
         console.log(`👤 User ${socket.user.name} joined branch ${requestedBranchId} - now ONLINE`);
         
-        // Broadcast updated online-members to ALL users in the branch
+        // Send personalized online-members to each user in the branch
         if (result.members) {
           console.log(`📤 Broadcasting 'online-members' to room ${room}:`, JSON.stringify(result.members));
-          io.to(room).emit('online-members', result.members);
-          console.log(`✅ Broadcast ${result.members.length} online members to ALL users in branch ${requestedBranchId}`);
+          
+          // Get all sockets in this branch room
+          const socketsInRoom = await io.in(room).fetchSockets();
+          for (const recipientSocket of socketsInRoom) {
+            // Filter out the recipient from the members list
+            const membersForRecipient = result.members.filter(m => m.id !== recipientSocket.user?.id);
+            recipientSocket.emit('online-members', membersForRecipient);
+          }
+          console.log(`✅ Broadcast personalized members to ${socketsInRoom.length} users in branch ${requestedBranchId}`);
         }
       } else if (result && result.members) {
-        // Already online - just send to this socket
-        console.log(`📤 Sending 'online-members' to ONLY ${socket.user.name} (already online):`, JSON.stringify(result.members));
-        socket.emit('online-members', result.members);
+        // Already online - just send to this socket (excluding self)
+        const membersForUser = result.members.filter(m => m.id !== socket.user.id);
+        console.log(`📤 Sending 'online-members' to ONLY ${socket.user.name} (already online):`, JSON.stringify(membersForUser));
+        socket.emit('online-members', membersForUser);
       }
       
       console.log('========================================\n');
@@ -541,11 +558,18 @@ io.on('connection', async (socket) => {
         io.to('admins-overview').emit('user-offline', socket.user.id);
         console.log(`📤 Emitted 'user-offline' to admins-overview room`);
         
-        // Also send updated members list to remaining users
+        // Send personalized updated members list to remaining users
         if (result.members) {
           console.log(`📤 Broadcasting 'online-members' to room ${room}:`, JSON.stringify(result.members));
-          io.to(room).emit('online-members', result.members);
-          console.log(`✅ Broadcast ${result.members.length} online members to remaining users`);
+          
+          // Get all remaining sockets in this branch room
+          const socketsInRoom = await io.in(room).fetchSockets();
+          for (const recipientSocket of socketsInRoom) {
+            // Filter out the recipient from the members list
+            const membersForRecipient = result.members.filter(m => m.id !== recipientSocket.user?.id);
+            recipientSocket.emit('online-members', membersForRecipient);
+          }
+          console.log(`✅ Broadcast personalized members to ${socketsInRoom.length} remaining users`);
           
           // Also broadcast updated all-online to admins
           broadcastToAdmins(io);
@@ -595,10 +619,13 @@ io.on('connection', async (socket) => {
         members = await presence.getMembers(userBranchId);
       }
       
+      // Filter out the current user from their own list
+      const membersForUser = members.filter(m => m.id !== socket.user?.id);
+      
       if (typeof callback === 'function') {
-        callback({ success: true, members });
+        callback({ success: true, members: membersForUser });
       } else {
-        socket.emit('online-members', members);
+        socket.emit('online-members', membersForUser);
       }
     } catch (e) {
       console.error('get-online-members error:', e?.message || e);
@@ -627,11 +654,18 @@ io.on('connection', async (socket) => {
       // Mark user as away in presence system
       const result = await presence.setUserAway(socket.user.id, userBranchId, true);
       
-      // Broadcast updated online members (excluding away users)
+      // Send personalized online members (excluding away users) to each user
       if (result && result.members) {
         console.log(`📤 Broadcasting 'online-members' to room ${room} (excluding away):`, JSON.stringify(result.members));
-        io.to(room).emit('online-members', result.members);
-        console.log(`✅ Broadcast ${result.members.length} active members (user ${socket.user.name} is now away)`);
+        
+        // Get all sockets in this branch room
+        const socketsInRoom = await io.in(room).fetchSockets();
+        for (const recipientSocket of socketsInRoom) {
+          // Filter out the recipient from the members list
+          const membersForRecipient = result.members.filter(m => m.id !== recipientSocket.user?.id);
+          recipientSocket.emit('online-members', membersForRecipient);
+        }
+        console.log(`✅ Broadcast personalized members to ${socketsInRoom.length} active users (${socket.user.name} is now away)`);
         
         // Also broadcast to admins
         broadcastToAdmins(io);
@@ -667,11 +701,18 @@ io.on('connection', async (socket) => {
       // Mark user as NOT away in presence system
       const result = await presence.setUserAway(socket.user.id, userBranchId, false);
       
-      // Broadcast updated online members (now including this user again)
+      // Send personalized online members (now including this user again) to each user
       if (result && result.members) {
         console.log(`📤 Broadcasting 'online-members' to room ${room} (including returned user):`, JSON.stringify(result.members));
-        io.to(room).emit('online-members', result.members);
-        console.log(`✅ Broadcast ${result.members.length} active members (user ${socket.user.name} is back)`);
+        
+        // Get all sockets in this branch room
+        const socketsInRoom = await io.in(room).fetchSockets();
+        for (const recipientSocket of socketsInRoom) {
+          // Filter out the recipient from the members list
+          const membersForRecipient = result.members.filter(m => m.id !== recipientSocket.user?.id);
+          recipientSocket.emit('online-members', membersForRecipient);
+        }
+        console.log(`✅ Broadcast personalized members to ${socketsInRoom.length} active users (${socket.user.name} is back)`);
         
         // Also broadcast to admins
         broadcastToAdmins(io);
