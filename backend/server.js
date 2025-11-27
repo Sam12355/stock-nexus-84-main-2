@@ -365,6 +365,13 @@ io.on('connection', async (socket) => {
       
       console.log('📦 Presence result:', JSON.stringify({ firstConnection: result?.firstConnection, memberCount: result?.members?.length }));
       
+      // ALWAYS send online members to the connecting user first
+      if (result && result.members) {
+        const membersForConnectingUser = result.members.filter(m => m.id !== socket.user.id);
+        socket.emit('online-members', membersForConnectingUser);
+        console.log(`📤 Sent ${membersForConnectingUser.length} members to connecting user ${socket.user.name} (excluding self)`);
+      }
+      
       // If this is user's first connection (not a reconnect with existing tabs)
       if (result && result.firstConnection) {
         // Emit user-online to OTHER users in the branch (not to the connecting user)
@@ -382,29 +389,24 @@ io.on('connection', async (socket) => {
         io.to('admins-overview').emit('user-online', userOnlinePayload);
         console.log(`📤 Emitted 'user-online' to admins-overview room`);
         
-        // Send personalized online-members to each user in the branch
+        // Send personalized online-members to OTHER users in the branch (excluding new user)
         if (result.members) {
-          console.log(`📤 Broadcasting 'online-members' to room ${room}:`, JSON.stringify(result.members));
+          console.log(`📤 Broadcasting 'online-members' to OTHER users in ${room}`);
           
-          // Get all sockets in this branch room
+          // Get all sockets in this branch room (excluding the connecting socket)
           const socketsInRoom = await io.in(room).fetchSockets();
           for (const recipientSocket of socketsInRoom) {
-            // Filter out the recipient from the members list
-            const membersForRecipient = result.members.filter(m => m.id !== recipientSocket.user?.id);
-            recipientSocket.emit('online-members', membersForRecipient);
-            console.log(`📤 Sent ${membersForRecipient.length} members to ${recipientSocket.user?.name} (excluding self)`);
+            if (recipientSocket.id !== socket.id) { // Skip the connecting user
+              // Filter out the recipient from the members list
+              const membersForRecipient = result.members.filter(m => m.id !== recipientSocket.user?.id);
+              recipientSocket.emit('online-members', membersForRecipient);
+              console.log(`📤 Sent ${membersForRecipient.length} members to ${recipientSocket.user?.name} (excluding self)`);
+            }
           }
           
           // Also broadcast updated all-online to admins
           broadcastToAdmins(io);
         }
-      } else if (result && result.members) {
-        // User already online (reconnect/new tab) - just send to this socket
-        // Filter out the current user from their own list
-        const membersForUser = result.members.filter(m => m.id !== socket.user.id);
-        console.log(`📤 Sending 'online-members' to ONLY ${socket.user.name} (reconnect):`, JSON.stringify(membersForUser));
-        socket.emit('online-members', membersForUser);
-        console.log(`📋 Sent ${membersForUser.length} online members to ${socket.user.name} (reconnect, excluding self)`);
       }
     } catch (e) {
       console.error('❌ Error adding socket to presence:', e?.message || e);
