@@ -108,7 +108,28 @@ router.post('/send', authenticateToken, async (req, res) => {
     
     // Check if receiver currently has this conversation open (instant read receipt)
     const activeConversations = app.get('activeConversations');
-    const receiverHasChatOpen = activeConversations && activeConversations.get(receiver_id) === sender_id;
+    // First check activeConversations map
+    let receiverHasChatOpen = activeConversations && activeConversations.get(receiver_id) === sender_id;
+
+    // Also check the deterministic conversation room (conv:<idA>:<idB>) — more race-resistant
+    try {
+      const io = app.get('io');
+      if (io && !receiverHasChatOpen) {
+        const roomName = `conv:${[String(sender_id), String(receiver_id)].sort().join(':')}`;
+        const convRoom = io.sockets.adapter.rooms.get(roomName);
+        const receiverSockets = io.sockets.adapter.rooms.get(String(receiver_id));
+        if (convRoom && receiverSockets) {
+          for (const sid of convRoom) {
+            if (receiverSockets.has(sid)) {
+              receiverHasChatOpen = true;
+              break;
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.log('⚠️ Could not check conversation room presence:', err?.message || err);
+    }
     
     if (receiverHasChatOpen) {
       // Receiver is viewing this chat, auto-mark as read
@@ -130,6 +151,24 @@ router.post('/send', authenticateToken, async (req, res) => {
         } catch (fallbackError) {
           console.error('❌ Could not auto-mark message as read:', fallbackError);
         }
+      }
+
+      // Also mark any other previous unread messages in this thread as read (helpful when receiver has been in the chat)
+      try {
+        const rows = await query(
+          'UPDATE messages SET is_read = true, read_at = NOW() WHERE receiver_id = $1 AND sender_id = $2 AND read_at IS NULL RETURNING id',
+          [receiver_id, sender_id]
+        );
+        const readIds = rows.rows.map(r => r.id);
+        if (readIds.length > 0) {
+          const readAt = new Date().toISOString();
+          const io = app.get('io');
+          // Inform the sender(s) that these messages were read
+          if (io) io.to(sender_id).emit('messagesRead', { messageIds: readIds, readAt, readBy: receiver_id });
+        }
+      } catch (err) {
+        // non-fatal
+        console.error('❌ Error marking previous unread messages as read:', err?.message || err);
       }
     }
     

@@ -848,13 +848,34 @@ io.on('connection', async (socket) => {
       return;
     }
     activeConversations.set(userId, conversationPartnerId);
-    console.log(`👁️ User ${userId} opened conversation with ${conversationPartnerId}`);
+    // Join a deterministic conversation room so both participants end up in the same room
+    // Sorting the IDs guarantees the same room name regardless of which user opens it
+    try {
+      const room = `conv:${[userId, conversationPartnerId].sort().join(':')}`;
+      socket.join(room);
+      const size = io.sockets.adapter.rooms.get(room)?.size || 0;
+      console.log(`👁️ User ${userId} opened conversation with ${conversationPartnerId} and joined room ${room} (members: ${size})`);
+    } catch (e) {
+      console.log(`👁️ User ${userId} opened conversation with ${conversationPartnerId}`);
+    }
   });
 
   // Handle user closing a conversation
   socket.on('closeConversation', () => {
     const userId = socket.user?.id;
     if (!userId) return;
+    // Leave the deterministic conversation room if present
+    const conversationPartnerId = activeConversations.get(userId);
+    if (conversationPartnerId) {
+      try {
+        const room = `conv:${[userId, conversationPartnerId].sort().join(':')}`;
+        socket.leave(room);
+        const size = io.sockets.adapter.rooms.get(room)?.size || 0;
+        console.log(`🚪 User ${userId} left room ${room} (members remaining: ${size})`);
+      } catch (e) {
+        // fallthrough
+      }
+    }
     activeConversations.delete(userId);
     console.log(`🚪 User ${userId} closed conversation`);
   });
