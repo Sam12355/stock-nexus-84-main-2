@@ -323,6 +323,11 @@ async function broadcastToAdmins(io) {
   }
 }
 
+// Track which users are currently viewing which conversations
+// Key: userId, Value: conversationPartnerId they're viewing
+const activeConversations = new Map();
+app.set('activeConversations', activeConversations);
+
 // Socket.IO connection handling
 io.on('connection', async (socket) => {
   console.log('\n========== SOCKET CONNECTION ==========');
@@ -536,6 +541,11 @@ io.on('connection', async (socket) => {
     console.log('🔌 Socket disconnected:', socket.id);
     console.log('👤 User:', socket.user?.name, '(', socket.user?.id, ')');
     console.log('📝 Reason:', reason);
+    
+    // Clean up active conversation tracking
+    if (socket.user?.id) {
+      activeConversations.delete(socket.user.id);
+    }
     
     try {
       // Get branch before removing socket
@@ -828,6 +838,25 @@ io.on('connection', async (socket) => {
     } catch (error) {
       console.error('❌ Error marking messages as read:', error);
     }
+  });
+
+  // Handle user opening a conversation (for instant read receipts)
+  socket.on('openConversation', ({ conversationPartnerId }) => {
+    const userId = socket.user?.id;
+    if (!userId || !conversationPartnerId) {
+      console.log('❌ Missing userId or conversationPartnerId for openConversation');
+      return;
+    }
+    activeConversations.set(userId, conversationPartnerId);
+    console.log(`👁️ User ${userId} opened conversation with ${conversationPartnerId}`);
+  });
+
+  // Handle user closing a conversation
+  socket.on('closeConversation', () => {
+    const userId = socket.user?.id;
+    if (!userId) return;
+    activeConversations.delete(userId);
+    console.log(`🚪 User ${userId} closed conversation`);
   });
 });
 

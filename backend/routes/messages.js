@@ -106,6 +106,33 @@ router.post('/send', authenticateToken, async (req, res) => {
     }
     const message = result.rows[0];
     
+    // Check if receiver currently has this conversation open (instant read receipt)
+    const activeConversations = app.get('activeConversations');
+    const receiverHasChatOpen = activeConversations && activeConversations.get(receiver_id) === sender_id;
+    
+    if (receiverHasChatOpen) {
+      // Receiver is viewing this chat, auto-mark as read
+      try {
+        const readResult = await query(
+          'UPDATE messages SET is_read = true, read_at = NOW() WHERE id = $1 RETURNING read_at',
+          [message.id]
+        );
+        if (readResult.rows.length > 0) {
+          message.read_at = readResult.rows[0].read_at;
+          console.log(`✅ Message ${message.id} auto-marked as read (receiver viewing chat)`);
+        }
+      } catch (readError) {
+        // If read_at column doesn't exist, just set is_read
+        try {
+          await query('UPDATE messages SET is_read = true WHERE id = $1', [message.id]);
+          message.read_at = new Date().toISOString();
+          console.log(`✅ Message ${message.id} auto-marked as read (fallback)`);
+        } catch (fallbackError) {
+          console.error('❌ Could not auto-mark message as read:', fallbackError);
+        }
+      }
+    }
+    
     // Get sender info for FCM (name and photo)
     const senderResult = await query('SELECT name, photo_url FROM users WHERE id = $1', [sender_id]);
     const sender = senderResult.rows[0] || {};
@@ -158,9 +185,24 @@ router.post('/send', authenticateToken, async (req, res) => {
           id: message.id,
           timestamp: message.timestamp,
           delivered_at: message.delivered_at,
-          read_at: message.read_at
+          read_at: message.read_at,
+          sent_at: message.timestamp
         });
         console.log(`📡 Socket.IO new_message event sent to ${receiver_id}`);
+        
+        // Also emit to sender so they see their own message with correct read status
+        io.to(sender_id).emit('new_message', {
+          sender_id,
+          sender_name: senderName,
+          sender_photo: senderPhoto,
+          content,
+          message_id: message.id,
+          id: message.id,
+          timestamp: message.timestamp,
+          delivered_at: message.delivered_at,
+          read_at: message.read_at,
+          sent_at: message.timestamp
+        });
         
         // If receiver is online, emit messageDelivered to both users
         if (isReceiverOnline && message.delivered_at) {
