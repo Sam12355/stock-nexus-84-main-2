@@ -775,6 +775,48 @@ io.on('connection', async (socket) => {
       userId: senderId
     });
   });
+
+  // Handle mark messages as read (for read receipts)
+  socket.on('markMessagesRead', async (data) => {
+    const userId = socket.user?.id;
+    const conversationPartnerId = data.conversationPartnerId;
+    
+    if (!userId || !conversationPartnerId) {
+      console.log('❌ Missing userId or conversationPartnerId for markMessagesRead');
+      return;
+    }
+
+    console.log(`📖 Marking messages as read: ${conversationPartnerId} → ${userId}`);
+
+    try {
+      const { query } = require('./config/database');
+      
+      // Update all unread messages from the conversation partner
+      const result = await query(
+        `UPDATE messages 
+         SET is_read = true, read_at = NOW() 
+         WHERE receiver_id = $1 AND sender_id = $2 AND is_read = false 
+         RETURNING id, read_at`,
+        [userId, conversationPartnerId]
+      );
+
+      if (result.rows.length > 0) {
+        const messageIds = result.rows.map(r => r.id);
+        const readAt = new Date().toISOString();
+        
+        console.log(`✅ Marked ${result.rows.length} messages as read`);
+        
+        // Emit to sender so they see read receipts (green ticks)
+        io.to(conversationPartnerId).emit('messagesRead', {
+          messageIds,
+          readAt,
+          readBy: userId
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error marking messages as read:', error);
+    }
+  });
 });
 
 // Make io available to other modules

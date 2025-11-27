@@ -15,7 +15,9 @@ router.get('/', authenticateToken, async (req, res) => {
         m.receiver_id,
         m.content,
         m.created_at,
-        m.is_read as read_at,
+        m.is_read,
+        m.delivered_at,
+        m.read_at,
         m.thread_id,
         sender.name as sender_name,
         sender.photo_url as sender_photo,
@@ -74,11 +76,22 @@ router.post('/send', authenticateToken, async (req, res) => {
     return res.status(400).json({ success: false, error: 'Missing required fields' });
   }
   try {
-    // Insert message and return with sender info
+    // Check if receiver is online via Socket.IO
+    const app = require('../server');
+    const io = app.get('io');
+    let isReceiverOnline = false;
+    
+    if (io) {
+      const receiverSockets = io.sockets.adapter.rooms.get(receiver_id);
+      isReceiverOnline = receiverSockets && receiverSockets.size > 0;
+    }
+    
+    // Insert message - set delivered_at NOW if receiver is online
+    const deliveredValue = isReceiverOnline ? 'NOW()' : 'NULL';
     const result = await query(
-      `INSERT INTO messages (sender_id, receiver_id, content, created_at, is_read) 
-       VALUES ($1, $2, $3, NOW(), false) 
-       RETURNING id, sender_id, receiver_id, content, is_read, created_at as timestamp`,
+      `INSERT INTO messages (sender_id, receiver_id, content, created_at, is_read, delivered_at, read_at) 
+       VALUES ($1, $2, $3, NOW(), false, ${deliveredValue}, NULL) 
+       RETURNING id, sender_id, receiver_id, content, is_read, created_at as timestamp, delivered_at, read_at`,
       [sender_id, receiver_id, content]
     );
     const message = result.rows[0];
@@ -125,8 +138,6 @@ router.post('/send', authenticateToken, async (req, res) => {
     
     // Emit Socket.IO event for real-time delivery
     try {
-      const app = require('../server');
-      const io = app.get('io');
       if (io) {
         io.to(receiver_id).emit('new_message', {
           sender_id,
@@ -135,9 +146,22 @@ router.post('/send', authenticateToken, async (req, res) => {
           content,
           message_id: message.id,
           id: message.id,
-          timestamp: message.timestamp
+          timestamp: message.timestamp,
+          delivered_at: message.delivered_at,
+          read_at: message.read_at
         });
         console.log(`📡 Socket.IO new_message event sent to ${receiver_id}`);
+        
+        // If receiver is online, emit messageDelivered to both users
+        if (isReceiverOnline && message.delivered_at) {
+          const deliveredEvent = {
+            messageId: message.id,
+            deliveredAt: message.delivered_at
+          };
+          io.to(sender_id).emit('messageDelivered', deliveredEvent);
+          io.to(receiver_id).emit('messageDelivered', deliveredEvent);
+          console.log(`✅ Message ${message.id} delivered immediately (receiver online)`);
+        }
       }
     } catch (socketError) {
       console.error('❌ Socket.IO error:', socketError.message);
@@ -167,6 +191,8 @@ router.get('/inbox', authenticateToken, async (req, res) => {
         m.receiver_id,
         m.content,
         m.is_read,
+        m.delivered_at,
+        m.read_at,
         m.created_at
       FROM (
         SELECT 
@@ -195,7 +221,9 @@ router.get('/thread', authenticateToken, async (req, res) => {
         m.sender_id, 
         m.receiver_id, 
         m.content, 
-        m.is_read, 
+        m.is_read,
+        m.delivered_at,
+        m.read_at, 
         m.created_at as timestamp,
         sender.name as sender_name,
         sender.photo_url as sender_photo,
@@ -219,7 +247,30 @@ router.post('/read', authenticateToken, async (req, res) => {
   const { message_id } = req.body;
   if (!message_id) return res.status(400).json({ success: false, error: 'Missing message_id' });
   try {
-    await query('UPDATE messages SET is_read = true WHERE id = $1', [message_id]);
+    const result = await query(
+      'UPDATE messages SET is_read = true, read_at = NOW() WHERE id = $1 RETURNING id, sender_id, read_at', 
+      [message_id]
+    );
+    
+    if (result.rows.length > 0) {
+      const msg = result.rows[0];
+      
+      // Emit to sender via Socket.IO
+      try {
+        const app = require('../server');
+        const io = app.get('io');
+        if (io) {
+          io.to(msg.sender_id).emit('messagesRead', {
+            messageIds: [msg.id],
+            readAt: msg.read_at,
+            readBy: req.user.id
+          });
+        }
+      } catch (socketError) {
+        console.error('❌ Socket.IO error:', socketError);
+      }
+    }
+    
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
