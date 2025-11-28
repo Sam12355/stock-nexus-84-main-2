@@ -9,20 +9,16 @@ const db = require('../config/database');
  */
 async function sendStockAlertNotification(userId, stockAlert) {
   try {
-    // Get user's FCM token from database
-    const result = await db.query(
-      'SELECT fcm_token, name FROM users WHERE id = $1',
+    // Get device tokens for user from devices table
+    const deviceResult = await db.query(
+      'SELECT device_token FROM devices WHERE user_id = $1 AND device_token IS NOT NULL',
       [userId]
     );
-    
-    const user = result.rows[0];
-    if (!user?.fcm_token) {
-      console.log(`⚠️ No FCM token for user: ${userId}`);
+    const deviceTokens = deviceResult.rows.map(r => r.device_token).filter(Boolean);
+    if (deviceTokens.length === 0) {
+      console.log(`⚠️ No device tokens for user: ${userId}`);
       return null;
     }
-
-    const fcmToken = user.fcm_token;
-    const userName = user.name || 'User';
 
     // Use alert type passed from stock.js (already calculated based on item's threshold)
     const currentQty = stockAlert.current_quantity || 0;
@@ -50,29 +46,35 @@ async function sendStockAlertNotification(userId, stockAlert) {
     body += `\n\nPlease restock immediately to avoid stockout!\n\n`;
     body += `Time: ${swedenTime}`;
 
-    // Prepare notification message (DATA-ONLY so FCMService handles it in background)
-    const message = {
-      token: fcmToken,
-      data: {
-        title: '⚠️ Stock Alert',
-        body: body,
-        type: 'stock_alert',
-        notification_id: String(stockAlert.id || ''),
-        item_id: String(stockAlert.item_id || ''),
-        item_name: String(stockAlert.item_name || ''),
-        current_quantity: String(currentQty),
-        threshold: String(threshold),
-        timestamp: new Date().toISOString(),
-      },
-      android: {
-        priority: 'high',
-      },
-    };
-
-    // Send FCM notification
-    const response = await admin.messaging().send(message);
-    console.log(`✅ FCM notification sent to ${userName} (${userId}):`, response);
-    return response;
+    // Send notification to all device tokens
+    const responses = [];
+    for (const token of deviceTokens) {
+      const message = {
+        token,
+        data: {
+          title: '⚠️ Stock Alert',
+          body: body,
+          type: 'stock_alert',
+          notification_id: String(stockAlert.id || ''),
+          item_id: String(stockAlert.item_id || ''),
+          item_name: String(stockAlert.item_name || ''),
+          current_quantity: String(currentQty),
+          threshold: String(threshold),
+          timestamp: new Date().toISOString(),
+        },
+        android: {
+          priority: 'high',
+        },
+      };
+      try {
+        const response = await admin.messaging().send(message);
+        responses.push(response);
+        console.log(`✅ FCM notification sent to device ${token} for user ${userId}:`, response);
+      } catch (error) {
+        console.error(`❌ Error sending FCM notification to device ${token} for user ${userId}:`, error.message);
+      }
+    }
+    return responses;
 
   } catch (error) {
     console.error(`❌ Error sending FCM notification to user ${userId}:`, error.message);
@@ -96,20 +98,16 @@ async function sendStockAlertNotification(userId, stockAlert) {
  */
 async function sendEventReminderNotification(userId, eventReminder) {
   try {
-    // Get user's FCM token from database
-    const result = await db.query(
-      'SELECT fcm_token, name FROM users WHERE id = $1',
+    // Get device tokens for user from devices table
+    const deviceResult = await db.query(
+      'SELECT device_token FROM devices WHERE user_id = $1 AND device_token IS NOT NULL',
       [userId]
     );
-    
-    const user = result.rows[0];
-    if (!user?.fcm_token) {
-      console.log(`⚠️ No FCM token for user: ${userId}`);
+    const deviceTokens = deviceResult.rows.map(r => r.device_token).filter(Boolean);
+    if (deviceTokens.length === 0) {
+      console.log(`⚠️ No device tokens for user: ${userId}`);
       return null;
     }
-
-    const fcmToken = user.fcm_token;
-    const userName = user.name || 'User';
 
     // Create detailed event reminder message
     const eventTitle = eventReminder.event_title || 'Event';
@@ -135,29 +133,35 @@ async function sendEventReminderNotification(userId, eventReminder) {
     body += `Don't forget to prepare!\n\n`;
     body += `Time: ${swedenTime}`;
 
-    // Prepare notification message (DATA-ONLY so FCMService handles it in background)
-    const message = {
-      token: fcmToken,
-      data: {
-        title: '📅 Event Reminder',
-        body: body,
-        type: 'event_reminder',
-        notification_id: String(eventReminder.id || ''),
-        event_id: String(eventReminder.event_id || ''),
-        event_title: String(eventTitle),
-        event_date: String(eventDate),
-        days_until: String(daysUntil),
-        timestamp: new Date().toISOString(),
-      },
-      android: {
-        priority: 'high',
-      },
-    };
-
-    // Send FCM notification
-    const response = await admin.messaging().send(message);
-    console.log(`✅ FCM event reminder sent to ${userName} (${userId}):`, response);
-    return response;
+    // Send notification to all device tokens
+    const responses = [];
+    for (const token of deviceTokens) {
+      const message = {
+        token,
+        data: {
+          title: '📅 Event Reminder',
+          body: body,
+          type: 'event_reminder',
+          notification_id: String(eventReminder.id || ''),
+          event_id: String(eventReminder.event_id || ''),
+          event_title: String(eventTitle),
+          event_date: String(eventDate),
+          days_until: String(daysUntil),
+          timestamp: new Date().toISOString(),
+        },
+        android: {
+          priority: 'high',
+        },
+      };
+      try {
+        const response = await admin.messaging().send(message);
+        responses.push(response);
+        console.log(`✅ FCM event reminder sent to device ${token} for user ${userId}:`, response);
+      } catch (error) {
+        console.error(`❌ Error sending FCM event reminder to device ${token} for user ${userId}:`, error.message);
+      }
+    }
+    return responses;
 
   } catch (error) {
     console.error(`❌ Error sending FCM event reminder to user ${userId}:`, error.message);
@@ -181,41 +185,43 @@ async function sendEventReminderNotification(userId, eventReminder) {
  */
 async function sendGenericNotification(userId, notification) {
   try {
-    // Get user's FCM token from database
-    const result = await db.query(
-      'SELECT fcm_token, name FROM users WHERE id = $1',
+    // Get device tokens for user from devices table
+    const deviceResult = await db.query(
+      'SELECT device_token FROM devices WHERE user_id = $1 AND device_token IS NOT NULL',
       [userId]
     );
-    
-    const user = result.rows[0];
-    if (!user?.fcm_token) {
-      console.log(`⚠️ No FCM token for user: ${userId}`);
+    const deviceTokens = deviceResult.rows.map(r => r.device_token).filter(Boolean);
+    if (deviceTokens.length === 0) {
+      console.log(`⚠️ No device tokens for user: ${userId}`);
       return null;
     }
 
-    const fcmToken = user.fcm_token;
-    const userName = user.name || 'User';
-
-    // Prepare notification message (DATA-ONLY so FCMService handles it in background)
-    const message = {
-      token: fcmToken,
-      data: {
-        title: notification.title || 'Notification',
-        body: notification.message || notification.body || '',
-        type: notification.type || 'general',
-        notification_id: String(notification.id || ''),
-        timestamp: new Date().toISOString(),
-        ...notification.data, // Additional custom data
-      },
-      android: {
-        priority: 'high',
-      },
-    };
-
-    // Send FCM notification
-    const response = await admin.messaging().send(message);
-    console.log(`✅ FCM notification sent to ${userName} (${userId}):`, response);
-    return response;
+    // Send notification to all device tokens
+    const responses = [];
+    for (const token of deviceTokens) {
+      const message = {
+        token,
+        data: {
+          title: notification.title || 'Notification',
+          body: notification.message || notification.body || '',
+          type: notification.type || 'general',
+          notification_id: String(notification.id || ''),
+          timestamp: new Date().toISOString(),
+          ...notification.data,
+        },
+        android: {
+          priority: 'high',
+        },
+      };
+      try {
+        const response = await admin.messaging().send(message);
+        responses.push(response);
+        console.log(`✅ FCM notification sent to device ${token} for user ${userId}:`, response);
+      } catch (error) {
+        console.error(`❌ Error sending FCM notification to device ${token} for user ${userId}:`, error.message);
+      }
+    }
+    return responses;
 
   } catch (error) {
     console.error(`❌ Error sending FCM notification to user ${userId}:`, error.message);
