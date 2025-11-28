@@ -31,6 +31,7 @@ const icaDeliveryRoutes = require('./routes/ica-delivery');
 const fcmRoutes = require('./routes/fcm'); // FCM push notifications
 const presenceRoutes = require('./routes/presence');
 const messagesRoutes = require('./routes/messages');
+const devicesRoutes = require('./routes/devices');
 const schedulerService = require('./services/scheduler');
 const emailService = require('./services/email');
 
@@ -260,6 +261,7 @@ app.use('/api/weather', weatherRoutes);
 app.use('/api/fcm', fcmRoutes);
 app.use('/api/presence', presenceRoutes);
 app.use('/api/messages', messagesRoutes);
+app.use('/api/devices', devicesRoutes);
 
 // Health check endpoint for Render
 app.get('/api/health', (req, res) => {
@@ -784,6 +786,183 @@ io.on('connection', async (socket) => {
     io.to(receiverId).emit('user_stop_typing', {
       userId: senderId
     });
+  });
+
+  // Handle sending messages over Socket.IO (mirrors REST /messages/send behavior)
+  socket.on('sendMessage', async (data) => {
+    const sender_id = socket.user?.id;
+    const { receiver_id, content } = data || {};
+    const sender_device_token = data?.sender_device_token;
+    const sender_device_tokens = Array.isArray(data?.sender_device_tokens) ? data.sender_device_tokens : [];
+
+    if (!sender_id || !receiver_id || !content) {
+      console.log('❌ Missing fields for sendMessage');
+      return;
+    }
+
+    console.log(`✉️ Socket sendMessage from ${sender_id} to ${receiver_id}`);
+
+    try {
+      const { query } = require('./config/database');
+      const ioRef = app.get('io');
+
+      // Check if receiver is online
+      let isReceiverOnline = false;
+      if (ioRef) {
+        const receiverSockets = ioRef.sockets.adapter.rooms.get(receiver_id);
+        isReceiverOnline = receiverSockets && receiverSockets.size > 0;
+      }
+
+      // Insert message - try new schema with delivered_at/read_at
+      let insertResult;
+      try {
+        const deliveredValue = isReceiverOnline ? 'NOW()' : 'NULL';
+        insertResult = await query(
+          `INSERT INTO messages (sender_id, receiver_id, content, created_at, is_read, delivered_at, read_at)
+           VALUES ($1, $2, $3, NOW(), false, ${deliveredValue}, NULL)
+           RETURNING id, sender_id, receiver_id, content, is_read, created_at as timestamp, delivered_at, read_at`,
+          [sender_id, receiver_id, content]
+        );
+      } catch (insErr) {
+        insertResult = await query(
+          `INSERT INTO messages (sender_id, receiver_id, content, created_at, is_read)
+           VALUES ($1, $2, $3, NOW(), false)
+           RETURNING id, sender_id, receiver_id, content, is_read, created_at as timestamp`,
+          [sender_id, receiver_id, content]
+        );
+      }
+
+      const message = insertResult.rows[0];
+
+      // Check if receiver has the chat open (activeConversations map or conversation room)
+      const activeConversations = app.get('activeConversations');
+      let receiverHasChatOpen = activeConversations && activeConversations.get(receiver_id) === sender_id;
+      try {
+        if (ioRef && !receiverHasChatOpen) {
+          const roomName = `conv:${[String(sender_id), String(receiver_id)].sort().join(':')}`;
+          const convRoom = ioRef.sockets.adapter.rooms.get(roomName);
+          const receiverSockets = ioRef.sockets.adapter.rooms.get(String(receiver_id));
+          if (convRoom && receiverSockets) {
+            for (const sid of convRoom) {
+              if (receiverSockets.has(sid)) {
+                receiverHasChatOpen = true;
+                break;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.log('⚠️ Could not check conversation room presence (socket send):', e?.message || e);
+      }
+
+      // If receiver viewing chat, atomically mark read for this and previous unread messages
+      if (receiverHasChatOpen) {
+        try {
+          const updated = await query(
+            `WITH updated AS (
+               UPDATE messages
+               SET is_read = true, read_at = NOW()
+               WHERE id = $1 OR (receiver_id = $2 AND sender_id = $3 AND read_at IS NULL)
+               RETURNING id, read_at
+             ) SELECT id, read_at FROM updated`,
+            [message.id, receiver_id, sender_id]
+          );
+
+          if (updated.rows.length > 0) {
+            const readIds = updated.rows.map(r => r.id);
+            const readAt = updated.rows[0].read_at || new Date().toISOString();
+            message.read_at = readAt;
+            // Emit messagesRead to sender
+            if (ioRef) ioRef.to(sender_id).emit('messagesRead', { messageIds: readIds, readAt, readBy: receiver_id });
+            console.log(`✅ Atomically marked ${readIds.length} messages read via socket send (read_at=${readAt})`);
+          }
+        } catch (err) {
+          console.warn('⚠️ Atomic socket read update failed, falling back:', err?.message || err);
+        }
+      }
+
+      // Device-scoped FCM: fetch receiver device tokens and sender tokens to exclude
+      try {
+        const receiverDeviceRows = await query('SELECT device_token FROM devices WHERE user_id = $1 AND device_token IS NOT NULL', [receiver_id]);
+        const receiverTokens = receiverDeviceRows.rows.map(r => r.device_token).filter(Boolean);
+
+        const senderDeviceRows = await query('SELECT device_token FROM devices WHERE user_id = $1 AND device_token IS NOT NULL', [sender_id]);
+        const senderTokens = senderDeviceRows.rows.map(r => r.device_token).filter(Boolean);
+
+        const excludeSet = new Set(senderTokens.map(String));
+        if (sender_device_token) excludeSet.add(String(sender_device_token));
+        if (Array.isArray(sender_device_tokens)) sender_device_tokens.forEach(t => excludeSet.add(String(t)));
+
+        const tokensToSend = receiverTokens.filter(t => !excludeSet.has(String(t)));
+
+        if (tokensToSend.length > 0 && !isReceiverOnline && receiver_id !== sender_id) {
+          try {
+            const admin = require('./config/firebase');
+            const multicastResponse = await admin.messaging().sendMulticast({
+              tokens: tokensToSend,
+              data: {
+                type: 'new_message',
+                sender_id: String(sender_id),
+                sender_name: String(socket.user?.name || ''),
+                content: String(content),
+                message_id: String(message.id),
+                id: String(message.id)
+              },
+              android: { priority: 'high' }
+            });
+            console.log(`✅ FCM multicast sent via socket send to ${tokensToSend.length} device(s) (successes=${multicastResponse.successCount})`);
+          } catch (fcme) {
+            console.error('❌ FCM multicast error (socket send):', fcme?.message || fcme);
+          }
+        } else if (isReceiverOnline) {
+          console.log('⏩ Skipping FCM - receiver online (socket send)');
+        }
+      } catch (devErr) {
+        console.error('❌ Error fetching device tokens (socket send):', devErr?.message || devErr);
+      }
+
+      // Emit new_message to receiver and sender
+      try {
+        if (ioRef) {
+          ioRef.to(receiver_id).emit('new_message', {
+            sender_id,
+            sender_name: socket.user?.name,
+            sender_photo: socket.user?.photo_url,
+            content,
+            message_id: message.id,
+            id: message.id,
+            timestamp: message.timestamp,
+            delivered_at: message.delivered_at,
+            read_at: message.read_at,
+            sent_at: message.timestamp
+          });
+
+          ioRef.to(sender_id).emit('new_message', {
+            sender_id,
+            sender_name: socket.user?.name,
+            sender_photo: socket.user?.photo_url,
+            content,
+            message_id: message.id,
+            id: message.id,
+            timestamp: message.timestamp,
+            delivered_at: message.delivered_at,
+            read_at: message.read_at,
+            sent_at: message.timestamp
+          });
+
+          if (isReceiverOnline && message.delivered_at) {
+            const deliveredEvent = { messageId: message.id, deliveredAt: message.delivered_at };
+            ioRef.to(sender_id).emit('messageDelivered', deliveredEvent);
+            ioRef.to(receiver_id).emit('messageDelivered', deliveredEvent);
+          }
+        }
+      } catch (emitErr) {
+        console.error('❌ Socket emit error for sendMessage:', emitErr?.message || emitErr);
+      }
+
+    } catch (error) {
+      console.error('❌ Error in sendMessage handler:', error?.message || error);
+    }
   });
 
   // Handle mark messages as read (for read receipts)
