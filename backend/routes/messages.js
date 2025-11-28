@@ -132,43 +132,64 @@ router.post('/send', authenticateToken, async (req, res) => {
     }
     
     if (receiverHasChatOpen) {
-      // Receiver is viewing this chat, auto-mark as read
+      // Receiver is viewing this chat — do a single atomic update so all affected rows
+      // receive the same read_at timestamp and we can emit a consistent messagesRead event.
       try {
-        const readResult = await query(
-          'UPDATE messages SET is_read = true, read_at = NOW() WHERE id = $1 RETURNING read_at',
-          [message.id]
+        const updated = await query(
+          `WITH updated AS (
+             UPDATE messages
+             SET is_read = true, read_at = NOW()
+             WHERE id = $1 OR (receiver_id = $2 AND sender_id = $3 AND read_at IS NULL)
+             RETURNING id, read_at
+           ) SELECT id, read_at FROM updated`,
+          [message.id, receiver_id, sender_id]
         );
-        if (readResult.rows.length > 0) {
-          message.read_at = readResult.rows[0].read_at;
-          console.log(`✅ Message ${message.id} auto-marked as read (receiver viewing chat)`);
-        }
-      } catch (readError) {
-        // If read_at column doesn't exist, just set is_read
-        try {
-          await query('UPDATE messages SET is_read = true WHERE id = $1', [message.id]);
-          message.read_at = new Date().toISOString();
-          console.log(`✅ Message ${message.id} auto-marked as read (fallback)`);
-        } catch (fallbackError) {
-          console.error('❌ Could not auto-mark message as read:', fallbackError);
-        }
-      }
 
-      // Also mark any other previous unread messages in this thread as read (helpful when receiver has been in the chat)
-      try {
-        const rows = await query(
-          'UPDATE messages SET is_read = true, read_at = NOW() WHERE receiver_id = $1 AND sender_id = $2 AND read_at IS NULL RETURNING id',
-          [receiver_id, sender_id]
-        );
-        const readIds = rows.rows.map(r => r.id);
-        if (readIds.length > 0) {
-          const readAt = new Date().toISOString();
-          const io = app.get('io');
-          // Inform the sender(s) that these messages were read
-          if (io) io.to(sender_id).emit('messagesRead', { messageIds: readIds, readAt, readBy: receiver_id });
+        if (updated.rows.length > 0) {
+          const readIds = updated.rows.map(r => r.id);
+          const readAt = updated.rows[0].read_at || new Date().toISOString();
+
+          // set the message object's read_at consistently
+          message.read_at = readAt;
+
+          // Inform the sender that these messages were read
+          try {
+            const io = app.get('io');
+            if (io) {
+              io.to(sender_id).emit('messagesRead', {
+                messageIds: readIds,
+                readAt,
+                readBy: receiver_id
+              });
+            }
+          } catch (emitErr) {
+            console.error('❌ Error emitting messagesRead after atomic update:', emitErr?.message || emitErr);
+          }
+
+          console.log(`✅ Atomically marked ${readIds.length} messages as read (read_at=${readAt}) for conversation ${sender_id} -> ${receiver_id}`);
         }
-      } catch (err) {
-        // non-fatal
-        console.error('❌ Error marking previous unread messages as read:', err?.message || err);
+      } catch (readErr) {
+        // If read_at doesn't exist on the DB (older schema), fall back to marking is_read
+        console.warn('⚠️ Atomic read_at update failed, falling back (maybe read_at column missing):', readErr?.message || readErr);
+        try {
+          // Mark the current message as read
+          await query('UPDATE messages SET is_read = true WHERE id = $1 RETURNING id', [message.id]);
+          // Mark other previous unread messages as read (non-atomic but survives older schemas)
+          const prev = await query(
+            'UPDATE messages SET is_read = true WHERE receiver_id = $1 AND sender_id = $2 AND is_read = false RETURNING id',
+            [receiver_id, sender_id]
+          );
+          const readIds = [message.id].concat(prev.rows.map(r => r.id));
+          const readAt = new Date().toISOString();
+          message.read_at = readAt; // best-effort (not stored)
+          const io = app.get('io');
+          if (io && readIds.length > 0) {
+            io.to(sender_id).emit('messagesRead', { messageIds: readIds, readAt, readBy: receiver_id });
+          }
+          console.log(`✅ Fallback: marked ${readIds.length} messages as read for conversation ${sender_id} -> ${receiver_id}`);
+        } catch (fallbackErr) {
+          console.error('❌ Could not auto-mark messages as read (fallback):', fallbackErr?.message || fallbackErr);
+        }
       }
     }
     

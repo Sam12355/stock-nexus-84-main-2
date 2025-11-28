@@ -800,23 +800,24 @@ io.on('connection', async (socket) => {
 
     try {
       const { query } = require('./config/database');
-      
       let result;
       try {
-        // Try with read_at column if it exists
+        // Atomic update: set is_read and read_at (same timestamp for all rows), returning ids and read_at
         result = await query(
-          `UPDATE messages 
-           SET is_read = true, read_at = NOW() 
-           WHERE receiver_id = $1 AND sender_id = $2 AND is_read = false 
-           RETURNING id, read_at`,
+          `WITH updated AS (
+             UPDATE messages
+             SET is_read = true, read_at = NOW()
+             WHERE receiver_id = $1 AND sender_id = $2 AND is_read = false
+             RETURNING id, read_at
+           ) SELECT id, read_at FROM updated`,
           [userId, conversationPartnerId]
         );
       } catch (updateError) {
-        // Fallback to old schema without read_at
+        // Fallback to older schema without read_at
         result = await query(
-          `UPDATE messages 
-           SET is_read = true 
-           WHERE receiver_id = $1 AND sender_id = $2 AND is_read = false 
+          `UPDATE messages
+           SET is_read = true
+           WHERE receiver_id = $1 AND sender_id = $2 AND is_read = false
            RETURNING id`,
           [userId, conversationPartnerId]
         );
@@ -825,9 +826,9 @@ io.on('connection', async (socket) => {
       if (result.rows.length > 0) {
         const messageIds = result.rows.map(r => r.id);
         const readAt = result.rows[0].read_at || new Date().toISOString();
-        
-        console.log(`✅ Marked ${result.rows.length} messages as read`);
-        
+
+        console.log(`✅ Atomically marked ${result.rows.length} messages as read (read_at=${readAt})`);
+
         // Emit to sender so they see read receipts (green ticks)
         io.to(conversationPartnerId).emit('messagesRead', {
           messageIds,
