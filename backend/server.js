@@ -775,6 +775,40 @@ io.on('connection', async (socket) => {
     });
   });
 
+  // Allow socket to register its device token so server can exclude it from FCM pushes
+  socket.on('registerDevice', async (data, ack) => {
+    try {
+      const device_token = data?.device_token;
+      const device_id = data?.device_id;
+      socket.data.device_token = device_token || socket.data.device_token;
+      socket.data.device_id = device_id || socket.data.device_id;
+
+      // Upsert into devices table so server has canonical device list
+      if (device_token) {
+        const { query } = require('./config/database');
+        if (device_id) {
+          await query(
+            `INSERT INTO devices (user_id, device_id, device_token, last_seen)
+             VALUES ($1, $2, $3, NOW())
+             ON CONFLICT (device_id) DO UPDATE SET device_token = EXCLUDED.device_token, last_seen = NOW()`,
+            [socket.user.id, device_id, device_token]
+          );
+        } else {
+          // Insert new row if no device_id provided
+          await query(
+            `INSERT INTO devices (user_id, device_token, last_seen) VALUES ($1, $2, NOW())`,
+            [socket.user.id, device_token]
+          );
+        }
+      }
+
+      if (typeof ack === 'function') ack({ success: true });
+    } catch (err) {
+      console.error('❌ Error in registerDevice socket handler:', err?.message || err);
+      if (typeof ack === 'function') ack({ success: false, error: err?.message || 'error' });
+    }
+  });
+
   // Handle stop typing indicators
   socket.on('stop_typing', (data) => {
     const senderId = socket.user?.id;
@@ -892,6 +926,18 @@ io.on('connection', async (socket) => {
         const excludeSet = new Set(senderTokens.map(String));
         if (sender_device_token) excludeSet.add(String(sender_device_token));
         if (Array.isArray(sender_device_tokens)) sender_device_tokens.forEach(t => excludeSet.add(String(t)));
+
+        // Also include any device token(s) registered on the live sender sockets (covers fast-path where client hasn't called devices.register yet)
+        try {
+          const senderSockets = await ioRef.in(String(sender_id)).fetchSockets();
+          for (const s of senderSockets) {
+            const tok = s.data?.device_token;
+            if (tok) excludeSet.add(String(tok));
+          }
+        } catch (sockErr) {
+          // non-fatal
+          console.warn('⚠️ Could not fetch sender sockets for exclude tokens:', sockErr?.message || sockErr);
+        }
 
         const tokensToSend = receiverTokens.filter(t => !excludeSet.has(String(t)));
 

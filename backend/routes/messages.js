@@ -209,6 +209,20 @@ router.post('/send', authenticateToken, async (req, res) => {
       if (req.body.sender_device_token) senderExcludeTokens.add(String(req.body.sender_device_token));
       if (Array.isArray(req.body.sender_device_tokens)) req.body.sender_device_tokens.forEach(t => senderExcludeTokens.add(String(t)));
 
+      // Also include any device token(s) registered on the live sender sockets (covers cases where the client hasn't called devices.register yet)
+      try {
+        const ioRef = app.get('io');
+        if (ioRef) {
+          const senderSockets = await ioRef.in(String(sender_id)).fetchSockets();
+          for (const s of senderSockets) {
+            const tok = s.data?.device_token;
+            if (tok) senderExcludeTokens.add(String(tok));
+          }
+        }
+      } catch (sockErr) {
+        console.warn('⚠️ Could not fetch sender sockets for exclude tokens:', sockErr?.message || sockErr);
+      }
+
       // Filter out any tokens that match sender's devices
       const tokensToSend = receiverTokens.filter(t => !senderExcludeTokens.has(String(t)));
 
