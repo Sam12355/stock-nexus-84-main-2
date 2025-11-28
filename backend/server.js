@@ -946,6 +946,7 @@ io.on('connection', async (socket) => {
         console.log(`🔍 [Socket] Tokens to send after exclusion: ${tokensToSend.join(', ')}`);
 
         if (tokensToSend.length > 0 && !isReceiverOnline && receiver_id !== sender_id) {
+          console.log(`🚀 [Socket] SENDING FCM to these tokens for receiver ${receiver_id}: ${JSON.stringify(tokensToSend)}`);
           try {
             const admin = require('./config/firebase');
             const multicastResponse = await admin.messaging().sendMulticast({
