@@ -203,24 +203,10 @@ router.post('/send', authenticateToken, async (req, res) => {
     const receiverResult = await query('SELECT fcm_token FROM users WHERE id = $1', [receiver_id]);
     const receiverToken = receiverResult.rows[0]?.fcm_token;
     
-    // Optional: client may pass exclude tokens (sender's current device token(s)) to avoid
-    // delivering push notifications to the sending device. Support both a single string
-    // `exclude_fcm_token` or an array `exclude_fcm_tokens`.
-    const excludeTokens = [];
-    if (req.body.exclude_fcm_token) excludeTokens.push(String(req.body.exclude_fcm_token));
-    if (Array.isArray(req.body.exclude_fcm_tokens)) excludeTokens.push(...req.body.exclude_fcm_tokens.map(String));
-
-    // Send FCM push notification ONLY if receiver is offline,
-    // receiver is not the same user as the sender, the token doesn't match sender's token,
-    // and the receiver token is not in the excludeTokens list.
+    // Send FCM push notification ONLY if receiver is offline
+    // and the receiver is not the same user as the sender and the token doesn't match sender's token
     const senderFcmToken = sender.fcm_token || null;
-    if (
-      receiverToken &&
-      !isReceiverOnline &&
-      receiver_id !== sender_id &&
-      receiverToken !== senderFcmToken &&
-      !excludeTokens.includes(String(receiverToken))
-    ) {
+    if (receiverToken && !isReceiverOnline && receiver_id !== sender_id && receiverToken !== senderFcmToken) {
       try {
         const admin = require('../config/firebase');
         const fcmMessage = {
@@ -247,8 +233,8 @@ router.post('/send', authenticateToken, async (req, res) => {
       }
     } else if (isReceiverOnline) {
       console.log(`⏩ Skipping FCM - receiver ${receiver_id} is online via Socket.IO`);
-    } else if (receiver_id === sender_id || receiverToken === senderFcmToken || excludeTokens.includes(String(receiverToken))) {
-      console.log(`⏩ Skipping FCM - receiver token matches sender or excluded token (sender=${sender_id}, receiver=${receiver_id})`);
+    } else if (receiver_id === sender_id || receiverToken === senderFcmToken) {
+      console.log(`⏩ Skipping FCM - receiver token matches sender or message sent to self (sender=${sender_id}, receiver=${receiver_id})`);
     } else {
       console.log(`⚠️ No FCM token for receiver: ${receiver_id}`);
     }
