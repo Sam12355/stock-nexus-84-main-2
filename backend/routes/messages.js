@@ -193,50 +193,61 @@ router.post('/send', authenticateToken, async (req, res) => {
       }
     }
     
-    // Get sender info for FCM (name, photo and fcm_token)
-    const senderResult = await query('SELECT name, photo_url, fcm_token FROM users WHERE id = $1', [sender_id]);
+    // Get sender info for FCM (name and photo)
+    const senderResult = await query('SELECT name, photo_url FROM users WHERE id = $1', [sender_id]);
     const sender = senderResult.rows[0] || {};
     const senderName = sender.name || 'Someone';
     const senderPhoto = sender.photo_url || '';
-    
-    // Get receiver's FCM token
-    const receiverResult = await query('SELECT fcm_token FROM users WHERE id = $1', [receiver_id]);
-    const receiverToken = receiverResult.rows[0]?.fcm_token;
-    
-    // Send FCM push notification ONLY if receiver is offline
-    // and the receiver is not the same user as the sender and the token doesn't match sender's token
-    const senderFcmToken = sender.fcm_token || null;
-    if (receiverToken && !isReceiverOnline && receiver_id !== sender_id && receiverToken !== senderFcmToken) {
-      try {
-        const admin = require('../config/firebase');
-        const fcmMessage = {
-          token: receiverToken,
-          data: {
-            type: 'new_message',
-            sender_id: String(sender_id),
-            sender_name: String(senderName),
-            sender_photo: String(senderPhoto),
-            content: String(content),
-            message_id: String(message.id),
-            id: String(message.id)
-          },
-          android: {
-            priority: 'high'
-          }
-        };
-        
-        await admin.messaging().send(fcmMessage);
-        console.log(`✅ FCM new_message notification sent to ${receiver_id} (offline)`);
-      } catch (fcmError) {
-        console.error(`❌ FCM error for user ${receiver_id}:`, fcmError.message);
-        // Don't fail the request if FCM fails
+
+    // Device-scoped FCM: query device tokens for the receiver and exclude sender's device token(s).
+    try {
+      const deviceRows = await query('SELECT device_token FROM devices WHERE user_id = $1 AND device_token IS NOT NULL', [receiver_id]);
+      const receiverTokens = deviceRows.rows.map(r => r.device_token).filter(Boolean);
+
+      // Determine sender device token(s) to exclude — client can pass `sender_device_token` or `sender_device_tokens` in the request body
+      const senderExcludeTokens = new Set();
+      if (req.body.sender_device_token) senderExcludeTokens.add(String(req.body.sender_device_token));
+      if (Array.isArray(req.body.sender_device_tokens)) req.body.sender_device_tokens.forEach(t => senderExcludeTokens.add(String(t)));
+
+      // Filter out any tokens that match sender's devices
+      const tokensToSend = receiverTokens.filter(t => !senderExcludeTokens.has(String(t)));
+
+      if (tokensToSend.length > 0 && !isReceiverOnline && receiver_id !== sender_id) {
+        try {
+          const admin = require('../config/firebase');
+          const messagePayload = {
+            tokens: tokensToSend,
+            data: {
+              type: 'new_message',
+              sender_id: String(sender_id),
+              sender_name: String(senderName),
+              sender_photo: String(senderPhoto),
+              content: String(content),
+              message_id: String(message.id),
+              id: String(message.id)
+            },
+            android: { priority: 'high' }
+          };
+
+          // Use sendMulticast to deliver to multiple device tokens at once
+          const response = await admin.messaging().sendMulticast({
+            tokens: tokensToSend,
+            data: messagePayload.data,
+            android: { priority: 'high' }
+          });
+          console.log(`✅ FCM new_message multicast sent to ${tokensToSend.length} device(s) for user ${receiver_id}`, response.successCount + ' successes');
+        } catch (fcmError) {
+          console.error(`❌ FCM multicast error for user ${receiver_id}:`, fcmError?.message || fcmError);
+        }
+      } else if (isReceiverOnline) {
+        console.log(`⏩ Skipping FCM - receiver ${receiver_id} is online via Socket.IO`);
+      } else if (receiver_id === sender_id) {
+        console.log(`⏩ Skipping FCM - message sent to self (sender=${sender_id}, receiver=${receiver_id})`);
+      } else {
+        console.log(`⚠️ No device tokens to send FCM for receiver: ${receiver_id}`);
       }
-    } else if (isReceiverOnline) {
-      console.log(`⏩ Skipping FCM - receiver ${receiver_id} is online via Socket.IO`);
-    } else if (receiver_id === sender_id || receiverToken === senderFcmToken) {
-      console.log(`⏩ Skipping FCM - receiver token matches sender or message sent to self (sender=${sender_id}, receiver=${receiver_id})`);
-    } else {
-      console.log(`⚠️ No FCM token for receiver: ${receiver_id}`);
+    } catch (deviceErr) {
+      console.error('❌ Error fetching device tokens for receiver:', deviceErr?.message || deviceErr);
     }
     
     // Emit Socket.IO event for real-time delivery
