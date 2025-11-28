@@ -199,17 +199,20 @@ router.post('/send', authenticateToken, async (req, res) => {
     const senderName = sender.name || 'Someone';
     const senderPhoto = sender.photo_url || '';
 
-    // Device-scoped FCM: query device tokens for the receiver and exclude sender's device token(s).
+    // Device-scoped FCM: query device tokens for the receiver and exclude ALL sender's device tokens from DB.
     try {
       const deviceRows = await query('SELECT device_token FROM devices WHERE user_id = $1 AND device_token IS NOT NULL', [receiver_id]);
       const receiverTokens = deviceRows.rows.map(r => r.device_token).filter(Boolean);
 
-      // Determine sender device token(s) to exclude — client can pass `sender_device_token` or `sender_device_tokens` in the request body
-      const senderExcludeTokens = new Set();
+      // Query ALL sender's device tokens from DB and exclude them
+      const senderDeviceRows = await query('SELECT device_token FROM devices WHERE user_id = $1 AND device_token IS NOT NULL', [sender_id]);
+      const senderExcludeTokens = new Set(senderDeviceRows.rows.map(r => r.device_token).filter(Boolean));
+
+      // Also add any token passed in request body (fallback)
       if (req.body.sender_device_token) senderExcludeTokens.add(String(req.body.sender_device_token));
       if (Array.isArray(req.body.sender_device_tokens)) req.body.sender_device_tokens.forEach(t => senderExcludeTokens.add(String(t)));
 
-      // Also include any device token(s) registered on the live sender sockets (covers cases where the client hasn't called devices.register yet)
+      // Also include any device token(s) registered on the live sender sockets
       try {
         const ioRef = app.get('io');
         if (ioRef) {
@@ -223,8 +226,12 @@ router.post('/send', authenticateToken, async (req, res) => {
         console.warn('⚠️ Could not fetch sender sockets for exclude tokens:', sockErr?.message || sockErr);
       }
 
+      console.log(`🔍 Sender ${sender_id} exclude tokens: ${[...senderExcludeTokens].join(', ')}`);
+      console.log(`🔍 Receiver ${receiver_id} tokens: ${receiverTokens.join(', ')}`);
+
       // Filter out any tokens that match sender's devices
       const tokensToSend = receiverTokens.filter(t => !senderExcludeTokens.has(String(t)));
+      console.log(`🔍 Tokens to send after exclusion: ${tokensToSend.join(', ')}`);
 
       if (tokensToSend.length > 0 && !isReceiverOnline && receiver_id !== sender_id) {
         try {

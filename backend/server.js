@@ -941,6 +941,10 @@ io.on('connection', async (socket) => {
 
         const tokensToSend = receiverTokens.filter(t => !excludeSet.has(String(t)));
 
+        console.log(`🔍 [Socket] Sender ${sender_id} exclude tokens: ${[...excludeSet].join(', ')}`);
+        console.log(`🔍 [Socket] Receiver ${receiver_id} tokens: ${receiverTokens.join(', ')}`);
+        console.log(`🔍 [Socket] Tokens to send after exclusion: ${tokensToSend.join(', ')}`);
+
         if (tokensToSend.length > 0 && !isReceiverOnline && receiver_id !== sender_id) {
           try {
             const admin = require('./config/firebase');
