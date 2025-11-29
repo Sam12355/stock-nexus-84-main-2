@@ -511,6 +511,89 @@ router.post('/test-whatsapp', authenticateToken, async (req, res) => {
   }
 });
 
+// POST /api/notifications/broadcast - Send FCM notification to all staff devices
+router.post('/broadcast', authenticateToken, async (req, res) => {
+  const { type, title, message, data } = req.body;
+
+  if (!title || !message) {
+    return res.status(400).json({ success: false, error: 'Missing required fields: title, message' });
+  }
+
+  try {
+    // Get all device tokens from the devices table (all staff users)
+    const deviceResult = await query(
+      `SELECT DISTINCT d.device_token, d.user_id, u.name as user_name
+       FROM devices d
+       JOIN users u ON u.id = d.user_id
+       WHERE d.device_token IS NOT NULL AND u.is_active = true`
+    );
+
+    const tokens = deviceResult.rows.map(r => r.device_token).filter(Boolean);
+
+    if (tokens.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No device tokens found to broadcast to',
+        sent: 0,
+        failed: 0
+      });
+    }
+
+    // Send FCM notification using sendEachForMulticast (or sendMulticast for older SDK)
+    const admin = require('../config/firebase');
+
+    const fcmMessage = {
+      tokens: tokens,
+      notification: {
+        title: title,
+        body: message
+      },
+      data: {
+        type: type || 'broadcast',
+        title: String(title),
+        body: String(message),
+        ...(data || {}),
+        timestamp: new Date().toISOString()
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          sound: 'default',
+          channelId: 'stock_nexus_notifications'
+        }
+      }
+    };
+
+    const response = await admin.messaging().sendEachForMulticast(fcmMessage);
+
+    console.log(`📢 Broadcast FCM sent: ${response.successCount} success, ${response.failureCount} failed out of ${tokens.length} tokens`);
+
+    // Log any failures for debugging
+    if (response.failureCount > 0) {
+      response.responses.forEach((resp, idx) => {
+        if (!resp.success) {
+          console.warn(`❌ FCM broadcast failed for token index ${idx}:`, resp.error?.message || resp.error);
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Broadcast sent to ${response.successCount} devices`,
+      sent: response.successCount,
+      failed: response.failureCount,
+      total: tokens.length
+    });
+  } catch (error) {
+    console.error('❌ Error broadcasting FCM notification:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to broadcast notification',
+      details: error.message
+    });
+  }
+});
+
 module.exports = router;
 
 // Export the trigger function for use by other routes
