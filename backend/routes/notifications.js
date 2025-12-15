@@ -40,6 +40,24 @@ const triggerNotificationUpdate = (req, branchId = null) => {
   }
 };
 
+// Emit real-time notification to specific user
+const emitNewNotification = (userId, notificationData) => {
+  const io = global.socketIO;
+  if (io) {
+    io.to(`user_${userId}`).emit('new_notification', {
+      id: notificationData.id,
+      title: notificationData.title,
+      message: notificationData.message,
+      type: notificationData.type,
+      created_at: notificationData.created_at || new Date().toISOString()
+    });
+    console.log(`📢 Emitted new_notification to user_${userId}:`, notificationData.title);
+  }
+};
+
+// Export both functions
+module.exports.emitNewNotification = emitNewNotification;
+
 // Get user notifications
 router.get('/', authenticateToken, async (req, res) => {
   try {
@@ -197,8 +215,8 @@ Please restock immediately to avoid stockout!
 Time: ${new Date().toLocaleString()}`;
 
     // Create notification record
-    await query(
-      'INSERT INTO notifications (user_id, title, message, type, data) VALUES ($1, $2, $3, $4, $5)',
+    const notifResult = await query(
+      'INSERT INTO notifications (user_id, title, message, type, data) VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at',
       [
         req.user.id,
         `Stock Alert: ${item_name}`,
@@ -213,7 +231,16 @@ Time: ${new Date().toLocaleString()}`;
       ]
     );
 
-    // Trigger frontend notification update
+    // Emit real-time notification to user
+    emitNewNotification(req.user.id, {
+      id: notifResult.rows[0].id,
+      title: `Stock Alert: ${item_name}`,
+      message: message,
+      type: 'stock_alert',
+      created_at: notifResult.rows[0].created_at
+    });
+
+    // Trigger frontend notification update (legacy)
     triggerNotificationUpdate(req, req.user.branch_id || req.user.branch_context);
 
     // Send WhatsApp notification using the enhanced message

@@ -4,7 +4,7 @@ const { query, transaction } = require('../config/database');
 const { authenticateToken, authorize } = require('../middleware/auth');
 const whatsappService = require('../services/whatsapp');
 const emailService = require('../services/email');
-const { triggerNotificationUpdate } = require('./notifications');
+const { triggerNotificationUpdate, emitNewNotification } = require('./notifications');
 const { sendStockAlertNotification } = require('../utils/fcm');
 
 const router = express.Router();
@@ -148,8 +148,8 @@ router.post('/',
 
           // Create notifications for each staff member
           for (const staff of staffResult.rows) {
-            await query(
-              'INSERT INTO notifications (user_id, title, message, type, data) VALUES ($1, $2, $3, $4, $5)',
+            const notifResult = await query(
+              'INSERT INTO notifications (user_id, title, message, type, data) VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at',
               [
                 staff.id,
                 'New Moveout List Created',
@@ -166,6 +166,15 @@ router.post('/',
                 })
               ]
             );
+            
+            // Emit real-time notification
+            emitNewNotification(staff.id, {
+              id: notifResult.rows[0].id,
+              title: 'New Moveout List Created',
+              message: `${req.user.name} has created a new moveout list with ${items.length} items. Please review the items that need to be moved out.`,
+              type: 'moveout_list',
+              created_at: notifResult.rows[0].created_at
+            });
           }
         }
       } catch (notificationError) {
@@ -394,8 +403,8 @@ router.post('/:id/process-item',
       });
 
       // Create immediate notification for item processing
-      await query(
-        'INSERT INTO notifications (user_id, title, message, type, data) VALUES ($1, $2, $3, $4, $5)',
+      const processNotif = await query(
+        'INSERT INTO notifications (user_id, title, message, type, data) VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at',
         [
           req.user.id,
           `Item Processed`,
@@ -409,6 +418,15 @@ router.post('/:id/process-item',
           })
         ]
       );
+      
+      // Emit real-time notification
+      emitNewNotification(req.user.id, {
+        id: processNotif.rows[0].id,
+        title: 'Item Processed',
+        message: `${item.item_name} (${quantity} units) has been deducted from stock`,
+        type: 'moveout_processed',
+        created_at: processNotif.rows[0].created_at
+      });
 
       // Trigger frontend notification update IMMEDIATELY after stock deduction
       console.log('📢 Moveout Lists: About to trigger notification update...');

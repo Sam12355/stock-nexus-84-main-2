@@ -348,20 +348,26 @@ router.post('/movement', authenticateToken, async (req, res) => {
                       const io = global.socketIO;
                       if (io) {
                         const branchId = user.branch_id || user.branch_context || req.user.branch_id;
+                        
+                        // Emit stock_alert event to branch room
                         if (branchId) {
+                          io.to(`branch_${branchId}`).emit('stock_alert', {
+                            id: insertResult.rows[0].id,
+                            item_id: item_id,
+                            item_name: item.item_name,
+                            current_quantity: newQuantity,
+                            threshold_level: threshold,
+                            branch_id: branchId,
+                            created_at: new Date().toISOString()
+                          });
+                          console.log(`📢 Socket.IO: Emitted stock_alert to branch_${branchId} for ${item.item_name}`);
+                          
+                          // Keep legacy notification-update for backward compatibility
                           io.to(`branch-${branchId}`).emit('notification-update', {
                             type: 'notification-update',
                             message: 'New notifications available',
                             timestamp: new Date().toISOString()
                           });
-                          console.log(`📢 Socket.IO: Sent notification update to branch-${branchId}`);
-                        } else {
-                          io.emit('notification-update', {
-                            type: 'notification-update',
-                            message: 'New notifications available',
-                            timestamp: new Date().toISOString()
-                          });
-                          console.log(`📢 Socket.IO: Sent notification update to all clients`);
                         }
                       } else {
                         console.log(`⚠️ Socket.IO not available`);

@@ -346,15 +346,23 @@ io.on('connection', async (socket) => {
   // Join user's personal room for direct messaging (e.g., typing indicators, DMs)
   socket.join(socket.user.id);
   console.log(`✅ User ${socket.user.name} joined personal room: ${socket.user.id}`);
+  
+  // Also join user_${userId} room for new notification format (iOS app expects this)
+  socket.join(`user_${socket.user.id}`);
+  console.log(`✅ User ${socket.user.name} joined personal notification room: user_${socket.user.id}`);
 
   // Auto-join branch room
   if (branchId) {
     const room = `branch-${branchId}`;
     socket.join(room);
     
+    // Also join branch_${branchId} room for new event format (iOS app expects this)
+    socket.join(`branch_${branchId}`);
+    
     // Log room membership
     const roomSize = io.sockets.adapter.rooms.get(room)?.size || 0;
     console.log(`✅ User ${socket.user.name} joined room: ${room}`);
+    console.log(`✅ User ${socket.user.name} joined room: branch_${branchId}`);
     console.log(`📊 Room ${room} now has ${roomSize} socket(s)`);
     
     // Add presence and emit user-online to OTHER users in the branch

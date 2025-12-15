@@ -77,8 +77,21 @@ router.post('/', authenticateToken, async (req, res) => {
       RETURNING *
     `, [title, description, event_date, event_type || 'general', branch_id, user_id]);
 
-    // Don't create notification on event creation - only reminder notifications are sent 1 hour before event
-    // triggerNotificationUpdate(req, req.user.branch_id || req.user.branch_context);
+    // Emit real-time new_event socket event to branch
+    const io = global.socketIO;
+    const targetBranch = branch_id || req.user.branch_id || req.user.branch_context;
+    if (io && targetBranch) {
+      io.to(`branch_${targetBranch}`).emit('new_event', {
+        id: result.rows[0].id,
+        title: title,
+        event_date: event_date,
+        description: description || '',
+        branch_id: targetBranch,
+        created_by: user_id,
+        created_at: new Date().toISOString()
+      });
+      console.log(`📢 Socket.IO: Emitted new_event to branch_${targetBranch} for ${title}`);
+    }
 
     res.json({
       success: true,
